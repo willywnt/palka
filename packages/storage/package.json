@@ -1,0 +1,29 @@
+{
+  "name": "@olshop/storage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.787.0",
+    "@olshop/config": "workspace:*",
+    "@olshop/utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@olshop/eslint-config": "workspace:*",
+    "@olshop/typescript-config": "workspace:*",
+    "eslint": "^9.24.0",
+    "typescript": "^5.8.3"
+  }
+}

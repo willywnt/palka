@@ -1,9 +1,6 @@
 import type { RecordingStatus } from '@prisma/client';
 
-import {
-  formatEstimatedFileSize,
-  formatRecordingDuration,
-} from './format';
+import { formatEstimatedFileSize, formatRecordingDuration } from './format';
 
 export { formatRecordingDuration, formatEstimatedFileSize as formatRecordingFileSize };
 
@@ -38,6 +35,7 @@ export function getRecordingStatusVariant(
       return 'outline';
     case 'FAILED':
     case 'DELETED':
+    case 'PENDING_DELETE':
       return 'destructive';
     default:
       return 'secondary';

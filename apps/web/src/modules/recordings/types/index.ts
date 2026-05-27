@@ -117,6 +117,7 @@ export const RECORDING_STATUS_LABELS: Record<PrismaRecordingStatus, string> = {
   UPLOADING: 'Uploading',
   COMPLETED: 'Completed',
   FAILED: 'Failed',
+  PENDING_DELETE: 'Pending deletion',
   DELETED: 'Deleted',
 };
 

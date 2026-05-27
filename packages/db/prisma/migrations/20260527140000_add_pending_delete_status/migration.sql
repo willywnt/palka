@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "RecordingStatus" ADD VALUE IF NOT EXISTS 'PENDING_DELETE';

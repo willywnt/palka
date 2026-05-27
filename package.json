@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "turbo dev",
+    "dev:web": "pnpm --filter @olshop/web dev",
+    "dev:worker": "pnpm --filter @olshop/worker dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,cjs,json,md,css}\"",
@@ -38,6 +40,11 @@
   "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "ioredis": "^5.6.1"
+    }
   },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0"

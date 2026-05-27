@@ -17,6 +17,7 @@ enum RecordingStatus {
   UPLOADING
   COMPLETED
   FAILED
+  PENDING_DELETE
   DELETED
 }
 

@@ -52,6 +52,21 @@ export const INVENTORY_SYNC_BATCH_SIZE = 100;
 /** Audit log retention in days. */
 export const AUDIT_LOG_RETENTION_DAYS = 90;
 
+/** Completed recording retention before automated cleanup (days). */
+export const RECORDING_RETENTION_DAYS = 30;
+
+/** Stale RECORDING/UPLOADING session threshold (hours). */
+export const STALE_RECORDING_SESSION_HOURS = 24;
+
+/** Failed upload metadata cleanup threshold (days). */
+export const FAILED_UPLOAD_RETENTION_DAYS = 7;
+
+/** Default BullMQ job retry attempts. */
+export const JOB_DEFAULT_ATTEMPTS = 5;
+
+/** Default BullMQ job backoff delay in milliseconds. */
+export const JOB_DEFAULT_BACKOFF_MS = 5_000;
+
 /** Pagination defaults. */
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;

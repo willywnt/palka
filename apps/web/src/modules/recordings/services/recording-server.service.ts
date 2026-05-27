@@ -229,7 +229,10 @@ export class RecordingServerService {
     });
   }
 
-  async listRecordings(userId: string, query: ListRecordingsQuery): Promise<PaginatedRecordingsResponse> {
+  async listRecordings(
+    userId: string,
+    query: ListRecordingsQuery,
+  ): Promise<PaginatedRecordingsResponse> {
     const where: Prisma.RecordingWhereInput = {
       userId,
       deletedAt: null,
@@ -237,6 +240,8 @@ export class RecordingServerService {
 
     if (query.status !== 'ALL') {
       where.status = query.status;
+    } else {
+      where.status = { not: RecordingStatus.PENDING_DELETE };
     }
 
     if (query.search) {
