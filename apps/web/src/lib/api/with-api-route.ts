@@ -14,11 +14,11 @@ import { getRequestIp, runWithRequestContext } from '@/lib/api/request-context';
 import { AppError } from '@/lib/errors';
 import { getCurrentUser } from '@/modules/auth/services/session';
 
-type ApiRouteContext = {
-  params?: Promise<Record<string, string>>;
+type RouteContext = {
+  params: Promise<Record<string, string>>;
 };
 
-type ApiHandler = (request: Request, context: ApiRouteContext) => Response | Promise<Response>;
+type ApiHandler = (request: Request, context: RouteContext) => Response | Promise<Response>;
 
 export type ApiRouteOptions = {
   rateLimit?: RateLimitScope;
@@ -27,7 +27,7 @@ export type ApiRouteOptions = {
 };
 
 export function withApiRoute(handler: ApiHandler, options: ApiRouteOptions = {}) {
-  return async (request: Request, context: ApiRouteContext = {}) => {
+  return async (request: Request, context: RouteContext) => {
     const requestId = resolveRequestId(request.headers.get(REQUEST_ID_HEADER));
     const ip = getRequestIp(request);
 
