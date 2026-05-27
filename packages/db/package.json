@@ -30,7 +30,7 @@
     "db:generate": "prisma generate",
     "db:push": "node scripts/with-env.mjs prisma db push",
     "db:migrate:dev": "node scripts/with-env.mjs prisma migrate dev",
-    "db:migrate:deploy": "node scripts/with-env.mjs prisma migrate deploy",
+    "db:migrate:deploy": "node scripts/migrate-deploy.mjs",
     "db:migrate:reset": "node scripts/with-env.mjs prisma migrate reset",
     "db:seed": "node scripts/with-env.mjs prisma db seed",
     "db:studio": "node scripts/with-env.mjs prisma studio",

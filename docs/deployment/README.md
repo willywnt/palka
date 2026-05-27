@@ -15,7 +15,7 @@ Production stack:
 - [ ] Neon production database created
 - [ ] Vercel project linked (`apps/web` as root directory)
 - [ ] All env vars set in Vercel (see `.env.production.example`)
-- [ ] `pnpm db:migrate:deploy` run against production DB
+- [ ] `DATABASE_URL` set in Vercel (migrations run automatically during build)
 - [ ] R2 production bucket + CORS configured
 - [ ] Custom domain + SSL on Vercel
 - [ ] `AUTH_SECRET` generated with `openssl rand -base64 32`
@@ -39,31 +39,33 @@ feature/* → PR → develop (preview) → PR → main (production)
 1. Create Neon project and copy pooled connection string
 2. Import repo in Vercel → set **Root Directory** to `apps/web`
 3. Configure environment variables (Production scope)
-4. Run migrations against production:
+4. Deploy `main` branch (migrations apply automatically during the Vercel build)
+5. Apply R2 production CORS (see [r2.md](./r2.md))
+6. Verify `/api/v1/health`, login, recording upload
+
+### Subsequent deploys
+
+Vercel auto-deploys on push. Pending Prisma migrations are applied at the start of each build (`db:migrate:deploy` in `apps/web/vercel.json`). If a migration fails, the deploy is blocked.
+
+To skip migrations for a one-off deploy (emergency only), set `SKIP_DB_MIGRATE=1` in Vercel env vars.
+
+Manual migration (optional):
 
 ```bash
 DATABASE_URL="postgresql://..." pnpm db:migrate:deploy
 ```
 
-5. Deploy `main` branch (or trigger redeploy after env setup)
-6. Apply R2 production CORS (see [r2.md](./r2.md))
-7. Verify `/api/v1/health`, login, recording upload
-
-### Subsequent deploys
-
-Vercel auto-deploys on push. Run `db:migrate:deploy` when schema changes — before or immediately after deploy.
-
 **Never use `prisma db push` in production.**
 
 ## Vercel settings
 
-| Setting         | Value                                               |
-| --------------- | --------------------------------------------------- |
-| Root Directory  | `apps/web`                                          |
-| Framework       | Next.js                                             |
-| Install Command | `cd ../.. && pnpm install`                          |
-| Build Command   | `cd ../.. && pnpm turbo build --filter=@olshop/web` |
-| Node.js Version | 20.x                                                |
+| Setting         | Value                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| Root Directory  | `apps/web`                                                                                        |
+| Framework       | Next.js                                                                                           |
+| Install Command | `cd ../.. && pnpm install`                                                                        |
+| Build Command   | `cd ../.. && pnpm --filter @olshop/db db:migrate:deploy && pnpm turbo build --filter=@olshop/web` |
+| Node.js Version | 20.x                                                                                              |
 
 These are configured in `apps/web/vercel.json`.
 

@@ -9,7 +9,7 @@ Use this checklist before and after every production deployment.
 - [ ] Worker service deployed separately from Vercel web app
 - [ ] Worker health check configured on `/health` port `3001`
 - [ ] Web health check configured on `/api/health` or `/api/v1/health`
-- [ ] Prisma migrations applied: `pnpm db:migrate:deploy`
+- [ ] Prisma migrations apply on deploy (automatic via Vercel build, or run `pnpm db:migrate:deploy` manually)
 - [ ] `APP_VERSION` or git SHA exposed in health response
 
 ## Environment

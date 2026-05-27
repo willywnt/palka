@@ -49,11 +49,15 @@ pnpm db:migrate:dev
 
 ### Production / preview
 
+Migrations run automatically at the start of each Vercel build (see `apps/web/vercel.json`). Ensure `DATABASE_URL` is set for **Production** and **Preview** scopes.
+
+Manual apply (optional):
+
 ```bash
 DATABASE_URL="your-neon-url" pnpm db:migrate:deploy
 ```
 
-Run before or immediately after deploying schema changes. Vercel does not run migrations automatically.
+Set `SKIP_DB_MIGRATE=1` in Vercel to skip auto-migration for a single deploy (emergency only).
 
 ### Reset local only
 

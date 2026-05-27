@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "cd ../.. && HUSKY=0 pnpm install --prod=false",
-  "buildCommand": "cd ../.. && pnpm turbo build --filter=@olshop/web",
+  "buildCommand": "cd ../.. && pnpm --filter @olshop/db db:migrate:deploy && pnpm turbo build --filter=@olshop/web",
   "outputDirectory": ".next",
   "regions": ["sin1"],
   "headers": [
