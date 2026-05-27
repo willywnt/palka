@@ -21,6 +21,15 @@ export class RecordingService {
   private chunks: Blob[] = [];
   private disconnectHandler: DisconnectHandler | null = null;
   private mimeType: string | null = null;
+  private disconnectNotified = false;
+  private streamInactiveHandler: (() => void) | null = null;
+  private trackEndedHandlers = new Map<MediaStreamTrack, () => void>();
+
+  private notifyDisconnect(): void {
+    if (this.disconnectNotified || !this.disconnectHandler) return;
+    this.disconnectNotified = true;
+    this.disconnectHandler();
+  }
 
   assertBrowserSupport(): void {
     if (!isMediaRecorderSupported()) {
@@ -32,11 +41,11 @@ export class RecordingService {
     }
   }
 
-  async requestStream(): Promise<MediaStream> {
+  async requestStream(deviceId?: string): Promise<MediaStream> {
     this.assertBrowserSupport();
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia(getRecordingConstraints());
+      const stream = await navigator.mediaDevices.getUserMedia(getRecordingConstraints(deviceId));
       this.stream = stream;
       return stream;
     } catch (error) {
@@ -54,6 +63,7 @@ export class RecordingService {
     this.mimeType = mimeType;
     this.chunks = [];
     this.disconnectHandler = onDisconnect;
+    this.disconnectNotified = false;
 
     const recorder = new MediaRecorder(stream, getMediaRecorderOptions(mimeType));
     this.recorder = recorder;
@@ -64,10 +74,17 @@ export class RecordingService {
       }
     };
 
-    for (const track of stream.getVideoTracks()) {
-      track.onended = () => {
-        onDisconnect();
+    this.streamInactiveHandler = () => {
+      this.notifyDisconnect();
+    };
+    stream.addEventListener('inactive', this.streamInactiveHandler);
+
+    for (const track of stream.getTracks()) {
+      const onTrackEnded = () => {
+        this.notifyDisconnect();
       };
+      this.trackEndedHandlers.set(track, onTrackEnded);
+      track.addEventListener('ended', onTrackEnded);
     }
 
     recorder.start(1000);
@@ -110,14 +127,16 @@ export class RecordingService {
     }
 
     if (this.stream) {
-      for (const track of this.stream.getTracks()) {
-        track.stop();
+      if (this.streamInactiveHandler) {
+        this.stream.removeEventListener('inactive', this.streamInactiveHandler);
       }
-    }
 
-    if (this.disconnectHandler) {
-      for (const track of this.stream?.getVideoTracks() ?? []) {
-        track.onended = null;
+      for (const track of this.stream.getTracks()) {
+        const handler = this.trackEndedHandlers.get(track);
+        if (handler) {
+          track.removeEventListener('ended', handler);
+        }
+        track.stop();
       }
     }
 
@@ -126,6 +145,9 @@ export class RecordingService {
     this.chunks = [];
     this.disconnectHandler = null;
     this.mimeType = null;
+    this.disconnectNotified = false;
+    this.streamInactiveHandler = null;
+    this.trackEndedHandlers.clear();
   }
 
   getStream(): MediaStream | null {

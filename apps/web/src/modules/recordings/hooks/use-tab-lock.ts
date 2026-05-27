@@ -4,7 +4,9 @@ import { useEffect } from 'react';
 
 import {
   acquireTabLock,
+  cleanupStaleLock,
   createTabLockChannel,
+  getTabLockHeartbeatMs,
   isAnotherTabRecording,
   refreshTabLock,
   releaseTabLock,
@@ -15,6 +17,10 @@ export function useTabLockProtection() {
   const status = useRecordingStore((state) => state.status);
   const setError = useRecordingStore((state) => state.setError);
   const setStatus = useRecordingStore((state) => state.setStatus);
+
+  useEffect(() => {
+    cleanupStaleLock();
+  }, []);
 
   useEffect(() => {
     const channel = createTabLockChannel();
@@ -37,7 +43,7 @@ export function useTabLockProtection() {
     const interval = window.setInterval(() => {
       refreshTabLock();
       channelNotify();
-    }, 10_000);
+    }, getTabLockHeartbeatMs());
 
     const channel = createTabLockChannel();
     function channelNotify() {

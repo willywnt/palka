@@ -39,9 +39,10 @@ export function normalizeRecordingMimeType(mimeType: string): typeof RECORDING_M
   throw new Error(`Unsupported recording MIME type: ${mimeType}`);
 }
 
-export function getRecordingConstraints(): MediaStreamConstraints {
+export function getRecordingConstraints(deviceId?: string): MediaStreamConstraints {
   return {
     video: {
+      ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
       width: { ideal: RECORDING_WIDTH },
       height: { ideal: RECORDING_HEIGHT },
       frameRate: { ideal: RECORDING_FPS },

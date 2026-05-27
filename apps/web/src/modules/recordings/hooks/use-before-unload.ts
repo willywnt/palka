@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 
+import { releaseRecordingLock } from '../hooks/use-tab-lock';
 import { selectShouldWarnBeforeUnload, useRecordingStore } from '../store/recording.store';
 
 export function useBeforeUnloadProtection() {
@@ -13,6 +14,7 @@ export function useBeforeUnloadProtection() {
     const handler = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = '';
+      releaseRecordingLock();
     };
 
     window.addEventListener('beforeunload', handler);

@@ -23,7 +23,9 @@ export function useActiveRecordingQuery() {
   return useQuery({
     queryKey: recordingQueryKeys.active,
     queryFn: async () => {
-      const result = await apiFetch<ActiveRecordingSession | null>(`${apiRoutes.recordings}/active`);
+      const result = await apiFetch<ActiveRecordingSession | null>(
+        `${apiRoutes.recordings}/active`,
+      );
 
       if (!result.success) {
         throw new Error(formatApiErrorMessage(result.error));
@@ -75,6 +77,7 @@ export function useSaveRecordingMetadataMutation() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: recordingQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: recordingQueryKeys.active });
       void queryClient.invalidateQueries({ queryKey: recordingsManagementKeys.all });
     },
   });
@@ -98,6 +101,7 @@ export function useCancelRecordingMutation() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: recordingQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: recordingQueryKeys.active });
       void queryClient.invalidateQueries({ queryKey: recordingsManagementKeys.all });
     },
   });

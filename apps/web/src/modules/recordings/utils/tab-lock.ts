@@ -1,9 +1,15 @@
 import { RECORDING_MODULE_CONFIG } from '../types';
+import { RECORDING_RECOVERY_CONFIG } from '@/modules/recording-recovery/types';
+import { clearRecordingSession, refreshRecordingSession } from './recording-session';
 
 type TabLockPayload = {
   tabId: string;
-  acquiredAt: number;
+  updatedAt: number;
+  /** @deprecated Legacy field — migrated to updatedAt on read */
+  acquiredAt?: number;
 };
+
+let staleLockClearedOnInit = false;
 
 function getTabId(): string {
   if (typeof window === 'undefined') return 'server';
@@ -25,14 +31,21 @@ function readLock(): TabLockPayload | null {
   if (!raw) return null;
 
   try {
-    return JSON.parse(raw) as TabLockPayload;
+    const parsed = JSON.parse(raw) as TabLockPayload;
+    return {
+      tabId: parsed.tabId,
+      updatedAt: parsed.updatedAt ?? parsed.acquiredAt ?? Date.now(),
+    };
   } catch {
     return null;
   }
 }
 
 function writeLock(payload: TabLockPayload): void {
-  localStorage.setItem(RECORDING_MODULE_CONFIG.tabLockKey, JSON.stringify(payload));
+  localStorage.setItem(
+    RECORDING_MODULE_CONFIG.tabLockKey,
+    JSON.stringify({ tabId: payload.tabId, updatedAt: payload.updatedAt }),
+  );
 }
 
 function clearLock(tabId: string): void {
@@ -42,11 +55,30 @@ function clearLock(tabId: string): void {
   }
 }
 
+function getLockTimestamp(lock: TabLockPayload): number {
+  return lock.updatedAt ?? lock.acquiredAt ?? 0;
+}
+
 function isLockStale(lock: TabLockPayload): boolean {
-  return Date.now() - lock.acquiredAt > RECORDING_MODULE_CONFIG.tabLockStaleMs;
+  return Date.now() - getLockTimestamp(lock) > RECORDING_RECOVERY_CONFIG.sessionLockStaleMs;
+}
+
+export function cleanupStaleLock(): boolean {
+  const current = readLock();
+  if (!current || !isLockStale(current)) return false;
+
+  localStorage.removeItem(RECORDING_MODULE_CONFIG.tabLockKey);
+  staleLockClearedOnInit = true;
+  return true;
+}
+
+export function wasStaleLockClearedOnInit(): boolean {
+  return staleLockClearedOnInit;
 }
 
 export function acquireTabLock(): boolean {
+  cleanupStaleLock();
+
   const tabId = getTabId();
   const current = readLock();
 
@@ -54,12 +86,13 @@ export function acquireTabLock(): boolean {
     return false;
   }
 
-  writeLock({ tabId, acquiredAt: Date.now() });
+  writeLock({ tabId, updatedAt: Date.now() });
   return readLock()?.tabId === tabId;
 }
 
 export function releaseTabLock(): void {
   clearLock(getTabId());
+  clearRecordingSession();
 }
 
 export function refreshTabLock(): void {
@@ -67,8 +100,16 @@ export function refreshTabLock(): void {
   const current = readLock();
 
   if (current?.tabId === tabId) {
-    writeLock({ tabId, acquiredAt: Date.now() });
+    writeLock({ tabId, updatedAt: Date.now() });
+    refreshRecordingSession();
   }
+}
+
+export function hasFreshLockForCurrentTab(): boolean {
+  cleanupStaleLock();
+  const current = readLock();
+  if (!current || isLockStale(current)) return false;
+  return current.tabId === getTabId();
 }
 
 export function createTabLockChannel(): BroadcastChannel | null {
@@ -77,7 +118,12 @@ export function createTabLockChannel(): BroadcastChannel | null {
 }
 
 export function isAnotherTabRecording(): boolean {
+  cleanupStaleLock();
   const current = readLock();
   if (!current || isLockStale(current)) return false;
   return current.tabId !== getTabId();
+}
+
+export function getTabLockHeartbeatMs(): number {
+  return RECORDING_RECOVERY_CONFIG.sessionLockHeartbeatMs;
 }

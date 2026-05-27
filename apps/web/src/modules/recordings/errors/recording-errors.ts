@@ -84,6 +84,10 @@ export class RecordingError extends Error {
         return RecordingError.quotaExceeded();
       }
 
+      if (error.message.toLowerCase().includes('active recording')) {
+        return RecordingError.activeRecordingExists();
+      }
+
       return new RecordingError(RECORDING_ERROR_CODES.UNKNOWN, error.message);
     }
 

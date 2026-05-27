@@ -4,8 +4,19 @@ import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { uploadFile } from '@/modules/storage/utils/upload-file';
+import { apiFetch } from '@/lib/api/fetch-client';
+import { apiRoutes } from '@/lib/api/routes';
+import { recordingRecoveryService } from '@/modules/recording-recovery/services/recording-recovery.service';
+import {
+  recoverDefaultCameraPreview,
+  resolveRecordingStream,
+} from '@/modules/recording-recovery/utils/camera-stream';
+import { useRecordingReliabilityStore } from '@/modules/recording-recovery/store/recording-reliability.store';
+import { isRecoverableUploadError } from '@/modules/recording-recovery/utils/network';
+import type { SaveTemporaryRecordingInput } from '@/modules/recording-recovery/types';
 
 import { RecordingError } from '../errors/recording-errors';
+import type { ActiveRecordingSession } from '../types';
 import {
   useCancelRecordingMutation,
   useMarkUploadingMutation,
@@ -13,15 +24,43 @@ import {
   useStartRecordingMutation,
 } from './use-recording-api';
 import { useBeforeUnloadProtection } from './use-before-unload';
-import { releaseRecordingLock, tryAcquireRecordingLock, useTabLockProtection } from './use-tab-lock';
+import {
+  releaseRecordingLock,
+  tryAcquireRecordingLock,
+  useTabLockProtection,
+} from './use-tab-lock';
 import { recordingService } from '../services/recording.service';
 import { useRecordingStore } from '../store/recording.store';
 import { estimateRecordingFileSizeBytes } from '../utils/media-recorder';
+import { setRecordingSession } from '../utils/recording-session';
+import { isAnotherTabRecording } from '../utils/tab-lock';
 import { noResiSchema } from '../validators/no-resi';
+
+async function persistRecoverableRecording(input: SaveTemporaryRecordingInput): Promise<boolean> {
+  if (!recordingRecoveryService.isAvailable()) {
+    return false;
+  }
+
+  try {
+    const saved = await recordingRecoveryService.saveTemporaryRecording({
+      ...input,
+      uploadStatus: input.uploadStatus ?? 'PENDING',
+    });
+
+    const store = useRecordingReliabilityStore.getState();
+    const recordings = await recordingRecoveryService.getTemporaryRecordings();
+    store.setTemporaryRecordings(recordings);
+    store.openRecoveryModal(saved.id);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function useRecording() {
   const timerRef = useRef<number | null>(null);
   const abortUploadRef = useRef<AbortController | null>(null);
+  const handleWebcamDisconnectRef = useRef<() => Promise<void>>(async () => {});
 
   const status = useRecordingStore((state) => state.status);
   const noResi = useRecordingStore((state) => state.noResi);
@@ -43,6 +82,10 @@ export function useRecording() {
   const setError = useRecordingStore((state) => state.setError);
   const setCompletedRecording = useRecordingStore((state) => state.setCompletedRecording);
   const resetStore = useRecordingStore((state) => state.reset);
+
+  const setWebcamDisconnected = useRecordingReliabilityStore(
+    (state) => state.setWebcamDisconnected,
+  );
 
   const startRecordingMutation = useStartRecordingMutation();
   const markUploadingMutation = useMarkUploadingMutation();
@@ -81,10 +124,83 @@ export function useRecording() {
     [cancelRecordingMutation, clearTimer, setError, setMediaStream, setStatus],
   );
 
+  const handleRecoverableFailure = useCallback(
+    async (params: {
+      blob: Blob;
+      mimeType: string;
+      recordingId: string;
+      noResi: string;
+      durationSeconds: number;
+      message: string;
+      errorCode: string;
+      failureReason: string;
+      notifyWebcamDisconnect?: boolean;
+    }) => {
+      clearTimer();
+      recordingService.cleanup();
+      setMediaStream(null);
+      releaseRecordingLock();
+
+      const persisted = await persistRecoverableRecording({
+        blob: params.blob,
+        mimeType: params.mimeType,
+        recordingId: params.recordingId,
+        noResi: params.noResi,
+        durationSeconds: params.durationSeconds,
+        uploadStatus: 'PENDING',
+        failureReason: params.failureReason,
+      });
+
+      if (params.notifyWebcamDisconnect) {
+        setWebcamDisconnected(true);
+      }
+
+      setStatus('FAILED');
+      setError(params.message, params.errorCode);
+
+      if (persisted) {
+        toast.warning('Recording preserved locally', { description: params.message });
+      } else {
+        toast.error('Recording failed', {
+          description: `${params.message} Local storage is unavailable — the recording could not be saved.`,
+        });
+      }
+    },
+    [clearTimer, setError, setMediaStream, setStatus, setWebcamDisconnected],
+  );
+
   const handleWebcamDisconnect = useCallback(async () => {
-    if (status !== 'RECORDING') return;
-    await handleFailure(RecordingError.recordingInterrupted(), activeRecording?.id);
-  }, [activeRecording?.id, handleFailure, status]);
+    const { status: currentStatus, activeRecording: currentActive } = useRecordingStore.getState();
+    if (currentStatus !== 'RECORDING' || !currentActive) return;
+
+    setStatus('STOPPING');
+    clearTimer();
+
+    try {
+      const { blob, mimeType } = await recordingService.stopRecording();
+
+      if (blob.size === 0) {
+        await handleFailure(RecordingError.recordingInterrupted(), currentActive.id);
+        return;
+      }
+
+      await handleRecoverableFailure({
+        blob,
+        mimeType,
+        recordingId: currentActive.id,
+        noResi: currentActive.noResi,
+        durationSeconds: useRecordingStore.getState().durationSeconds,
+        message: 'Camera disconnected. Your recording was safely preserved locally.',
+        errorCode: 'CAMERA_DISCONNECTED',
+        failureReason: 'Camera disconnected during recording',
+        notifyWebcamDisconnect: true,
+      });
+    } catch {
+      await handleFailure(RecordingError.recordingInterrupted(), currentActive.id);
+    }
+  }, [clearTimer, handleFailure, handleRecoverableFailure, setStatus]);
+
+  handleWebcamDisconnectRef.current = handleWebcamDisconnect;
 
   const startTimer = useCallback(() => {
     clearTimer();
@@ -94,6 +210,31 @@ export function useRecording() {
       setEstimatedFileSizeBytes(estimateRecordingFileSizeBytes(nextDuration));
     }, 1000);
   }, [clearTimer, setDurationSeconds, setEstimatedFileSizeBytes]);
+
+  const beginRecordingSession = useCallback(
+    async (parsedNoResi: string) => {
+      const started = await startRecordingMutation.mutateAsync(parsedNoResi);
+      setActiveRecording({
+        id: started.recordingId,
+        noResi: started.noResi,
+        startedAt: started.startedAt,
+      });
+      setRecordingSession(started.recordingId);
+
+      const preferredDeviceId = useRecordingReliabilityStore.getState().preferredCameraDeviceId;
+      const stream = await resolveRecordingStream(preferredDeviceId);
+      setMediaStream(stream);
+
+      recordingService.startRecording(stream, () => {
+        void handleWebcamDisconnectRef.current();
+      });
+
+      setStatus('RECORDING');
+      startTimer();
+      toast.success('Recording started');
+    },
+    [setActiveRecording, setMediaStream, setStatus, startRecordingMutation, startTimer],
+  );
 
   const startRecording = useCallback(async () => {
     const parsedNoResi = noResiSchema.safeParse(noResi);
@@ -113,39 +254,42 @@ export function useRecording() {
     setUploadProgress(0);
     setDurationSeconds(0);
     setEstimatedFileSizeBytes(0);
+    setWebcamDisconnected(false);
     setStatus('REQUESTING_PERMISSION');
 
     try {
-      const started = await startRecordingMutation.mutateAsync(parsedNoResi.data);
-      setActiveRecording({
-        id: started.recordingId,
-        noResi: started.noResi,
-        startedAt: started.startedAt,
-      });
-
-      const stream = await recordingService.requestStream();
-      setMediaStream(stream);
-
-      recordingService.startRecording(stream, () => {
-        void handleWebcamDisconnect();
-      });
-
-      setStatus('RECORDING');
-      startTimer();
-      toast.success('Recording started');
+      await beginRecordingSession(parsedNoResi.data);
     } catch (unknownError) {
+      const recordingError = RecordingError.fromUnknown(unknownError);
+
+      if (recordingError.code === 'ACTIVE_RECORDING_EXISTS' && !isAnotherTabRecording()) {
+        try {
+          const activeResult = await apiFetch<ActiveRecordingSession | null>(
+            `${apiRoutes.recordings}/active`,
+          );
+
+          if (activeResult.success && activeResult.data?.id) {
+            await cancelRecordingMutation.mutateAsync(activeResult.data.id);
+          }
+
+          await beginRecordingSession(parsedNoResi.data);
+          return;
+        } catch {
+          // Fall through to failure handling below.
+        }
+      }
+
       releaseRecordingLock();
       recordingService.cleanup();
       setMediaStream(null);
 
-      const recordingError = RecordingError.fromUnknown(unknownError);
       await handleFailure(recordingError, useRecordingStore.getState().activeRecording?.id);
     }
   }, [
+    beginRecordingSession,
+    cancelRecordingMutation,
     handleFailure,
-    handleWebcamDisconnect,
     noResi,
-    setActiveRecording,
     setCompletedRecording,
     setDurationSeconds,
     setError,
@@ -153,8 +297,7 @@ export function useRecording() {
     setMediaStream,
     setStatus,
     setUploadProgress,
-    startRecordingMutation,
-    startTimer,
+    setWebcamDisconnected,
   ]);
 
   const stopRecording = useCallback(async () => {
@@ -164,9 +307,13 @@ export function useRecording() {
     clearTimer();
 
     const recordingId = activeRecording.id;
+    let capturedBlob: Blob | null = null;
+    let capturedMimeType = 'video/webm';
 
     try {
       const { blob, mimeType } = await recordingService.stopRecording();
+      capturedBlob = blob;
+      capturedMimeType = mimeType;
 
       if (blob.size === 0) {
         throw RecordingError.recordingInterrupted();
@@ -218,8 +365,24 @@ export function useRecording() {
       }
 
       const message = unknownError instanceof Error ? unknownError.message : 'Upload failed';
+
       if (message.toLowerCase().includes('quota')) {
         await handleFailure(RecordingError.quotaExceeded(), recordingId);
+        return;
+      }
+
+      if (capturedBlob && capturedBlob.size > 0 && isRecoverableUploadError(unknownError)) {
+        await handleRecoverableFailure({
+          blob: capturedBlob,
+          mimeType: capturedMimeType,
+          recordingId,
+          noResi: activeRecording.noResi,
+          durationSeconds: useRecordingStore.getState().durationSeconds,
+          message:
+            'Upload failed. Your recording is safely stored locally. Retry when you are back online.',
+          errorCode: 'UPLOAD_RECOVERABLE',
+          failureReason: message,
+        });
         return;
       }
 
@@ -231,6 +394,7 @@ export function useRecording() {
     activeRecording,
     clearTimer,
     handleFailure,
+    handleRecoverableFailure,
     markUploadingMutation,
     saveMetadataMutation,
     setCompletedRecording,
@@ -250,6 +414,7 @@ export function useRecording() {
     recordingService.cleanup();
     releaseRecordingLock();
     setMediaStream(null);
+    setWebcamDisconnected(false);
 
     const recordingId = useRecordingStore.getState().activeRecording?.id;
     if (recordingId) {
@@ -261,7 +426,16 @@ export function useRecording() {
     }
 
     resetStore();
-  }, [cancelRecordingMutation, cancelUpload, clearTimer, resetStore, setMediaStream]);
+    useRecordingReliabilityStore.getState().setWebcamDisconnected(false);
+    await recoverDefaultCameraPreview();
+  }, [
+    cancelRecordingMutation,
+    cancelUpload,
+    clearTimer,
+    resetStore,
+    setMediaStream,
+    setWebcamDisconnected,
+  ]);
 
   const retryPermission = useCallback(async () => {
     await reset();
@@ -269,7 +443,14 @@ export function useRecording() {
   }, [reset, startRecording]);
 
   useEffect(() => {
+    const handlePageHide = () => {
+      releaseRecordingLock();
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+
     return () => {
+      window.removeEventListener('pagehide', handlePageHide);
       clearTimer();
       recordingService.cleanup();
       releaseRecordingLock();
@@ -287,7 +468,11 @@ export function useRecording() {
     mediaStream,
     error,
     completedRecording,
-    isBusy: status === 'REQUESTING_PERMISSION' || status === 'RECORDING' || status === 'STOPPING' || status === 'UPLOADING',
+    isBusy:
+      status === 'REQUESTING_PERMISSION' ||
+      status === 'RECORDING' ||
+      status === 'STOPPING' ||
+      status === 'UPLOADING',
     canStart: status === 'IDLE' || status === 'FAILED' || status === 'COMPLETED',
     canStop: status === 'RECORDING',
     startRecording,
