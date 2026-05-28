@@ -4,19 +4,10 @@ import type { RecordingTimelineEvent } from '../types/recording-timeline';
 import { TIMELINE_EVENT_LABELS } from '../types/recording-timeline';
 import { formatRecoveryTimelineDate } from '../utils/format';
 
-function dotClassName(type: RecordingTimelineEvent['type']): string {
-  switch (type) {
-    case 'UPLOAD_COMPLETED':
-      return 'bg-emerald-500 ring-emerald-500/20';
-    case 'UPLOAD_FAILED':
-    case 'UPLOAD_INTERRUPTED':
-    case 'CAMERA_DISCONNECTED':
-      return 'bg-destructive ring-destructive/20';
-    case 'UPLOAD_RESUMED':
-      return 'bg-primary ring-primary/20';
-    default:
-      return 'bg-muted-foreground/70 ring-muted-foreground/15';
-  }
+function dotClassName(isLatest: boolean): string {
+  return isLatest
+    ? 'bg-destructive ring-destructive/20'
+    : 'bg-muted-foreground/70 ring-muted-foreground/15';
 }
 
 export function RecordingTimelineList({ events }: { events: RecordingTimelineEvent[] }) {
@@ -29,14 +20,15 @@ export function RecordingTimelineList({ events }: { events: RecordingTimelineEve
   return (
     <ol className="space-y-0">
       {sorted.map((event, index) => {
-        const isLast = index === sorted.length - 1;
+        const isLatest = index === 0;
+        const isLastInList = index === sorted.length - 1;
 
         return (
           <li
             key={`${event.at}-${event.type}-${index}`}
             className="relative flex gap-3 pb-6 last:pb-0"
           >
-            {!isLast ? (
+            {!isLastInList ? (
               <span
                 className="bg-border absolute top-3 left-[5px] h-[calc(100%-4px)] w-px"
                 aria-hidden
@@ -44,7 +36,7 @@ export function RecordingTimelineList({ events }: { events: RecordingTimelineEve
             ) : null}
 
             <span
-              className={`relative z-10 mt-1 size-2.5 shrink-0 rounded-full ring-4 ${dotClassName(event.type)}`}
+              className={`relative z-10 mt-1 size-2.5 shrink-0 rounded-full ring-4 ${dotClassName(isLatest)}`}
               aria-hidden
             />
 

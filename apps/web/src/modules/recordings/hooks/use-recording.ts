@@ -20,6 +20,7 @@ import {
 } from '@/modules/recording-recovery/types/recording-timeline';
 import {
   RECORDING_FAILURE_CODES,
+  resolveFailureFromCode,
   resolveFailureFromError,
 } from '@/modules/recording-recovery/types/failure-codes';
 
@@ -184,6 +185,7 @@ export function useRecording() {
       failureCode?: string;
       failureReason: string;
       notifyWebcamDisconnect?: boolean;
+      resetSession?: boolean;
     }) => {
       clearTimer();
       recordingService.cleanup();
@@ -230,8 +232,10 @@ export function useRecording() {
         ],
       });
 
-      if (params.notifyWebcamDisconnect) {
-        setWebcamDisconnected(true);
+      if (params.resetSession || params.notifyWebcamDisconnect) {
+        if (params.notifyWebcamDisconnect) {
+          setWebcamDisconnected(true);
+        }
         await resetSessionForNextRecording({
           preserveError: { message: params.message, code: params.errorCode },
         });
@@ -477,13 +481,49 @@ export function useRecording() {
       await resetSessionForNextRecording();
     } catch (unknownError) {
       if (unknownError instanceof DOMException && unknownError.name === 'AbortError') {
+        if (capturedBlob && capturedBlob.size > 0) {
+          await handleRecoverableFailure({
+            blob: capturedBlob,
+            mimeType: capturedMimeType,
+            recordingId,
+            noResi: activeRecording.noResi,
+            durationSeconds: useRecordingStore.getState().durationSeconds,
+            message: resolveFailureFromCode(RECORDING_FAILURE_CODES.UPLOAD_CANCELLED),
+            errorCode: 'UPLOAD_CANCELLED',
+            failureCode: RECORDING_FAILURE_CODES.UPLOAD_CANCELLED,
+            failureReason: 'Upload cancelled by operator',
+            resetSession: true,
+          });
+          return;
+        }
+
         await handleFailure(RecordingError.uploadFailed('Upload cancelled.'), recordingId);
         return;
       }
 
       const message = unknownError instanceof Error ? unknownError.message : 'Upload failed';
+      const recordingError =
+        unknownError instanceof RecordingError
+          ? unknownError
+          : RecordingError.fromUnknown(unknownError);
 
-      if (message.toLowerCase().includes('quota')) {
+      if (recordingError.code === 'QUOTA_EXCEEDED' || message.toLowerCase().includes('quota')) {
+        if (capturedBlob && capturedBlob.size > 0) {
+          await handleRecoverableFailure({
+            blob: capturedBlob,
+            mimeType: capturedMimeType,
+            recordingId,
+            noResi: activeRecording.noResi,
+            durationSeconds: useRecordingStore.getState().durationSeconds,
+            message: resolveFailureFromCode(RECORDING_FAILURE_CODES.QUOTA_EXCEEDED),
+            errorCode: 'QUOTA_EXCEEDED',
+            failureCode: RECORDING_FAILURE_CODES.QUOTA_EXCEEDED,
+            failureReason: recordingError.message,
+            resetSession: true,
+          });
+          return;
+        }
+
         await handleFailure(RecordingError.quotaExceeded(), recordingId);
         return;
       }

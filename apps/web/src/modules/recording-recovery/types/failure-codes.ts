@@ -12,7 +12,7 @@ export const RECORDING_FAILURE_CODES = {
 export type RecordingFailureCode =
   (typeof RECORDING_FAILURE_CODES)[keyof typeof RECORDING_FAILURE_CODES];
 
-export const CAMERA_DISCONNECTED_OPERATOR_MESSAGE = 'Camera disconnected';
+export const CAMERA_DISCONNECTED_OPERATOR_MESSAGE = 'Camera disconnected.';
 
 export function isCameraDisconnectFailure(
   failureCode?: string | null,
@@ -93,7 +93,7 @@ export function resolveFailureFromError(error: unknown): {
   if (lower.includes('quota exceeded')) {
     return {
       failureCode: RECORDING_FAILURE_CODES.QUOTA_EXCEEDED,
-      failureMessage: 'Storage quota exceeded. Free up space or contact your administrator.',
+      failureMessage: 'Storage quota exceeded. Free up space, then retry from pending uploads.',
       debugMessage,
     };
   }
