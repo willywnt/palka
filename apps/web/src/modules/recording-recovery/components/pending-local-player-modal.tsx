@@ -25,9 +25,10 @@ export function PendingLocalPlayerModal({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+  const recordingId = recording?.id;
 
   useEffect(() => {
-    if (!open || !recording) {
+    if (!open || !recordingId) {
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = null;
@@ -37,14 +38,14 @@ export function PendingLocalPlayerModal({
       return;
     }
 
+    const activeRecordingId = recordingId;
     let cancelled = false;
-    const recordingId = recording.id;
 
     async function loadBlob() {
       setIsLoading(true);
       setLoadError(null);
 
-      const blob = await recordingRecoveryService.getTemporaryRecordingBlob(recordingId);
+      const blob = await recordingRecoveryService.getTemporaryRecordingBlob(activeRecordingId);
       if (cancelled) return;
 
       if (!blob) {
@@ -68,7 +69,7 @@ export function PendingLocalPlayerModal({
     return () => {
       cancelled = true;
     };
-  }, [open, recording?.id]);
+  }, [open, recordingId]);
 
   useEffect(() => {
     return () => {

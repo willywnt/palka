@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { DEFAULT_STORAGE_QUOTA_BYTES } from '@olshop/config/limits';
 import { prisma } from '@olshop/db';
 import type { UserRole } from '@prisma/client';
 
@@ -77,6 +78,7 @@ export class AuthService {
         email: normalizedEmail,
         passwordHash,
         displayName: input.displayName ?? null,
+        storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
       },
       select: {
         id: true,

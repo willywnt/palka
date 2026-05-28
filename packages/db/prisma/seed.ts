@@ -1,9 +1,5 @@
-import {
-  MarketplaceProvider,
-  PrismaClient,
-  RecordingStatus,
-  UserRole,
-} from '@prisma/client';
+import { MarketplaceProvider, PrismaClient, RecordingStatus, UserRole } from '@prisma/client';
+import { DEFAULT_STORAGE_QUOTA_BYTES } from '@olshop/config/limits';
 import argon2 from 'argon2';
 
 const prisma = new PrismaClient();
@@ -39,7 +35,7 @@ async function main() {
       passwordHash: adminPasswordHash,
       displayName: 'System Admin',
       role: UserRole.ADMIN,
-      storageQuotaBytes: BigInt(5_368_709_120),
+      storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
       storageUsedBytes: BigInt(0),
     },
   });
@@ -58,6 +54,7 @@ async function main() {
       passwordHash: demoPasswordHash,
       displayName: 'Demo User',
       role: UserRole.USER,
+      storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
     },
   });
 

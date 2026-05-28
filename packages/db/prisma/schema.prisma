@@ -32,7 +32,7 @@ model User {
   passwordHash      String
   displayName       String?
   role              UserRole  @default(USER)
-  storageQuotaBytes BigInt    @default(2147483648)
+  storageQuotaBytes BigInt    @default(524288000)
   storageUsedBytes  BigInt    @default(0)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

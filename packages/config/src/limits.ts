@@ -37,8 +37,8 @@ export const ALLOWED_UPLOAD_MIME_TYPES = ['video/webm'] as const;
 /** Allowed direct-upload file extensions. */
 export const ALLOWED_UPLOAD_EXTENSIONS = ['.webm'] as const;
 
-/** Default storage quota per organization in bytes (10 GB). */
-export const DEFAULT_STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024;
+/** Default storage quota per user in bytes (500 MB). */
+export const DEFAULT_STORAGE_QUOTA_BYTES = 500 * 1024 * 1024;
 
 /** Usage percent at which to show a storage warning. */
 export const STORAGE_QUOTA_WARNING_PERCENT = 80;
