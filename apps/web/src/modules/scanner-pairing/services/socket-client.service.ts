@@ -21,16 +21,47 @@ function resolveSocketUrl(): string {
   return window.location.origin;
 }
 
+function attachConnectErrorLogger(socket: Socket): void {
+  if ((socket as Socket & { __connectErrorHook?: boolean }).__connectErrorHook) {
+    return;
+  }
+  (socket as Socket & { __connectErrorHook?: boolean }).__connectErrorHook = true;
+
+  socket.on('connect_error', (error) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[scanner-socket] connect_error', error.message);
+    }
+  });
+}
+
+/** User-facing hint when Engine.IO polling fails (wrong server, cert, or not using dev:web). */
+export function formatScannerSocketError(error: Error): string {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('xhr poll') || message.includes('polling')) {
+    return 'Cannot reach the scanner socket. Use pnpm dev:web (not next dev), accept the HTTPS certificate on this phone, and open the same URL as the QR code.';
+  }
+
+  if (message.includes('websocket')) {
+    return 'WebSocket connection failed. Check Wi‑Fi and that the PC dev server is still running.';
+  }
+
+  return error.message || 'Socket connection failed';
+}
+
 export function getScannerSocket(): Socket {
   if (!socketInstance) {
     socketInstance = io(resolveSocketUrl(), {
       path: SOCKET_PATH,
       autoConnect: false,
       withCredentials: true,
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 12,
+      reconnectionDelay: 800,
+      timeout: 20_000,
     });
+    attachConnectErrorLogger(socketInstance);
   }
   return socketInstance;
 }

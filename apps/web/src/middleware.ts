@@ -29,6 +29,7 @@ export const config = {
     '/settings/:path*',
     '/login',
     '/register',
-    '/api/:path*',
+    // Exclude Socket.IO engine path (handled by custom server in dev:web / start)
+    '/api/((?!socket).*)',
   ],
 };

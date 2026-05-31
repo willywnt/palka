@@ -13,6 +13,7 @@ import {
   resolveDesktopDevOrigin,
   resolveMobilePairingOrigin,
 } from './src/modules/scanner-pairing/utils/resolve-public-origin';
+import { SOCKET_PATH } from './src/modules/scanner-pairing/config';
 import { initPairingSocketServer } from './socket-server/io-server';
 
 const appDir = __dirname;
@@ -30,12 +31,9 @@ const port = Number(process.env.PORT ?? 3000);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-function createNodeServer(
-  useHttps: boolean,
-  listener: (req: import('http').IncomingMessage, res: import('http').ServerResponse) => void,
-) {
+function createNodeServer(useHttps: boolean): import('http').Server {
   if (!useHttps) {
-    return createHttpServer(listener);
+    return createHttpServer();
   }
 
   const cert = selfsigned.generate([{ name: 'commonName', value: 'olshop-local-dev' }], {
@@ -43,25 +41,40 @@ function createNodeServer(
     keySize: 2048,
   });
 
-  return createHttpsServer({ key: cert.private, cert: cert.cert }, listener);
+  return createHttpsServer({ key: cert.private, cert: cert.cert });
+}
+
+function isSocketIoPath(pathname: string): boolean {
+  return pathname === SOCKET_PATH || pathname.startsWith(`${SOCKET_PATH}/`);
 }
 
 app.prepare().then(() => {
   // Next reloads apps/web/.env.local during prepare — read DEV_HTTPS after that.
   const useDevHttps = isDevHttpsEnabled();
 
-  const httpServer = createNodeServer(useDevHttps, async (req, res) => {
+  const httpServer = createNodeServer(useDevHttps);
+
+  // Attach Socket.IO before Next so Engine.IO polling is not swallowed by the App Router
+  initPairingSocketServer(httpServer);
+
+  httpServer.on('request', async (req, res) => {
     try {
       const parsedUrl = parse(req.url ?? '/', true);
+      const pathname = parsedUrl.pathname ?? '/';
+
+      if (isSocketIoPath(pathname) || res.writableEnded) {
+        return;
+      }
+
       await handle(req, res, parsedUrl);
     } catch (error) {
       console.error('Request handler error', error);
-      res.statusCode = 500;
-      res.end('Internal Server Error');
+      if (!res.writableEnded) {
+        res.statusCode = 500;
+        res.end('Internal Server Error');
+      }
     }
   });
-
-  initPairingSocketServer(httpServer);
 
   httpServer.listen(port, hostname, () => {
     const scheme = useDevHttps ? 'https' : 'http';

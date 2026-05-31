@@ -6,6 +6,26 @@ import { registerPairingSocketHandlers } from './register-handlers';
 
 let io: SocketIOServer | null = null;
 
+function normalizeOrigin(url: string): string {
+  return url.replace(/\/$/, '');
+}
+
+function resolveSocketCorsOrigins(isDev: boolean): boolean | string[] {
+  if (isDev) {
+    return true;
+  }
+
+  const origins = new Set<string>();
+  for (const key of ['NEXT_PUBLIC_APP_URL', 'NEXT_PUBLIC_PAIRING_URL', 'AUTH_URL']) {
+    const value = process.env[key]?.trim();
+    if (value) {
+      origins.add(normalizeOrigin(value));
+    }
+  }
+
+  return origins.size > 0 ? [...origins] : true;
+}
+
 export function initPairingSocketServer(httpServer: HttpServer): SocketIOServer {
   if (io) return io;
 
@@ -14,11 +34,11 @@ export function initPairingSocketServer(httpServer: HttpServer): SocketIOServer 
   io = new Server(httpServer, {
     path: SOCKET_PATH,
     cors: {
-      // Dev: allow desktop (localhost) and phone (LAN IP) origins
-      origin: isDev ? true : (process.env.NEXT_PUBLIC_APP_URL ?? true),
+      origin: resolveSocketCorsOrigins(isDev),
       credentials: true,
     },
     transports: ['websocket', 'polling'],
+    allowEIO3: true,
   });
 
   registerPairingSocketHandlers(io);

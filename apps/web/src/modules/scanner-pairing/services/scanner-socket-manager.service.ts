@@ -3,6 +3,7 @@
 import {
   disconnectScannerSocket,
   emitJoinPairing,
+  formatScannerSocketError,
   getScannerSocket,
   scannerSocketEvents,
   type BarcodeScannedServerPayload,
@@ -39,7 +40,11 @@ function waitForSocketConnect(socket: ReturnType<typeof getScannerSocket>): Prom
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error('Could not reach the recording station (socket timeout).'));
+      reject(
+        new Error(
+          'Could not reach the recording station (socket timeout). Restart with pnpm dev:web.',
+        ),
+      );
     }, SOCKET_CONNECT_TIMEOUT_MS);
 
     const onConnect = () => {
@@ -49,7 +54,7 @@ function waitForSocketConnect(socket: ReturnType<typeof getScannerSocket>): Prom
 
     const onConnectError = (error: Error) => {
       cleanup();
-      reject(error);
+      reject(new Error(formatScannerSocketError(error)));
     };
 
     const cleanup = () => {
