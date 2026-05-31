@@ -24,6 +24,17 @@ enum RecordingStatus {
 enum MarketplaceProvider {
   SHOPEE
   TOKOPEDIA
+  TIKTOK
+  LAZADA
+}
+
+enum MarketplaceAccountStatus {
+  CONNECTED
+  EXPIRED
+  DISCONNECTED
+  ERROR
+  RECONNECT_REQUIRED
+  SYNC_DISABLED
 }
 
 enum InventoryEventType {
@@ -43,6 +54,28 @@ enum MarketplaceSyncStatus {
   CONFLICT
 }
 
+enum MarketplaceMappingStatus {
+  MAPPED
+  UNMAPPED
+  BROKEN
+  CONFLICT
+  SYNC_DISABLED
+}
+
+enum MarketplaceSyncJobStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  RETRYING
+  DISABLED
+}
+
+enum MarketplaceSyncType {
+  STOCK_PUSH
+  STOCK_RECONCILE
+}
+
 model User {
   id                String    @id @default(cuid())
   email             String    @unique
@@ -56,7 +89,7 @@ model User {
   deletedAt         DateTime?
 
   recordings             Recording[]
-  marketplaceConnections MarketplaceConnection[]
+  marketplaceAccounts MarketplaceAccount[]
   auditLogs              AuditLog[]
   products               Product[]
   productVariants        ProductVariant[]
@@ -95,26 +128,35 @@ model Recording {
   @@map("recordings")
 }
 
-model MarketplaceConnection {
-  id                    String              @id @default(cuid())
+model MarketplaceAccount {
+  id                    String                   @id @default(cuid())
   userId                String
-  user                  User                @relation(fields: [userId], references: [id])
+  user                  User                     @relation(fields: [userId], references: [id])
   provider              MarketplaceProvider
-  shopId                String
-  shopName              String
+  storeName             String
+  externalStoreId       String
   encryptedAccessToken  String
   encryptedRefreshToken String?
   tokenExpiresAt        DateTime?
-  isActive              Boolean             @default(true)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  status                MarketplaceAccountStatus @default(CONNECTED)
+  lastConnectedAt       DateTime?
+  lastSyncAt            DateTime?
+  metadata              Json?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
   deletedAt             DateTime?
 
-  variantMappings MarketplaceVariantMapping[]
+  products        MarketplaceProduct[]
+  productMappings MarketplaceProductMapping[]
+  syncJobs        MarketplaceSyncJob[]
+  providerHealth  MarketplaceProviderHealth?
 
+  @@unique([userId, provider, externalStoreId])
   @@index([userId])
   @@index([provider])
-  @@map("marketplace_connections")
+  @@index([status])
+  @@index([tokenExpiresAt])
+  @@map("marketplace_accounts")
 }
 
 model Product {
@@ -161,7 +203,7 @@ model ProductVariant {
 
   inventory           Inventory?
   inventoryEvents     InventoryEvent[]
-  marketplaceMappings MarketplaceVariantMapping[]
+  marketplaceMappings MarketplaceProductMapping[]
 
   @@unique([userId, sku])
   @@index([productId])
@@ -213,37 +255,72 @@ model InventoryEvent {
   @@map("inventory_events")
 }
 
-/// Future marketplace sync: maps internal variants to external marketplace listings.
-/// Internal inventory remains the source of truth; marketplaces consume state.
-model MarketplaceVariantMapping {
-  id                      String                  @id @default(cuid())
-  variantId               String
-  variant                 ProductVariant          @relation(fields: [variantId], references: [id])
-  marketplaceConnectionId String
-  marketplaceConnection   MarketplaceConnection   @relation(fields: [marketplaceConnectionId], references: [id])
-  externalProductId       String?
-  externalVariantId       String?
-  externalSku             String?
-  syncStatus              MarketplaceSyncStatus   @default(PENDING)
-  lastSyncedAt            DateTime?
-  lastSyncError           String?
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
+/// Cached marketplace product snapshot — NOT internal inventory.
+model MarketplaceProduct {
+  id                   String              @id @default(cuid())
+  marketplaceAccountId String
+  marketplaceAccount   MarketplaceAccount  @relation(fields: [marketplaceAccountId], references: [id])
+  provider             MarketplaceProvider
+  externalProductId    String
+  externalVariantId    String
+  externalSku          String?
+  externalProductName  String
+  externalVariantName  String?
+  stock                Int                 @default(0)
+  status               String              @default("active")
+  rawPayload           Json?
+  lastImportedAt       DateTime            @default(now())
+  lastSyncedAt         DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  deletedAt            DateTime?
+
+  mappings MarketplaceProductMapping[]
+
+  @@unique([marketplaceAccountId, externalVariantId])
+  @@index([marketplaceAccountId])
+  @@index([provider])
+  @@index([externalSku])
+  @@index([status])
+  @@index([lastImportedAt])
+  @@map("marketplace_products")
+}
+
+/// Maps internal ProductVariant ↔ cached MarketplaceProduct.
+model MarketplaceProductMapping {
+  id                   String                   @id @default(cuid())
+  productVariantId     String
+  productVariant       ProductVariant           @relation(fields: [productVariantId], references: [id])
+  marketplaceProductId String
+  marketplaceProduct   MarketplaceProduct       @relation(fields: [marketplaceProductId], references: [id])
+  marketplaceAccountId String
+  marketplaceAccount   MarketplaceAccount       @relation(fields: [marketplaceAccountId], references: [id])
+  provider             MarketplaceProvider
+  mappingStatus        MarketplaceMappingStatus @default(MAPPED)
+  syncEnabled          Boolean                  @default(true)
+  autoMapped           Boolean                  @default(false)
+  mappingConfidence    Decimal?                 @db.Decimal(5, 4)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  deletedAt            DateTime?
 
   syncLogs MarketplaceSyncLog[]
+  syncJobs MarketplaceSyncJob[]
 
-  @@unique([marketplaceConnectionId, variantId])
-  @@index([variantId])
-  @@index([syncStatus])
-  @@index([externalSku])
-  @@map("marketplace_variant_mappings")
+  @@unique([marketplaceAccountId, productVariantId])
+  @@unique([marketplaceAccountId, marketplaceProductId])
+  @@index([productVariantId])
+  @@index([marketplaceProductId])
+  @@index([mappingStatus])
+  @@index([syncEnabled])
+  @@map("marketplace_product_mappings")
 }
 
 /// Future sync audit trail for marketplace reconciliation jobs.
 model MarketplaceSyncLog {
   id        String                    @id @default(cuid())
   mappingId String
-  mapping   MarketplaceVariantMapping @relation(fields: [mappingId], references: [id])
+  mapping   MarketplaceProductMapping @relation(fields: [mappingId], references: [id])
   status    MarketplaceSyncStatus
   direction String
   message   String?
@@ -254,6 +331,51 @@ model MarketplaceSyncLog {
   @@index([status])
   @@index([createdAt])
   @@map("marketplace_sync_logs")
+}
+
+/// Async stock sync job — persisted queue state for operational visibility.
+model MarketplaceSyncJob {
+  id                          String                   @id @default(cuid())
+  marketplaceAccountId        String
+  marketplaceAccount          MarketplaceAccount       @relation(fields: [marketplaceAccountId], references: [id])
+  marketplaceProductMappingId String
+  mapping                     MarketplaceProductMapping @relation(fields: [marketplaceProductMappingId], references: [id])
+  provider                    MarketplaceProvider
+  syncType                    MarketplaceSyncType      @default(STOCK_PUSH)
+  syncStatus                  MarketplaceSyncJobStatus @default(PENDING)
+  payload                     Json?
+  providerResponse            Json?
+  idempotencyKey              String?                  @unique
+  attempts                    Int                      @default(0)
+  errorMessage                String?
+  lastAttemptAt               DateTime?
+  completedAt                 DateTime?
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
+
+  @@index([marketplaceAccountId])
+  @@index([marketplaceProductMappingId])
+  @@index([syncStatus])
+  @@index([syncType])
+  @@index([createdAt])
+  @@index([lastAttemptAt])
+  @@map("marketplace_sync_jobs")
+}
+
+/// Provider API health snapshot for operational monitoring.
+model MarketplaceProviderHealth {
+  id                   String             @id @default(cuid())
+  marketplaceAccountId String             @unique
+  marketplaceAccount   MarketplaceAccount @relation(fields: [marketplaceAccountId], references: [id])
+  lastSuccessAt        DateTime?
+  lastFailureAt        DateTime?
+  consecutiveFailures  Int                @default(0)
+  averageLatencyMs     Int?
+  lastErrorCode        String?
+  tokenValid           Boolean            @default(true)
+  updatedAt            DateTime           @updatedAt
+
+  @@map("marketplace_provider_health")
 }
 
 model AuditLog {

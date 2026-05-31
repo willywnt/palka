@@ -11,23 +11,23 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+import type { MarketplaceAccountListItemDto } from '../dto/marketplace.dto';
 import { getMarketplaceProviderLabel } from '../utils/provider-display';
-import type { MarketplaceConnectionListItem } from '../types';
 
 export function DisconnectMarketplaceDialog({
-  connection,
+  account,
   open,
   onOpenChange,
   onConfirm,
   isDisconnecting,
 }: {
-  connection: MarketplaceConnectionListItem | null;
+  account: MarketplaceAccountListItemDto | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
   isDisconnecting?: boolean;
 }) {
-  if (!connection) return null;
+  if (!account) return null;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -35,10 +35,9 @@ export function DisconnectMarketplaceDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Disconnect marketplace store?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will deactivate{' '}
-            <span className="font-medium">{connection.shopName}</span> (
-            {getMarketplaceProviderLabel(connection.provider)}). Credentials stay encrypted in your
-            account and can be reconnected later.
+            This will deactivate <span className="font-medium">{account.storeName}</span> (
+            {getMarketplaceProviderLabel(account.provider)}). Credentials stay encrypted and can be
+            reconnected later.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { getCurrentUser } from '@/modules/auth/services/session';
 import { MarketplaceError } from '@/modules/marketplace/errors/marketplace-errors';
-import { marketplaceServerService } from '@/modules/marketplace/services/marketplace-server.service';
-import { marketplaceConnectionIdSchema } from '@/modules/marketplace/validators/connection-id';
+import { marketplaceAccountService } from '@/modules/marketplace/services/marketplace-account.service';
+import { marketplaceAccountIdSchema } from '@/modules/marketplace/validators/account-id';
 import {
   apiError,
   apiNotFound,
@@ -22,14 +22,14 @@ export async function GET(_request: Request, context: RouteContext) {
     if (!user) return apiUnauthorized();
 
     const params = await context.params;
-    const parsed = marketplaceConnectionIdSchema.safeParse(params);
+    const parsed = marketplaceAccountIdSchema.safeParse(params);
 
     if (!parsed.success) {
-      return apiNotFound('Marketplace connection not found');
+      return apiNotFound('Marketplace account not found');
     }
 
-    const connection = await marketplaceServerService.getConnectionById(user.id, parsed.data.id);
-    return apiSuccess(connection);
+    const account = await marketplaceAccountService.getAccountById(user.id, parsed.data.id);
+    return apiSuccess(account);
   } catch (error) {
     if (error instanceof MarketplaceError) {
       return apiError({ code: error.code, message: error.message }, error.statusCode);
@@ -45,14 +45,14 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (!user) return apiUnauthorized();
 
     const params = await context.params;
-    const parsed = marketplaceConnectionIdSchema.safeParse(params);
+    const parsed = marketplaceAccountIdSchema.safeParse(params);
 
     if (!parsed.success) {
-      return apiNotFound('Marketplace connection not found');
+      return apiNotFound('Marketplace account not found');
     }
 
-    const connection = await marketplaceServerService.disconnectConnection(user.id, parsed.data.id);
-    return apiSuccess(connection);
+    const account = await marketplaceAccountService.disconnectAccount(user.id, parsed.data.id);
+    return apiSuccess(account);
   } catch (error) {
     if (error instanceof MarketplaceError) {
       return apiError({ code: error.code, message: error.message }, error.statusCode);

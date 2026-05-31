@@ -297,9 +297,9 @@ export class InventoryQueryRepository {
         marketplaceMappings: {
           select: {
             id: true,
-            syncStatus: true,
-            externalSku: true,
-            lastSyncedAt: true,
+            mappingStatus: true,
+            syncEnabled: true,
+            marketplaceProduct: { select: { externalSku: true } },
           },
         },
       },

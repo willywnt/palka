@@ -26,31 +26,34 @@ import {
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-import { useCreateMarketplaceConnectionMutation } from '../hooks/use-marketplace-connections';
+import { useConnectMarketplaceAccountMutation } from '../hooks/use-marketplace-accounts';
+import { buildMarketplaceOAuthStartUrl } from '../hooks/use-marketplace-oauth';
+import type { ProviderOAuthStatusDto } from '../dto/oauth.dto';
 import {
   MARKETPLACE_PROVIDER_DESCRIPTIONS,
   getMarketplaceProviderLabel,
 } from '../utils/provider-display';
 import { SUPPORTED_MARKETPLACE_PROVIDERS } from '../utils/providers';
 import {
-  createMarketplaceConnectionFormSchema,
-  type CreateMarketplaceConnectionFormInput,
-} from '../validators/create-connection';
+  connectMarketplaceAccountFormSchema,
+  type ConnectMarketplaceAccountFormInput,
+} from '../validators/connect-account';
 
 type AddMarketplaceModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  oauthStatus: ProviderOAuthStatusDto[];
 };
 
-export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalProps) {
-  const createMutation = useCreateMarketplaceConnectionMutation();
+export function AddMarketplaceModal({ open, onOpenChange, oauthStatus }: AddMarketplaceModalProps) {
+  const connectMutation = useConnectMarketplaceAccountMutation();
 
-  const form = useForm<CreateMarketplaceConnectionFormInput>({
-    resolver: zodResolver(createMarketplaceConnectionFormSchema),
+  const form = useForm<ConnectMarketplaceAccountFormInput>({
+    resolver: zodResolver(connectMarketplaceAccountFormSchema),
     defaultValues: {
       provider: MarketplaceProvider.SHOPEE,
-      shopId: '',
-      shopName: '',
+      externalStoreId: '',
+      storeName: '',
       accessToken: '',
       refreshToken: '',
       expiresAt: null,
@@ -58,21 +61,24 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
   });
 
   const selectedProvider = form.watch('provider');
+  const selectedOAuth = oauthStatus.find((item) => item.provider === selectedProvider);
+  const oauthConfigured = selectedOAuth?.oauthConfigured ?? false;
 
-  async function onSubmit(values: CreateMarketplaceConnectionFormInput) {
+  async function onSubmit(values: ConnectMarketplaceAccountFormInput) {
     try {
-      await createMutation.mutateAsync({
+      await connectMutation.mutateAsync({
         ...values,
         refreshToken: values.refreshToken?.trim() || undefined,
       });
-      toast.success('Marketplace connected', {
-        description: `${values.shopName} is ready for future sync workflows.`,
+      toast.success('Store connected', {
+        description: `${values.storeName} is ready for future sync workflows.`,
       });
       form.reset();
       onOpenChange(false);
     } catch (error) {
       toast.error('Connection failed', {
-        description: error instanceof Error ? error.message : 'Unable to connect marketplace store.',
+        description:
+          error instanceof Error ? error.message : 'Unable to connect marketplace store.',
       });
     }
   }
@@ -85,14 +91,34 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Connect marketplace store</DialogTitle>
           <DialogDescription>
-            Simulate a provider connection for now. OAuth integration will replace manual token entry
-            later.
+            Connect via OAuth when provider credentials are configured, or enter tokens manually for
+            development and testing.
           </DialogDescription>
         </DialogHeader>
+
+        {oauthConfigured ? (
+          <div className="bg-muted/40 rounded-lg border p-3">
+            <p className="mb-2 text-sm font-medium">Recommended: OAuth authorization</p>
+            <p className="text-muted-foreground mb-3 text-xs">
+              Redirects to {getMarketplaceProviderLabel(selectedProvider)} to authorize this
+              platform. Tokens are encrypted before storage.
+            </p>
+            <Button asChild variant="secondary" className="w-full sm:w-auto">
+              <a
+                href={buildMarketplaceOAuthStartUrl({
+                  provider: selectedProvider,
+                  returnUrl: `${window.location.origin}/dashboard/marketplace`,
+                })}
+              >
+                Connect with OAuth
+              </a>
+            </Button>
+          </div>
+        ) : null}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -130,10 +156,10 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="shopId"
+                name="externalStoreId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Shop ID</FormLabel>
+                    <FormLabel>Store ID</FormLabel>
                     <FormControl>
                       <Input placeholder="123456789" autoComplete="off" {...field} />
                     </FormControl>
@@ -144,10 +170,10 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
 
               <FormField
                 control={form.control}
-                name="shopName"
+                name="storeName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Shop name</FormLabel>
+                    <FormLabel>Store name</FormLabel>
                     <FormControl>
                       <Input placeholder="My Shopee Store" autoComplete="off" {...field} />
                     </FormControl>
@@ -166,12 +192,14 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Simulated OAuth access token"
+                      placeholder="Provider access token"
                       autoComplete="off"
                       {...field}
                     />
                   </FormControl>
-                  <FormDescription>Encrypted before storage. Never sent back to the browser.</FormDescription>
+                  <FormDescription>
+                    Encrypted before storage. Never sent back to the browser.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -186,7 +214,7 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Simulated refresh token"
+                      placeholder="Refresh token"
                       autoComplete="off"
                       {...field}
                     />
@@ -225,8 +253,8 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? 'Connecting...' : 'Connect store'}
+              <Button type="submit" disabled={connectMutation.isPending}>
+                {connectMutation.isPending ? 'Connecting...' : 'Connect store'}
               </Button>
             </DialogFooter>
           </form>

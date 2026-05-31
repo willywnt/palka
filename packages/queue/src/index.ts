@@ -75,3 +75,4 @@ export * from './workers/register-workers.js';
 export * from './utils/index.js';
 export * from './utils/job-logger.js';
 export * from './observability/queue-metrics.js';
+export * from './marketplace-sync/index.js';

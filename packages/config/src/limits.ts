@@ -68,6 +68,20 @@ export const AUTH_RATE_LIMIT_PER_MINUTE = 60;
 /** Inventory sync batch size. */
 export const INVENTORY_SYNC_BATCH_SIZE = 100;
 
+/** Max BullMQ retries for marketplace stock sync jobs. */
+export const MARKETPLACE_SYNC_MAX_RETRIES = 5;
+
+/** Provider-specific stock sync concurrency (worker). */
+export const MARKETPLACE_SYNC_PROVIDER_CONCURRENCY: Record<string, number> = {
+  SHOPEE: 2,
+  TOKOPEDIA: 2,
+  TIKTOK: 2,
+  LAZADA: 2,
+};
+
+/** Default provider rate limit — requests per minute (foundation). */
+export const MARKETPLACE_SYNC_RATE_LIMIT_PER_MINUTE = 60;
+
 /** Default low-stock threshold when variant has no override. */
 export const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 

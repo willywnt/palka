@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 
 import { getCurrentUser } from '@/modules/auth/services/session';
 import { MarketplaceError } from '@/modules/marketplace/errors/marketplace-errors';
-import { marketplaceServerService } from '@/modules/marketplace/services/marketplace-server.service';
-import { createMarketplaceConnectionSchema } from '@/modules/marketplace/validators/create-connection';
+import { marketplaceAccountService } from '@/modules/marketplace/services/marketplace-account.service';
+import { connectMarketplaceAccountSchema } from '@/modules/marketplace/validators/connect-account';
 import {
   apiError,
   apiSuccess,
@@ -17,8 +17,8 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user) return apiUnauthorized();
 
-    const connections = await marketplaceServerService.listConnections(user.id);
-    return apiSuccess(connections);
+    const accounts = await marketplaceAccountService.listAccounts(user.id);
+    return apiSuccess(accounts);
   } catch (error) {
     return handleApiError(error);
   }
@@ -30,14 +30,14 @@ export async function POST(request: Request) {
     if (!user) return apiUnauthorized();
 
     const body: unknown = await request.json();
-    const parsed = createMarketplaceConnectionSchema.safeParse(body);
+    const parsed = connectMarketplaceAccountSchema.safeParse(body);
 
     if (!parsed.success) {
       return apiValidationError(parsed.error);
     }
 
-    const connection = await marketplaceServerService.createConnection(user.id, parsed.data);
-    return apiSuccess(connection, 201);
+    const account = await marketplaceAccountService.connectAccount(user.id, parsed.data);
+    return apiSuccess(account, 201);
   } catch (error) {
     if (error instanceof MarketplaceError) {
       return apiError({ code: error.code, message: error.message }, error.statusCode);

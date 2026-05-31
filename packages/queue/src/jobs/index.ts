@@ -18,6 +18,11 @@ import {
   getDefaultVerifyStorageConsistencyPayload,
   processVerifyStorageConsistencyJob,
 } from './verify-storage-consistency.job.js';
+import {
+  processPropagateInventoryStockJob,
+  buildPropagateInventoryStockEnqueueOptions,
+} from './propagate-inventory-stock.job.js';
+import { processSyncMarketplaceStockJob } from './sync-marketplace-stock.job.js';
 
 export {
   processCleanupRecordingsJob,
@@ -30,4 +35,7 @@ export {
   getDefaultCleanupAuditLogsPayload,
   processVerifyStorageConsistencyJob,
   getDefaultVerifyStorageConsistencyPayload,
+  processPropagateInventoryStockJob,
+  buildPropagateInventoryStockEnqueueOptions,
+  processSyncMarketplaceStockJob,
 };

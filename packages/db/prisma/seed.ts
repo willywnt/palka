@@ -87,28 +87,29 @@ async function main() {
     console.log(`Sample recording: ${recording.noResi} (${recording.status})`);
   }
 
-  const existingConnection = await prisma.marketplaceConnection.findFirst({
+  const existingAccount = await prisma.marketplaceAccount.findFirst({
     where: {
       userId: demoUser.id,
       provider: MarketplaceProvider.SHOPEE,
-      shopId: 'seed-shop-001',
+      externalStoreId: 'seed-shop-001',
     },
   });
 
-  if (!existingConnection) {
-    const connection = await prisma.marketplaceConnection.create({
+  if (!existingAccount) {
+    const account = await prisma.marketplaceAccount.create({
       data: {
         userId: demoUser.id,
         provider: MarketplaceProvider.SHOPEE,
-        shopId: 'seed-shop-001',
-        shopName: 'Seed Shopee Store',
+        externalStoreId: 'seed-shop-001',
+        storeName: 'Seed Shopee Store',
         encryptedAccessToken: 'encrypted-token-placeholder',
         encryptedRefreshToken: 'encrypted-refresh-placeholder',
-        isActive: true,
+        status: 'CONNECTED',
+        lastConnectedAt: new Date(),
       },
     });
 
-    console.log(`Sample marketplace connection: ${connection.provider} / ${connection.shopName}`);
+    console.log(`Sample marketplace account: ${account.provider} / ${account.storeName}`);
   }
 
   await prisma.auditLog.create({
