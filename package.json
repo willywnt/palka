@@ -10,6 +10,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,cjs,json,md,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,cjs,json,md,css}\"",
     "typecheck": "turbo typecheck",
+    "test": "turbo test",
     "setup": "pnpm infra:up && pnpm infra:wait && pnpm db:setup",
     "infra:up": "node scripts/infra.mjs up",
     "infra:down": "node scripts/infra.mjs down",
