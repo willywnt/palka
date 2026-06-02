@@ -34,7 +34,6 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: [
-    '@olshop/ui',
     '@olshop/config',
     '@olshop/types',
     '@olshop/utils',
