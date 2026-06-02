@@ -1,7 +1,7 @@
 import type { RecordingStatus as PrismaRecordingStatus } from '@prisma/client';
 
 import type { RecordingLifecycleStatus } from '../types';
-import type { RecoveryUploadStatus } from '@/modules/recording-recovery/types';
+import type { RecoveryUploadStatus } from '@/modules/recordings/recovery/types';
 
 /** Unified operator-facing recording status. */
 export const OPERATIONAL_RECORDING_STATUS = {

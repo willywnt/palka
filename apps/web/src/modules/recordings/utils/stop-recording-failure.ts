@@ -2,8 +2,8 @@ import {
   RECORDING_FAILURE_CODES,
   resolveFailureFromCode,
   resolveFailureFromError,
-} from '@/modules/recording-recovery/types/failure-codes';
-import { isRecoverableUploadError } from '@/modules/recording-recovery/utils/network';
+} from '@/modules/recordings/recovery/types/failure-codes';
+import { isRecoverableUploadError } from '@/modules/recordings/recovery/utils/network';
 
 import { RecordingError } from '../errors/recording-errors';
 

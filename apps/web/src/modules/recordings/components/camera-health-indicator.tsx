@@ -3,7 +3,7 @@
 import { Circle } from 'lucide-react';
 
 import { useRecordingStore } from '../store/recording.store';
-import { useRecordingReliabilityStore } from '@/modules/recording-recovery/store/recording-reliability.store';
+import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
 
 export function CameraHealthIndicator() {
   const mediaStream = useRecordingStore((state) => state.mediaStream);

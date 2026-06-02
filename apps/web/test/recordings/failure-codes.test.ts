@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   RECORDING_FAILURE_CODES,
   resolveFailureFromError,
-} from '@/modules/recording-recovery/types/failure-codes';
+} from '@/modules/recordings/recovery/types/failure-codes';
 
 /**
  * Behavior test for the upload-failure classifier used by the recovery flow.

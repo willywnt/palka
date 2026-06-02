@@ -5,7 +5,7 @@ import { RecordingError } from '@/modules/recordings/errors/recording-errors';
 import { PairingError } from '@/modules/scanner-pairing/errors/pairing-errors';
 import { StorageError } from '@/modules/storage/errors/storage-errors';
 import { MarketplaceError } from '@/modules/marketplace/errors/marketplace-errors';
-import { ReliabilityError } from '@/modules/recording-recovery/errors/reliability-errors';
+import { ReliabilityError } from '@/modules/recordings/recovery/errors/reliability-errors';
 
 /**
  * Locks the HTTP error contract after the DomainError dependency inversion:

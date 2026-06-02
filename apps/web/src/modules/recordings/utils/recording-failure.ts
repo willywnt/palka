@@ -4,7 +4,7 @@ import {
   RECORDING_FAILURE_CODES,
   resolveFailureFromCode,
   type RecordingFailureCode,
-} from '@/modules/recording-recovery/types/failure-codes';
+} from '@/modules/recordings/recovery/types/failure-codes';
 
 const FAILURE_CODES = new Set<string>(Object.values(RECORDING_FAILURE_CODES));
 

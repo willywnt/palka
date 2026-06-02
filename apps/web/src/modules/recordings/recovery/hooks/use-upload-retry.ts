@@ -12,7 +12,7 @@ import { useRecordingStore } from '@/modules/recordings/store/recording.store';
 import {
   RECORDING_FAILURE_CODES,
   resolveFailureFromCode,
-} from '@/modules/recording-recovery/types/failure-codes';
+} from '@/modules/recordings/recovery/types/failure-codes';
 import { RECORDING_TIMELINE_EVENT_TYPES } from '../types/recording-timeline';
 
 import { retryTemporaryRecordingUpload } from '../services/upload-retry.service';

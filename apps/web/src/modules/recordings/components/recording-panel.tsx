@@ -4,10 +4,10 @@ import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { RecordingReliabilityShell } from '@/modules/recording-recovery/components/recording-reliability-shell';
-import { recoverDefaultCameraPreview } from '@/modules/recording-recovery/utils/camera-stream';
-import { useAnotherTabRecording } from '@/modules/recording-recovery/hooks/use-another-tab-recording';
-import { useCameraDevices } from '@/modules/recording-recovery/hooks/use-camera-devices';
+import { RecordingReliabilityShell } from '@/modules/recordings/recovery/components/recording-reliability-shell';
+import { recoverDefaultCameraPreview } from '@/modules/recordings/recovery/utils/camera-stream';
+import { useAnotherTabRecording } from '@/modules/recordings/recovery/hooks/use-another-tab-recording';
+import { useCameraDevices } from '@/modules/recordings/recovery/hooks/use-camera-devices';
 
 import { useRecording } from '../hooks/use-recording';
 import { useDuplicateResiWarning } from '../hooks/use-duplicate-resi-warning';

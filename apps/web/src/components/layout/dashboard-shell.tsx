@@ -1,8 +1,8 @@
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { DashboardNavbar } from '@/components/layout/dashboard-navbar';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { GlobalRecordingReliability } from '@/modules/recording-recovery/components/global-recording-reliability';
-import { PendingUploadProvider } from '@/modules/recording-recovery/components/pending-upload-center';
+import { GlobalRecordingReliability } from '@/modules/recordings/recovery/components/global-recording-reliability';
+import { PendingUploadProvider } from '@/modules/recordings/recovery/components/pending-upload-center';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (

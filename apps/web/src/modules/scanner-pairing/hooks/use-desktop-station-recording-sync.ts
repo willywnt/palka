@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 
-import { useAnotherTabRecording } from '@/modules/recording-recovery/hooks/use-another-tab-recording';
-import { useRecordingReliabilityStore } from '@/modules/recording-recovery/store/recording-reliability.store';
+import { useAnotherTabRecording } from '@/modules/recordings/recovery/hooks/use-another-tab-recording';
+import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
 import {
   selectIsRecordingBusy,
   useRecordingStore,

@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/page-header';
 import { RecordingsDashboard } from '@/modules/recordings/components/recordings-dashboard';
-import { PendingUploadTrigger } from '@/modules/recording-recovery/components/pending-upload-center';
+import { PendingUploadTrigger } from '@/modules/recordings/recovery/components/pending-upload-center';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export const metadata: Metadata = {

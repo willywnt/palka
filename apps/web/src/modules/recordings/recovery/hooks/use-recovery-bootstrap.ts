@@ -14,7 +14,7 @@ import { clearRecordingSession } from '@/modules/recordings/utils/recording-sess
 import { recordingRecoveryService } from '../services/recording-recovery.service';
 import { useRecordingReliabilityStore } from '../store/recording-reliability.store';
 import { isIndexedDbSupported } from '../utils/idb-client';
-import { RECORDING_FAILURE_CODES } from '@/modules/recording-recovery/types/failure-codes';
+import { RECORDING_FAILURE_CODES } from '@/modules/recordings/recovery/types/failure-codes';
 
 import { ReliabilityError } from '../errors/reliability-errors';
 

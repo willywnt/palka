@@ -4,7 +4,7 @@ import { Library } from 'lucide-react';
 
 import { PageHeader } from '@/components/page-header';
 import { RecordingPanel } from '@/modules/recordings/components/recording-panel';
-import { PendingUploadTrigger } from '@/modules/recording-recovery/components/pending-upload-center';
+import { PendingUploadTrigger } from '@/modules/recordings/recovery/components/pending-upload-center';
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {

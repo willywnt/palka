@@ -6,22 +6,22 @@ import { toast } from 'sonner';
 import { uploadFile } from '@/modules/storage/utils/upload-file';
 import { apiFetch } from '@/lib/api/fetch-client';
 import { apiRoutes } from '@/lib/api/routes';
-import { recordingRecoveryService } from '@/modules/recording-recovery/services/recording-recovery.service';
+import { recordingRecoveryService } from '@/modules/recordings/recovery/services/recording-recovery.service';
 import {
   recoverDefaultCameraPreview,
   resolveRecordingStream,
-} from '@/modules/recording-recovery/utils/camera-stream';
-import { useRecordingReliabilityStore } from '@/modules/recording-recovery/store/recording-reliability.store';
-import type { SaveTemporaryRecordingInput } from '@/modules/recording-recovery/types';
+} from '@/modules/recordings/recovery/utils/camera-stream';
+import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
+import type { SaveTemporaryRecordingInput } from '@/modules/recordings/recovery/types';
 import {
   createTimelineEvent,
   RECORDING_TIMELINE_EVENT_TYPES,
-} from '@/modules/recording-recovery/types/recording-timeline';
+} from '@/modules/recordings/recovery/types/recording-timeline';
 import {
   RECORDING_FAILURE_CODES,
   resolveFailureFromCode,
   resolveFailureFromError,
-} from '@/modules/recording-recovery/types/failure-codes';
+} from '@/modules/recordings/recovery/types/failure-codes';
 
 import { RecordingError } from '../errors/recording-errors';
 import type { ActiveRecordingSession } from '../types';

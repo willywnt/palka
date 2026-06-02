@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { isStreamLive } from '@/modules/recording-recovery/utils/camera-stream';
+import { isStreamLive } from '@/modules/recordings/recovery/utils/camera-stream';
 
 export function WebcamPreview({
   stream,

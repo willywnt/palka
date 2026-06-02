@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-import { recordingRecoveryService } from '@/modules/recording-recovery/services/recording-recovery.service';
-import { useRecordingReliabilityStore } from '@/modules/recording-recovery/store/recording-reliability.store';
-import { formatRecoveryFileSize } from '@/modules/recording-recovery/utils/format';
+import { recordingRecoveryService } from '@/modules/recordings/recovery/services/recording-recovery.service';
+import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
+import { formatRecoveryFileSize } from '@/modules/recordings/recovery/utils/format';
 
 const QUOTA_WARNING_BYTES = 500 * 1024 * 1024;
 

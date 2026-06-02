@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
-import { useAnotherTabRecording } from '@/modules/recording-recovery/hooks/use-another-tab-recording';
-import { recoverDefaultCameraPreview } from '@/modules/recording-recovery/utils/camera-stream';
-import { useRecordingReliabilityStore } from '@/modules/recording-recovery/store/recording-reliability.store';
+import { useAnotherTabRecording } from '@/modules/recordings/recovery/hooks/use-another-tab-recording';
+import { recoverDefaultCameraPreview } from '@/modules/recordings/recovery/utils/camera-stream';
+import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
 import { useDuplicateResiWarning } from '@/modules/recordings/hooks/use-duplicate-resi-warning';
 import { normalizeBarcodeValue } from '@/modules/recordings/validators/no-resi';
 import {

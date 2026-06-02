@@ -5,7 +5,7 @@ import {
   formatUploadSpeed,
   type UploadProgressMetrics,
 } from '../hooks/use-upload-progress-metrics';
-import { formatRecoveryFileSize } from '@/modules/recording-recovery/utils/format';
+import { formatRecoveryFileSize } from '@/modules/recordings/recovery/utils/format';
 
 export function UploadProgressBar({
   progress,

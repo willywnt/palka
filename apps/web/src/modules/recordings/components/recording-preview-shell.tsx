@@ -14,7 +14,7 @@ import {
 import type { OperationalRecordingStatus } from '../types/operational-recording-status';
 import { formatOperationalDateTime } from '../utils/datetime';
 import { formatRecordingDuration } from '../utils/format';
-import { formatRecoveryFileSize } from '@/modules/recording-recovery/utils/format';
+import { formatRecoveryFileSize } from '@/modules/recordings/recovery/utils/format';
 import { OperationalStatusBadge } from './operational-status-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';

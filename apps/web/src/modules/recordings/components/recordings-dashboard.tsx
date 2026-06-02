@@ -54,12 +54,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useRecordingReliabilityStore } from '@/modules/recording-recovery/store/recording-reliability.store';
-import { useUploadRetry } from '@/modules/recording-recovery/hooks/use-upload-retry';
-import { PendingLocalPlayerModal } from '@/modules/recording-recovery/components/pending-local-player-modal';
-import { PendingRecordingDetailSheet } from '@/modules/recording-recovery/components/pending-recording-detail-sheet';
-import { PendingDiscardDialog } from '@/modules/recording-recovery/components/pending-discard-dialog';
-import type { TemporaryRecording } from '@/modules/recording-recovery/types';
+import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
+import { useUploadRetry } from '@/modules/recordings/recovery/hooks/use-upload-retry';
+import { PendingLocalPlayerModal } from '@/modules/recordings/recovery/components/pending-local-player-modal';
+import { PendingRecordingDetailSheet } from '@/modules/recordings/recovery/components/pending-recording-detail-sheet';
+import { PendingDiscardDialog } from '@/modules/recordings/recovery/components/pending-discard-dialog';
+import type { TemporaryRecording } from '@/modules/recordings/recovery/types';
 import { mapServerStatusToOperational } from '../types/operational-recording-status';
 import { PendingUploadsSection } from './pending-uploads-section';
 

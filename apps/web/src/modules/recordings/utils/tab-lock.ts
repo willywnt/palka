@@ -1,5 +1,5 @@
 import { RECORDING_MODULE_CONFIG } from '../types';
-import { RECORDING_RECOVERY_CONFIG } from '@/modules/recording-recovery/types';
+import { RECORDING_RECOVERY_CONFIG } from '@/modules/recordings/recovery/types';
 import { clearRecordingSession, refreshRecordingSession } from './recording-session';
 
 type TabLockPayload = {

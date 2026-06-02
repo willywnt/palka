@@ -28,15 +28,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useUploadRetry } from '@/modules/recording-recovery/hooks/use-upload-retry';
-import { useRecordingReliabilityStore } from '@/modules/recording-recovery/store/recording-reliability.store';
-import { resolvePendingRecordingFailureMessage } from '@/modules/recording-recovery/types/failure-codes';
+import { useUploadRetry } from '@/modules/recordings/recovery/hooks/use-upload-retry';
+import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
+import { resolvePendingRecordingFailureMessage } from '@/modules/recordings/recovery/types/failure-codes';
 import {
   formatRecoveryDate,
   formatRecoveryDuration,
   formatRecoveryFileSize,
-} from '@/modules/recording-recovery/utils/format';
-import type { TemporaryRecording } from '@/modules/recording-recovery/types';
+} from '@/modules/recordings/recovery/utils/format';
+import type { TemporaryRecording } from '@/modules/recordings/recovery/types';
 
 import { OperationalStatusBadge } from './operational-status-badge';
 import { mapRecoveryUploadToOperational } from '../types/operational-recording-status';
