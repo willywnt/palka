@@ -1,5 +1,12 @@
-import type { PairingSession, PairingSessionStatus, Prisma } from '@prisma/client';
+import type { PairingSession, PairingSessionStatus, Prisma, UserRole } from '@prisma/client';
 import { prisma } from '@olshop/db';
+
+export type PairingSessionUser = {
+  id: string;
+  email: string;
+  role: UserRole;
+  displayName: string | null;
+};
 
 export type CreatePairingSessionData = {
   id: string;
@@ -108,6 +115,14 @@ export class PairingRepository {
     return prisma.pairingSession.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  /** The session owner, for QR auto-sign-in (keeps Prisma access in the repository). */
+  async findSessionUser(userId: string): Promise<PairingSessionUser | null> {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, displayName: true },
     });
   }
 }

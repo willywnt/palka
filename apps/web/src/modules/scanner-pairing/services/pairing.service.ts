@@ -2,7 +2,6 @@
 import { timingSafeEqual } from 'crypto';
 
 import type { PairingSession } from '@prisma/client';
-import { prisma } from '@olshop/db';
 
 import { createLogger } from '@olshop/logger/server';
 import type { AuthUser } from '@/modules/auth/types';
@@ -128,10 +127,7 @@ export class PairingService {
       throw PairingError.forbidden();
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: { id: true, email: true, role: true, displayName: true },
-    });
+    const user = await pairingRepository.findSessionUser(session.userId);
 
     if (!user) {
       throw PairingError.notFound();

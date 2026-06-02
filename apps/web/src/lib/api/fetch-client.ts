@@ -1,6 +1,6 @@
 import type { ApiError, ApiResponse } from '@olshop/types';
 
-import { AppError } from '@/lib/errors';
+import { AppError, DomainError } from '@/lib/errors';
 
 export type ApiResult<T> =
   | { success: true; data: T; meta?: ApiResponse<T>['meta'] }
@@ -73,7 +73,9 @@ export async function apiFetchOrThrow<T>(path: string, options?: FetchOptions): 
   const result = await apiFetch<T>(path, options);
 
   if (!result.success) {
-    throw new AppError(result.error.message, 'UNKNOWN', 400, { code: result.error.code });
+    // Preserve the server's real error code (and any field details) rather than
+    // collapsing everything to 'UNKNOWN'. DomainError carries an arbitrary code.
+    throw new DomainError(result.error.code, result.error.message, 400, result.error.details);
   }
 
   return result.data;

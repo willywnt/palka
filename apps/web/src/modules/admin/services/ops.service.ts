@@ -6,9 +6,11 @@ import { getMetricsSnapshot } from '@olshop/metrics';
 import { getFailedJobsSummary, getQueueObservabilitySnapshot } from '@olshop/queue';
 import { getObjectStorageProvider } from '@olshop/storage';
 
-const staleThreshold = new Date(Date.now() - STALE_RECORDING_SESSION_HOURS * 60 * 60 * 1000);
-
 export async function getFailedUploadsReport(limit = 50) {
+  // Computed per request — a module-level constant would freeze the cutoff at
+  // process start, so long-lived servers would drift.
+  const staleThreshold = new Date(Date.now() - STALE_RECORDING_SESSION_HOURS * 60 * 60 * 1000);
+
   return prisma.recording.findMany({
     where: {
       OR: [{ status: 'FAILED' }, { status: 'UPLOADING', updatedAt: { lt: staleThreshold } }],

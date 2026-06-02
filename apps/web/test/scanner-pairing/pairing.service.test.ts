@@ -9,7 +9,7 @@ import { PAIRING_ERROR_CODES } from '@/modules/scanner-pairing/errors/pairing-er
  * timing-safe code comparison and scan de-duplication run for real.
  */
 
-const { repoMock, prismaMock } = vi.hoisted(() => ({
+const { repoMock } = vi.hoisted(() => ({
   repoMock: {
     expireStaleSessions: vi.fn(),
     findActiveByUserId: vi.fn(),
@@ -20,14 +20,13 @@ const { repoMock, prismaMock } = vi.hoisted(() => ({
     markConnected: vi.fn(),
     recordScan: vi.fn(),
     disconnect: vi.fn(),
+    findSessionUser: vi.fn(),
   },
-  prismaMock: { user: { findUnique: vi.fn() } },
 }));
 
 vi.mock('@/modules/scanner-pairing/repositories/pairing.repository', () => ({
   pairingRepository: repoMock,
 }));
-vi.mock('@olshop/db', () => ({ prisma: prismaMock }));
 vi.mock('@olshop/logger/server', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }));
@@ -75,12 +74,12 @@ describe('authorizeUserByPairingCode', () => {
     await expect(
       service.authorizeUserByPairingCode('pair-1', 'wrongwrongwrong0'),
     ).rejects.toMatchObject({ code: PAIRING_ERROR_CODES.PAIRING_FORBIDDEN });
-    expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+    expect(repoMock.findSessionUser).not.toHaveBeenCalled();
   });
 
   it('signs in the session owner when the code matches', async () => {
     repoMock.findById.mockResolvedValue(fakeSession({ status: 'PENDING' }));
-    prismaMock.user.findUnique.mockResolvedValue({
+    repoMock.findSessionUser.mockResolvedValue({
       id: USER,
       email: 'owner@example.com',
       role: 'USER',
