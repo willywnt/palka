@@ -55,7 +55,7 @@ async function persistRecoverableRecording(input: SaveTemporaryRecordingInput): 
   }
 
   try {
-    const saved = await recordingRecoveryService.saveTemporaryRecording({
+    await recordingRecoveryService.saveTemporaryRecording({
       ...input,
       uploadStatus: input.uploadStatus ?? 'PENDING',
     });

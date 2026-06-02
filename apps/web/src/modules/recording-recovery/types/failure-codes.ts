@@ -129,12 +129,6 @@ export function resolveFailureFromCode(
   }
 }
 
-function isCameraDisconnectReason(value: string | null | undefined): boolean {
-  if (!value) return false;
-  const lower = value.toLowerCase();
-  return lower.includes('camera') && lower.includes('disconnect');
-}
-
 /** Operator-facing failure text for a local pending recording. */
 export function resolvePendingRecordingFailureMessage(recording: {
   failureMessage?: string | null;

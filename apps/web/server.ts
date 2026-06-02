@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { createServer as createHttpServer } from 'http';
+import { createServer as createHttpServer, type Server as HttpServerInstance } from 'http';
 import { createServer as createHttpsServer } from 'https';
 import { parse } from 'url';
 
@@ -31,7 +31,7 @@ const port = Number(process.env.PORT ?? 3000);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-function createNodeServer(useHttps: boolean): import('http').Server {
+function createNodeServer(useHttps: boolean): HttpServerInstance {
   if (!useHttps) {
     return createHttpServer();
   }
