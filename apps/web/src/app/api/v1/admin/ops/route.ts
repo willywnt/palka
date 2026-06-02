@@ -1,4 +1,4 @@
-import { apiSuccess, handleApiError } from '@/lib/api-response';
+import { apiSuccess } from '@/lib/api-response';
 import { withApiRoute } from '@/lib/api/with-api-route';
 import {
   getFailedUploadsReport,
@@ -10,27 +10,23 @@ import {
 
 export const GET = withApiRoute(
   async () => {
-    try {
-      const [failedUploads, orphanRecordings, stuckJobs, storageMismatch, operational] =
-        await Promise.all([
-          getFailedUploadsReport(),
-          getOrphanRecordingsReport(),
-          getStuckJobsReport(),
-          getStorageMismatchReport(),
-          getOperationalMetricsReport(),
-        ]);
+    const [failedUploads, orphanRecordings, stuckJobs, storageMismatch, operational] =
+      await Promise.all([
+        getFailedUploadsReport(),
+        getOrphanRecordingsReport(),
+        getStuckJobsReport(),
+        getStorageMismatchReport(),
+        getOperationalMetricsReport(),
+      ]);
 
-      return apiSuccess({
-        failedUploads,
-        orphanRecordings,
-        stuckJobs,
-        storageMismatch,
-        operational,
-        generatedAt: new Date().toISOString(),
-      });
-    } catch (error) {
-      return handleApiError(error);
-    }
+    return apiSuccess({
+      failedUploads,
+      orphanRecordings,
+      stuckJobs,
+      storageMismatch,
+      operational,
+      generatedAt: new Date().toISOString(),
+    });
   },
   { requireAdmin: true },
 );
