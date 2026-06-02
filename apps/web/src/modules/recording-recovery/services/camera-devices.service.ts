@@ -40,23 +40,3 @@ export function getRecoveryCameraDeviceId(
 
   return getFirstCameraDeviceId(devices);
 }
-
-export function hasAlternateCamera(
-  devices: CameraDeviceOption[],
-  activeDeviceId: string | null,
-): boolean {
-  if (devices.length <= 1) return false;
-  if (!activeDeviceId) return devices.length > 1;
-  return devices.some((device) => device.deviceId !== activeDeviceId);
-}
-
-export function getNextCameraDeviceId(
-  devices: CameraDeviceOption[],
-  activeDeviceId: string | null,
-): string | null {
-  if (devices.length <= 1) return null;
-
-  const currentIndex = devices.findIndex((device) => device.deviceId === activeDeviceId);
-  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % devices.length : 0;
-  return devices[nextIndex]?.deviceId ?? null;
-}
