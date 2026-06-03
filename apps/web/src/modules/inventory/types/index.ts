@@ -30,3 +30,14 @@ export type AdjustStockResult = {
   inventory: InventorySnapshot;
   entry: StockLedgerEntryItem;
 };
+
+export type StockOverviewItem = {
+  variantId: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  variantName: string;
+  availableStock: number;
+  lowStockThreshold: number;
+  isLowStock: boolean;
+};

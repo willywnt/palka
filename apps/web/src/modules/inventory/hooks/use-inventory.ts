@@ -7,8 +7,28 @@ import { formatApiErrorMessage } from '@/lib/api/format-api-error';
 import { apiRoutes } from '@/lib/api/routes';
 
 import { inventoryKeys } from './inventory-keys';
-import type { AdjustStockResult, InventoryView } from '../types';
+import type { AdjustStockResult, InventoryView, StockOverviewItem } from '../types';
 import type { AdjustStockInput } from '../validators/adjust-stock';
+
+export function useStockOverviewQuery(search: string | undefined, lowStockOnly: boolean) {
+  return useQuery({
+    queryKey: inventoryKeys.overview(search, lowStockOnly),
+    queryFn: async () => {
+      const result = await apiFetch<StockOverviewItem[]>(`${apiRoutes.inventory}/variants`, {
+        params: {
+          ...(search ? { search } : {}),
+          ...(lowStockOnly ? { lowStockOnly: 'true' } : {}),
+        },
+      });
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+  });
+}
 
 export function useVariantInventoryQuery(variantId: string | null, enabled = true) {
   return useQuery({
@@ -43,7 +63,7 @@ export function useAdjustStockMutation(variantId: string) {
       return result.data;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: inventoryKeys.variant(variantId) });
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
     },
   });
 }

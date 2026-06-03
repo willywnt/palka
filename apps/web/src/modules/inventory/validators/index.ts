@@ -5,3 +5,4 @@ export {
   type AdjustStockFormInput,
 } from './adjust-stock';
 export { variantIdParamSchema, type VariantIdParam } from './variant-id';
+export { listStockOverviewQuerySchema, type ListStockOverviewQuery } from './list-stock-overview';

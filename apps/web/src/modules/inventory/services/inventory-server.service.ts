@@ -11,11 +11,15 @@ import type {
   InventorySnapshot,
   InventoryView,
   StockLedgerEntryItem,
+  StockOverviewItem,
 } from '../types';
 import type { AdjustStockInput } from '../validators/adjust-stock';
+import type { ListStockOverviewQuery } from '../validators/list-stock-overview';
 import { computeBalanceAfter } from '../utils/stock-math';
 
 const LEDGER_PAGE_SIZE = 50;
+/** Upper bound on variants scanned for the stock overview; logged if exceeded. */
+const OVERVIEW_CAP = 500;
 
 function emptySnapshot(variantId: string): InventorySnapshot {
   return {
@@ -94,6 +98,60 @@ export class InventoryServerService {
       snapshot: inventory ? mapInventory(inventory) : emptySnapshot(variantId),
       ledger: entries.map(mapLedgerEntry),
     };
+  }
+
+  /**
+   * Flat stock view across all of a user's variants (low-stock first). Bounded
+   * by OVERVIEW_CAP; truncation is logged rather than silently dropping rows.
+   */
+  async listStockOverview(
+    userId: string,
+    query: ListStockOverviewQuery,
+  ): Promise<StockOverviewItem[]> {
+    const variants = await prisma.productVariant.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        ...(query.search
+          ? {
+              OR: [
+                { sku: { contains: query.search, mode: 'insensitive' } },
+                { name: { contains: query.search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        inventory: { select: { availableStock: true } },
+        product: { select: { name: true } },
+      },
+      orderBy: [{ product: { name: 'asc' } }, { name: 'asc' }],
+      take: OVERVIEW_CAP + 1,
+    });
+
+    if (variants.length > OVERVIEW_CAP) {
+      appLogger.warn('inventory.overview.truncated', { userId, cap: OVERVIEW_CAP });
+      variants.length = OVERVIEW_CAP;
+    }
+
+    const items = variants.map((variant): StockOverviewItem => {
+      const availableStock = variant.inventory?.availableStock ?? 0;
+      return {
+        variantId: variant.id,
+        productId: variant.productId,
+        productName: variant.product.name,
+        sku: variant.sku,
+        variantName: variant.name,
+        availableStock,
+        lowStockThreshold: variant.lowStockThreshold,
+        isLowStock: variant.alertEnabled && availableStock <= variant.lowStockThreshold,
+      };
+    });
+
+    const filtered = query.lowStockOnly ? items.filter((item) => item.isLowStock) : items;
+
+    // Surface low-stock rows first; keep the DB name ordering as the tiebreaker.
+    return filtered.sort((a, b) => Number(b.isLowStock) - Number(a.isLowStock));
   }
 
   async adjustStock(
