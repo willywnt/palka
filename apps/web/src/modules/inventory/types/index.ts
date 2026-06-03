@@ -41,3 +41,39 @@ export type StockOverviewItem = {
   lowStockThreshold: number;
   isLowStock: boolean;
 };
+
+export type InventoryDashboardSummary = {
+  variantCount: number;
+  totalAvailableUnits: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  oversoldCount: number;
+  /** Sum of available * cost, serialized; approximate (display KPI). */
+  totalStockValue: string;
+};
+
+export type InventoryLowStockItem = {
+  variantId: string;
+  productId: string;
+  productName: string;
+  variantName: string;
+  sku: string;
+  availableStock: number;
+  lowStockThreshold: number;
+};
+
+export type InventoryMovementItem = {
+  id: string;
+  variantSku: string;
+  variantName: string;
+  delta: number;
+  reason: StockLedgerReason;
+  source: StockLedgerSource;
+  createdAt: string;
+};
+
+export type InventoryDashboard = {
+  summary: InventoryDashboardSummary;
+  lowStock: InventoryLowStockItem[];
+  recentMovements: InventoryMovementItem[];
+};

@@ -7,8 +7,28 @@ import { formatApiErrorMessage } from '@/lib/api/format-api-error';
 import { apiRoutes } from '@/lib/api/routes';
 
 import { inventoryKeys } from './inventory-keys';
-import type { AdjustStockResult, InventoryView, StockOverviewItem } from '../types';
+import type {
+  AdjustStockResult,
+  InventoryDashboard,
+  InventoryView,
+  StockOverviewItem,
+} from '../types';
 import type { AdjustStockInput } from '../validators/adjust-stock';
+
+export function useInventoryDashboardQuery() {
+  return useQuery({
+    queryKey: inventoryKeys.dashboard,
+    queryFn: async () => {
+      const result = await apiFetch<InventoryDashboard>(`${apiRoutes.inventory}/dashboard`);
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+  });
+}
 
 export function useStockOverviewQuery(search: string | undefined, lowStockOnly: boolean) {
   return useQuery({

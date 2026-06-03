@@ -7,4 +7,5 @@ export const inventoryKeys = {
   variant: (variantId: string) => ['inventory', 'variant', variantId] as const,
   overview: (search: string | undefined, lowStockOnly: boolean) =>
     ['inventory', 'overview', { search: search ?? '', lowStockOnly }] as const,
+  dashboard: ['inventory', 'dashboard'] as const,
 };
