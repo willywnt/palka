@@ -24,3 +24,16 @@ export function formatStoragePercent(usedBytes: number, quotaBytes: number): str
   if (quotaBytes === 0) return '100%';
   return `${Math.min(100, Math.round((usedBytes / quotaBytes) * 100))}%`;
 }
+
+const IDR_FORMAT = new Intl.NumberFormat('id-ID', {
+  style: 'currency',
+  currency: 'IDR',
+  maximumFractionDigits: 0,
+});
+
+/** Formats a Decimal-as-string (or number) as Indonesian Rupiah. */
+export function formatCurrency(value: string | number): string {
+  const amount = typeof value === 'string' ? Number(value) : value;
+  if (Number.isNaN(amount)) return '—';
+  return IDR_FORMAT.format(amount);
+}

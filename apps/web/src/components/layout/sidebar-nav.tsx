@@ -9,6 +9,7 @@ import {
   Library,
   Settings,
   ShoppingBag,
+  ShoppingCart,
   Video,
   Warehouse,
   type LucideIcon,
@@ -40,7 +41,10 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
   },
   {
     label: 'Sales channels',
-    items: [{ title: 'Marketplaces', href: '/dashboard/marketplace', icon: ShoppingBag }],
+    items: [
+      { title: 'Marketplaces', href: '/dashboard/marketplace', icon: ShoppingBag },
+      { title: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
+    ],
   },
   {
     label: 'Fulfillment',
