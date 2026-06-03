@@ -6,3 +6,10 @@ export {
 } from './create-connection';
 
 export { marketplaceConnectionIdSchema, type MarketplaceConnectionIdInput } from './connection-id';
+
+export {
+  mapListingSchema,
+  marketplaceListingParamSchema,
+  type MapListingInput,
+  type MarketplaceListingParam,
+} from './map-listing';
