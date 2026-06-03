@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EmptyState } from '@/components/empty-state';
 
 import { useDeleteProductMutation, useProductsQuery } from '../hooks/use-products';
 import type { ProductListItem } from '../types';
@@ -82,23 +83,23 @@ export function ProductsDashboard() {
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-12 text-center">
-          <Package className="text-muted-foreground size-8" />
-          <div>
-            <p className="font-medium">No products yet</p>
-            <p className="text-muted-foreground text-sm">
-              {search
-                ? 'No products match your search.'
-                : 'Create your first product to start tracking stock.'}
-            </p>
-          </div>
-          {!search ? (
-            <Button onClick={() => setCreateOpen(true)} variant="outline">
-              <Plus className="size-4" />
-              New product
-            </Button>
-          ) : null}
-        </div>
+        <EmptyState
+          icon={Package}
+          title="No products yet"
+          description={
+            search
+              ? 'No products match your search.'
+              : 'Create your first product to start tracking stock.'
+          }
+          action={
+            search ? null : (
+              <Button onClick={() => setCreateOpen(true)} variant="outline">
+                <Plus className="size-4" />
+                New product
+              </Button>
+            )
+          }
+        />
       ) : (
         <div className="rounded-xl border">
           <Table>
