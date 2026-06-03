@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { MoreHorizontal, Package, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -114,7 +115,12 @@ export function ProductsDashboard() {
               {products.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>
-                    <div className="font-medium">{product.name}</div>
+                    <Link
+                      href={`/dashboard/products/${product.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {product.name}
+                    </Link>
                     {product.category ? (
                       <div className="text-muted-foreground text-xs">{product.category}</div>
                     ) : null}
