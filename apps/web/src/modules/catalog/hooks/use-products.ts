@@ -19,7 +19,7 @@ function listQuery(search?: string): ListProductsQuery {
   return { page: 1, pageSize: LIST_PAGE_SIZE, search: search || undefined };
 }
 
-export function useProductsQuery(search?: string) {
+export function useProductsQuery(search?: string, enabled = true) {
   return useQuery({
     queryKey: catalogKeys.list(listQuery(search)),
     queryFn: async () => {
@@ -33,6 +33,7 @@ export function useProductsQuery(search?: string) {
 
       return result.data;
     },
+    enabled,
   });
 }
 
