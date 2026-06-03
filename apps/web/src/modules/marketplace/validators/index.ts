@@ -10,6 +10,8 @@ export { marketplaceConnectionIdSchema, type MarketplaceConnectionIdInput } from
 export {
   mapListingSchema,
   marketplaceListingParamSchema,
+  toggleSyncSchema,
   type MapListingInput,
   type MarketplaceListingParam,
+  type ToggleSyncInput,
 } from './map-listing';

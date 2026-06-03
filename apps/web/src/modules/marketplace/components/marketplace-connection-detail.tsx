@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, DownloadCloud, Link2, Link2Off } from 'lucide-react';
+import { ArrowLeft, DownloadCloud, Link2, Link2Off, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -22,10 +22,28 @@ import {
   useImportListingsMutation,
   useMapListingMutation,
   useMarketplaceListingsQuery,
+  useSetSyncEnabledMutation,
+  useSyncNowMutation,
   useUnmapListingMutation,
 } from '../hooks/use-marketplace-listings';
+import type { MarketplaceListingMapping } from '../types';
 import { MapListingDialog } from './map-listing-dialog';
 import { MarketplaceProviderBadge } from './marketplace-provider-badge';
+
+function SyncStatusBadge({ mapping }: { mapping: MarketplaceListingMapping }) {
+  if (!mapping.syncEnabled) return null;
+  if (mapping.lastSyncStatus === 'SYNCED') {
+    return <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">Synced</Badge>;
+  }
+  if (mapping.lastSyncStatus === 'FAILED') {
+    return (
+      <Badge variant="destructive" title={mapping.lastSyncError ?? undefined}>
+        Sync failed
+      </Badge>
+    );
+  }
+  return <Badge variant="outline">Sync pending</Badge>;
+}
 
 export function MarketplaceConnectionDetail({ connectionId }: { connectionId: string }) {
   const [mapTarget, setMapTarget] = useState<string | null>(null);
@@ -35,6 +53,8 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
   const importMutation = useImportListingsMutation(connectionId);
   const mapMutation = useMapListingMutation(connectionId);
   const unmapMutation = useUnmapListingMutation(connectionId);
+  const syncToggleMutation = useSetSyncEnabledMutation(connectionId);
+  const syncNowMutation = useSyncNowMutation(connectionId);
 
   async function handleImport() {
     try {
@@ -67,6 +87,28 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
       toast.success('Listing unmapped');
     } catch (error) {
       toast.error('Unmap failed', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  async function handleToggleSync(marketplaceProductId: string, syncEnabled: boolean) {
+    try {
+      await syncToggleMutation.mutateAsync({ marketplaceProductId, syncEnabled });
+      toast.success(syncEnabled ? 'Sync enabled' : 'Sync disabled');
+    } catch (error) {
+      toast.error('Could not update sync', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  async function handleSyncNow(marketplaceProductId: string) {
+    try {
+      await syncNowMutation.mutateAsync(marketplaceProductId);
+      toast.success('Sync queued', { description: 'The worker will push stock shortly.' });
+    } catch (error) {
+      toast.error('Sync failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -129,71 +171,100 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
               </TableRow>
             </TableHeader>
             <TableBody>
-              {listings.map((listing) => (
-                <TableRow key={listing.marketplaceProductId}>
-                  <TableCell>
-                    <div className="font-medium">{listing.externalProductName}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {listing.externalVariantName ?? '—'}
-                      {listing.externalSku ? ` · ${listing.externalSku}` : ''}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{listing.stock}</TableCell>
-                  <TableCell>
-                    {listing.mapping ? (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{listing.mapping.variantSku}</Badge>
-                        {listing.mapping.autoMapped ? (
-                          <span className="text-muted-foreground text-xs">auto</span>
-                        ) : null}
+              {listings.map((listing) => {
+                const mapping = listing.mapping;
+                const suggested = listing.suggestedVariant;
+
+                return (
+                  <TableRow key={listing.marketplaceProductId}>
+                    <TableCell>
+                      <div className="font-medium">{listing.externalProductName}</div>
+                      <div className="text-muted-foreground text-xs">
+                        {listing.externalVariantName ?? '—'}
+                        {listing.externalSku ? ` · ${listing.externalSku}` : ''}
                       </div>
-                    ) : (
-                      <Badge variant="outline">Unmapped</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {listing.mapping ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={unmapMutation.isPending}
-                        onClick={() => void handleUnmap(listing.marketplaceProductId)}
-                      >
-                        <Link2Off className="size-4" />
-                        Unmap
-                      </Button>
-                    ) : (
-                      <div className="flex justify-end gap-2">
-                        {listing.suggestedVariant ? (
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{listing.stock}</TableCell>
+                    <TableCell>
+                      {mapping ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{mapping.variantSku}</Badge>
+                            {mapping.autoMapped ? (
+                              <span className="text-muted-foreground text-xs">auto</span>
+                            ) : null}
+                          </div>
+                          <SyncStatusBadge mapping={mapping} />
+                        </div>
+                      ) : (
+                        <Badge variant="outline">Unmapped</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {mapping ? (
+                        <div className="flex items-center justify-end gap-2">
                           <Button
-                            variant="outline"
+                            variant={mapping.syncEnabled ? 'default' : 'outline'}
                             size="sm"
-                            disabled={mapMutation.isPending}
-                            onClick={() => {
-                              if (listing.suggestedVariant) {
-                                void handleMap(
-                                  listing.marketplaceProductId,
-                                  listing.suggestedVariant.id,
-                                );
-                              }
-                            }}
+                            disabled={syncToggleMutation.isPending}
+                            onClick={() =>
+                              void handleToggleSync(
+                                listing.marketplaceProductId,
+                                !mapping.syncEnabled,
+                              )
+                            }
                           >
-                            <Link2 className="size-4" />
-                            Map to {listing.suggestedVariant.sku}
+                            {mapping.syncEnabled ? 'Sync on' : 'Sync off'}
                           </Button>
-                        ) : null}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setMapTarget(listing.marketplaceProductId)}
-                        >
-                          Choose…
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                          {mapping.syncEnabled ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={syncNowMutation.isPending}
+                              onClick={() => void handleSyncNow(listing.marketplaceProductId)}
+                            >
+                              <RefreshCw className="size-4" />
+                              Sync now
+                            </Button>
+                          ) : null}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Unmap"
+                            disabled={unmapMutation.isPending}
+                            onClick={() => void handleUnmap(listing.marketplaceProductId)}
+                          >
+                            <Link2Off className="size-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex justify-end gap-2">
+                          {suggested ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={mapMutation.isPending}
+                              onClick={() =>
+                                void handleMap(listing.marketplaceProductId, suggested.id)
+                              }
+                            >
+                              <Link2 className="size-4" />
+                              Map to {suggested.sku}
+                            </Button>
+                          ) : null}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setMapTarget(listing.marketplaceProductId)}
+                          >
+                            Choose…
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

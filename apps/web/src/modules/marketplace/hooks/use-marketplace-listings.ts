@@ -100,3 +100,53 @@ export function useUnmapListingMutation(connectionId: string) {
     },
   });
 }
+
+export function useSetSyncEnabledMutation(connectionId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      marketplaceProductId,
+      syncEnabled,
+    }: {
+      marketplaceProductId: string;
+      syncEnabled: boolean;
+    }) => {
+      const result = await apiFetch<MarketplaceListingItem>(
+        `${apiRoutes.marketplace}/${connectionId}/listings/${marketplaceProductId}/sync`,
+        { method: 'PATCH', body: { syncEnabled } },
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: marketplaceListingKeys.all(connectionId) });
+    },
+  });
+}
+
+export function useSyncNowMutation(connectionId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (marketplaceProductId: string) => {
+      const result = await apiFetch<MarketplaceListingItem>(
+        `${apiRoutes.marketplace}/${connectionId}/listings/${marketplaceProductId}/sync`,
+        { method: 'POST' },
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: marketplaceListingKeys.all(connectionId) });
+    },
+  });
+}

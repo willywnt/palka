@@ -12,3 +12,9 @@ export const marketplaceListingParamSchema = z.object({
 });
 
 export type MarketplaceListingParam = z.infer<typeof marketplaceListingParamSchema>;
+
+export const toggleSyncSchema = z.object({
+  syncEnabled: z.boolean(),
+});
+
+export type ToggleSyncInput = z.infer<typeof toggleSyncSchema>;

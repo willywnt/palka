@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@olshop/db';
+import { buildManualRetryEventId, enqueuePropagateInventoryStock } from '@olshop/queue';
 import type { Prisma } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
@@ -43,6 +44,9 @@ function toListingItem(
           syncEnabled: row.mapping.syncEnabled,
           autoMapped: row.mapping.autoMapped,
           mappingStatus: row.mapping.mappingStatus,
+          lastSyncStatus: row.mapping.lastSyncStatus,
+          lastSyncedAt: row.mapping.lastSyncedAt?.toISOString() ?? null,
+          lastSyncError: row.mapping.lastSyncError,
         }
       : null,
     suggestedVariant: row.mapping ? null : suggestion,
@@ -123,6 +127,72 @@ export class MarketplaceMappingService {
     await prisma.marketplaceProductMapping.deleteMany({ where: { marketplaceProductId, userId } });
 
     appLogger.info('marketplace.listing.unmapped', { userId, connectionId, marketplaceProductId });
+
+    return this.getListing(userId, connectionId, marketplaceProductId);
+  }
+
+  async setSyncEnabled(
+    userId: string,
+    connectionId: string,
+    marketplaceProductId: string,
+    enabled: boolean,
+  ): Promise<MarketplaceListingItem> {
+    await this.assertConnectionOwned(userId, connectionId);
+
+    const updated = await prisma.marketplaceProductMapping.updateMany({
+      where: { marketplaceProductId, userId },
+      data: { syncEnabled: enabled },
+    });
+    if (updated.count === 0) throw MarketplaceError.notFound('Listing is not mapped.');
+
+    appLogger.info('marketplace.listing.sync_toggled', {
+      userId,
+      connectionId,
+      marketplaceProductId,
+      enabled,
+    });
+
+    return this.getListing(userId, connectionId, marketplaceProductId);
+  }
+
+  async syncNow(
+    userId: string,
+    connectionId: string,
+    marketplaceProductId: string,
+  ): Promise<MarketplaceListingItem> {
+    await this.assertConnectionOwned(userId, connectionId);
+
+    const mapping = await prisma.marketplaceProductMapping.findFirst({
+      where: { marketplaceProductId, userId },
+      select: {
+        id: true,
+        syncEnabled: true,
+        productVariantId: true,
+        productVariant: { select: { inventory: { select: { availableStock: true } } } },
+      },
+    });
+    if (!mapping) throw MarketplaceError.notFound('Listing is not mapped.');
+    if (!mapping.syncEnabled) {
+      throw MarketplaceError.validation('Enable sync for this listing first.');
+    }
+
+    const availableStock = mapping.productVariant.inventory?.availableStock ?? 0;
+    const eventId = buildManualRetryEventId(mapping.id, Date.now());
+
+    try {
+      await enqueuePropagateInventoryStock({
+        userId,
+        variantId: mapping.productVariantId,
+        availableStock,
+        eventId,
+      });
+    } catch {
+      throw MarketplaceError.validation(
+        'Could not queue the sync — is the worker (Redis) running?',
+      );
+    }
+
+    appLogger.info('marketplace.listing.sync_now', { userId, connectionId, marketplaceProductId });
 
     return this.getListing(userId, connectionId, marketplaceProductId);
   }

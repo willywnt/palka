@@ -1,4 +1,8 @@
-import type { MarketplaceMappingStatus, MarketplaceProvider } from '@prisma/client';
+import type {
+  MarketplaceMappingStatus,
+  MarketplaceProvider,
+  MarketplaceSyncStatus,
+} from '@prisma/client';
 
 import type { TokenStatus } from '../utils/token-lifecycle';
 
@@ -33,6 +37,9 @@ export type MarketplaceListingMapping = {
   syncEnabled: boolean;
   autoMapped: boolean;
   mappingStatus: MarketplaceMappingStatus;
+  lastSyncStatus: MarketplaceSyncStatus | null;
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
 };
 
 export type MarketplaceSuggestedVariant = {
