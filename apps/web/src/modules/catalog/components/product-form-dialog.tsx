@@ -94,7 +94,7 @@ export function ProductFormDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New product</DialogTitle>
           <DialogDescription>
@@ -104,21 +104,21 @@ export function ProductFormDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Kaos Polos Cotton" autoComplete="off" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Product name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Kaos Polos Cotton" autoComplete="off" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="category"
@@ -132,21 +132,21 @@ export function ProductFormDialog({
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (optional)</FormLabel>
-                    <FormControl>
-                      <Textarea rows={1} placeholder="Short description" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea rows={2} placeholder="Short description" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="space-y-4 rounded-lg border p-4">
               <p className="text-sm font-medium">First variant</p>
@@ -239,37 +239,11 @@ export function ProductFormDialog({
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="variant.leadTimeDays"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Lead time (days)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={0} step={1} {...field} />
-                      </FormControl>
-                      <FormDescription>0 = global default.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="variant.minOrderQty"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Min order qty</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={0} step={1} {...field} />
-                      </FormControl>
-                      <FormDescription>MOQ — 0 = none.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
+
+              <p className="text-muted-foreground text-xs">
+                Lead time and reorder settings can be set later by editing the variant.
+              </p>
             </div>
 
             <DialogFooter>

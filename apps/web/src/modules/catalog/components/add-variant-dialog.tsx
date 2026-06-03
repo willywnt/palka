@@ -85,7 +85,7 @@ export function AddVariantDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add variant</DialogTitle>
           <DialogDescription>Add another sellable variant to this product.</DialogDescription>
@@ -181,37 +181,11 @@ export function AddVariantDialog({
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="leadTimeDays"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lead time (days)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={0} step={1} {...field} />
-                    </FormControl>
-                    <FormDescription>0 = global default.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="minOrderQty"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Min order qty</FormLabel>
-                    <FormControl>
-                      <Input type="number" min={0} step={1} {...field} />
-                    </FormControl>
-                    <FormDescription>MOQ — 0 = none.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+
+            <p className="text-muted-foreground text-xs">
+              Lead time and reorder settings can be set later by editing the variant.
+            </p>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
