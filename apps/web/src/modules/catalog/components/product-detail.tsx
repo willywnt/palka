@@ -2,11 +2,24 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Pencil, Plus, ScrollText, SlidersHorizontal } from 'lucide-react';
+import {
+  ArrowLeft,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  ScrollText,
+  SlidersHorizontal,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -118,19 +131,6 @@ export function ProductDetail({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button asChild variant="ghost" size="sm">
-                          <Link
-                            href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}
-                            title="View stock activity"
-                          >
-                            <ScrollText className="size-4" />
-                            Activity
-                          </Link>
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setEditTarget(variant)}>
-                          <Pencil className="size-4" />
-                          Edit
-                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -139,6 +139,28 @@ export function ProductDetail({
                           <SlidersHorizontal className="size-4" />
                           Adjust
                         </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="size-4" />
+                              <span className="sr-only">More actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setEditTarget(variant)}>
+                              <Pencil className="size-4" />
+                              Edit variant
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}
+                              >
+                                <ScrollText className="size-4" />
+                                View activity
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
