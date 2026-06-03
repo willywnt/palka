@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { PackageSearch, ShoppingCart } from 'lucide-react';
+import { CalendarRange, PackageSearch, PackageX, ShoppingCart } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -16,6 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EmptyState } from '@/components/empty-state';
+import { StatCard } from '@/components/stat-card';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -55,41 +56,25 @@ export function ReorderReport() {
     <div className="space-y-6">
       {data ? (
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Needs reorder</CardDescription>
-              <CardTitle
-                className={cn('text-2xl', data.summary.reorderCount > 0 && 'text-amber-600')}
-              >
-                {data.summary.reorderCount}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-muted-foreground text-xs">{data.summary.urgentCount} urgent</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Dead stock</CardDescription>
-              <CardTitle className="text-2xl">{data.summary.deadStockCount}</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-muted-foreground text-xs">
-                {formatCurrency(data.summary.deadStockValue)} tied up
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Sales window</CardDescription>
-              <CardTitle className="text-2xl">{data.summary.windowDays}d</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-muted-foreground text-xs">
-                {data.summary.leadTimeDays}d lead · {data.summary.targetCoverDays}d target cover
-              </p>
-            </CardContent>
-          </Card>
+          <StatCard
+            label="Needs reorder"
+            value={data.summary.reorderCount}
+            icon={ShoppingCart}
+            accentClassName={data.summary.reorderCount > 0 ? 'text-amber-600' : undefined}
+            hint={`${data.summary.urgentCount} urgent`}
+          />
+          <StatCard
+            label="Dead stock"
+            value={data.summary.deadStockCount}
+            icon={PackageX}
+            hint={`${formatCurrency(data.summary.deadStockValue)} tied up`}
+          />
+          <StatCard
+            label="Sales window"
+            value={`${data.summary.windowDays}d`}
+            icon={CalendarRange}
+            hint={`${data.summary.leadTimeDays}d lead · ${data.summary.targetCoverDays}d target cover`}
+          />
         </div>
       ) : null}
 
@@ -130,17 +115,15 @@ export function ReorderReport() {
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-12 text-center">
-          <PackageSearch className="text-muted-foreground size-8" />
-          <div>
-            <p className="font-medium">Nothing to show</p>
-            <p className="text-muted-foreground text-sm">
-              {reorderOnly
-                ? 'No variants need reordering right now.'
-                : 'Add products and record some sales to see reorder suggestions.'}
-            </p>
-          </div>
-        </div>
+        <EmptyState
+          icon={PackageSearch}
+          title="Nothing to show"
+          description={
+            reorderOnly
+              ? 'No variants need reordering right now.'
+              : 'Add products and record some sales to see reorder suggestions.'
+          }
+        />
       ) : (
         <div className="rounded-xl border">
           <Table>

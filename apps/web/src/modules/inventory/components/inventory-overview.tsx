@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EmptyState } from '@/components/empty-state';
 
 import { useStockOverviewQuery } from '../hooks/use-inventory';
 import type { StockOverviewItem } from '../types';
@@ -64,19 +65,17 @@ export function InventoryOverview() {
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-12 text-center">
-          <PackageSearch className="text-muted-foreground size-8" />
-          <div>
-            <p className="font-medium">Nothing to show</p>
-            <p className="text-muted-foreground text-sm">
-              {lowStockOnly
-                ? 'No variants are below their low-stock threshold.'
-                : search
-                  ? 'No variants match your search.'
-                  : 'Add products to start tracking stock.'}
-            </p>
-          </div>
-        </div>
+        <EmptyState
+          icon={PackageSearch}
+          title="Nothing to show"
+          description={
+            lowStockOnly
+              ? 'No variants are below their low-stock threshold.'
+              : search
+                ? 'No variants match your search.'
+                : 'Add products to start tracking stock.'
+          }
+        />
       ) : (
         <div className="rounded-xl border">
           <Table>

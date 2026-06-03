@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Download, RotateCcw, ScrollText } from 'luci
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -17,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EmptyState } from '@/components/empty-state';
 import { apiRoutes } from '@/lib/api/routes';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
@@ -36,9 +38,6 @@ const INITIAL_FILTERS: StockActivityFilters = {
 
 const REASONS = Object.values(StockLedgerReason);
 const SOURCES = Object.values(StockLedgerSource);
-
-const selectClass =
-  'border-input bg-background h-9 rounded-md border px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]';
 
 function buildExportHref(filters: StockActivityFilters): string {
   const params = new URLSearchParams();
@@ -96,8 +95,8 @@ export function StockActivity({ initialSearch }: { initialSearch?: string } = {}
           className="h-9 w-full sm:max-w-xs"
         />
 
-        <select
-          className={selectClass}
+        <Select
+          className="w-40"
           value={filters.reason}
           onChange={(event) =>
             patch({ reason: event.target.value as StockActivityFilters['reason'] })
@@ -110,10 +109,10 @@ export function StockActivity({ initialSearch }: { initialSearch?: string } = {}
               {stockReasonLabel(reason)}
             </option>
           ))}
-        </select>
+        </Select>
 
-        <select
-          className={selectClass}
+        <Select
+          className="w-36"
           value={filters.source}
           onChange={(event) =>
             patch({ source: event.target.value as StockActivityFilters['source'] })
@@ -126,10 +125,10 @@ export function StockActivity({ initialSearch }: { initialSearch?: string } = {}
               {source}
             </option>
           ))}
-        </select>
+        </Select>
 
-        <select
-          className={selectClass}
+        <Select
+          className="w-32"
           value={filters.direction}
           onChange={(event) =>
             patch({ direction: event.target.value as StockActivityFilters['direction'] })
@@ -139,7 +138,7 @@ export function StockActivity({ initialSearch }: { initialSearch?: string } = {}
           <option value="">In &amp; out</option>
           <option value="in">In (+)</option>
           <option value="out">Out (−)</option>
-        </select>
+        </Select>
 
         <Input
           type="date"
@@ -184,17 +183,13 @@ export function StockActivity({ initialSearch }: { initialSearch?: string } = {}
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-12 text-center">
-          <ScrollText className="text-muted-foreground size-8" />
-          <div>
-            <p className="font-medium">No stock activity</p>
-            <p className="text-muted-foreground text-sm">
-              {isFiltered
-                ? 'No movements match these filters.'
-                : 'Stock changes will show up here.'}
-            </p>
-          </div>
-        </div>
+        <EmptyState
+          icon={ScrollText}
+          title="No stock activity"
+          description={
+            isFiltered ? 'No movements match these filters.' : 'Stock changes will show up here.'
+          }
+        />
       ) : (
         <>
           <div className="rounded-xl border">

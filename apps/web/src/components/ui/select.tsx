@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
  */
 function Select({ className, children, ...props }: React.ComponentProps<'select'>) {
   return (
-    <div className="relative inline-flex w-full">
+    <div className="relative inline-flex">
       <select
         data-slot="select"
         className={cn(
