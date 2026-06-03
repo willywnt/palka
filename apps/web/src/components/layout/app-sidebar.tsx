@@ -20,7 +20,7 @@ export function AppSidebar({ className }: { className?: string }) {
     >
       <div className="border-sidebar-border flex h-14 items-center border-b px-5">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <span className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 items-center justify-center rounded-lg text-sm font-bold shadow-sm">
+          <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-lg text-sm font-bold shadow-sm">
             {APP_NAME.charAt(0)}
           </span>
           <span className="text-base font-semibold tracking-tight">{APP_NAME}</span>
