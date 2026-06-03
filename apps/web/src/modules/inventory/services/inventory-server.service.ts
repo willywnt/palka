@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@olshop/db';
+import { enqueuePropagateInventoryStock } from '@olshop/queue';
 import type { Inventory, StockLedger } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
@@ -207,7 +208,41 @@ export class InventoryServerService {
       balanceAfter: outcome.entry.balanceAfter,
     });
 
+    await this.propagateToMarketplaces(
+      userId,
+      variantId,
+      outcome.inventory.availableStock,
+      outcome.entry.id,
+    );
+
     return outcome;
+  }
+
+  /**
+   * Best-effort fan-out of a stock change to sync-enabled marketplace listings.
+   * Enqueues a propagate job; never blocks or fails the adjustment if the queue
+   * (Redis) is unavailable or there is nothing to sync.
+   */
+  private async propagateToMarketplaces(
+    userId: string,
+    variantId: string,
+    availableStock: number,
+    eventId: string,
+  ): Promise<void> {
+    try {
+      const syncEnabledCount = await prisma.marketplaceProductMapping.count({
+        where: { productVariantId: variantId, userId, syncEnabled: true },
+      });
+      if (syncEnabledCount === 0) return;
+
+      await enqueuePropagateInventoryStock({ userId, variantId, availableStock, eventId });
+    } catch (error) {
+      appLogger.warn('inventory.propagate.enqueue_failed', {
+        userId,
+        variantId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async assertVariantOwned(userId: string, variantId: string): Promise<void> {

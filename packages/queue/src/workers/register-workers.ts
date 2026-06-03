@@ -1,4 +1,5 @@
 import type { Job } from 'bullmq';
+import { JOB_DEFAULT_ATTEMPTS } from '@olshop/config/limits';
 
 import { runJobWithLogging } from '../utils/job-logger.js';
 import { createWorker } from './create-worker.js';
@@ -6,10 +7,12 @@ import {
   processCleanupAuditLogsJob,
   processCleanupFailedUploadsJob,
   processCleanupRecordingsJob,
+  processPropagateInventoryStockJob,
   processRecalculateStorageJob,
+  processSyncMarketplaceStockJob,
   processVerifyStorageConsistencyJob,
 } from '../jobs/index.js';
-import { JOB_NAMES, QUEUE_NAMES } from '../types/index.js';
+import { JOB_NAMES, QUEUE_NAMES, type SyncMarketplaceStockJobPayload } from '../types/index.js';
 
 export function registerAllWorkers() {
   createWorker(QUEUE_NAMES.RECORDING_CLEANUP, {
@@ -36,6 +39,23 @@ export function registerAllWorkers() {
   createWorker(QUEUE_NAMES.AUDIT_CLEANUP, {
     concurrency: 1,
     processor: async (job: Job) => runJobWithLogging(job, processCleanupAuditLogsJob),
+  });
+
+  createWorker(QUEUE_NAMES.MARKETPLACE_PROPAGATE, {
+    concurrency: 2,
+    processor: async (job: Job) => runJobWithLogging(job, processPropagateInventoryStockJob),
+  });
+
+  createWorker(QUEUE_NAMES.MARKETPLACE_STOCK_SYNC, {
+    concurrency: 4,
+    processor: async (job: Job) =>
+      runJobWithLogging(job, (payload: SyncMarketplaceStockJobPayload) =>
+        processSyncMarketplaceStockJob(
+          payload,
+          job.attemptsMade + 1,
+          job.opts.attempts ?? JOB_DEFAULT_ATTEMPTS,
+        ),
+      ),
   });
 
   return {
