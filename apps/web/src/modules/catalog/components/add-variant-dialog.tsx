@@ -34,6 +34,8 @@ const DEFAULT_VALUES: AddVariantFormInput = {
   cost: 0,
   lowStockThreshold: 0,
   initialStock: 0,
+  leadTimeDays: 0,
+  minOrderQty: 0,
 };
 
 export function AddVariantDialog({
@@ -62,6 +64,8 @@ export function AddVariantDialog({
         lowStockThreshold: values.lowStockThreshold,
         initialStock: values.initialStock,
         alertEnabled: true,
+        leadTimeDays: values.leadTimeDays || undefined,
+        minOrderQty: values.minOrderQty || undefined,
       });
       toast.success('Variant added', { description: `${values.name} is now tracked.` });
       form.reset(DEFAULT_VALUES);
@@ -173,6 +177,36 @@ export function AddVariantDialog({
                     <FormControl>
                       <Input type="number" min={0} step={1} {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="leadTimeDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lead time (days)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} step={1} {...field} />
+                    </FormControl>
+                    <FormDescription>0 = global default.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="minOrderQty"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Min order qty</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={0} step={1} {...field} />
+                    </FormControl>
+                    <FormDescription>MOQ — 0 = none.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

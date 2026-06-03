@@ -5,6 +5,8 @@ const MAX_MONEY = 9_999_999_999;
 /** Decimal(10,3) caps the storable weight just under 10^7. */
 const MAX_WEIGHT = 9_999_999;
 const MAX_STOCK = 1_000_000_000;
+/** Reorder-planning lead time, capped at a year. 0 = use the global default. */
+const MAX_LEAD_DAYS = 365;
 
 const optionalTrimmed = (max: number) =>
   z
@@ -24,6 +26,8 @@ export const createVariantSchema = z.object({
   lowStockThreshold: z.coerce.number().int().nonnegative().max(MAX_STOCK).default(0),
   alertEnabled: z.boolean().default(true),
   initialStock: z.coerce.number().int().nonnegative().max(MAX_STOCK).default(0),
+  leadTimeDays: z.coerce.number().int().nonnegative().max(MAX_LEAD_DAYS).optional(),
+  minOrderQty: z.coerce.number().int().nonnegative().max(MAX_STOCK).optional(),
 });
 
 export type CreateVariantInput = z.infer<typeof createVariantSchema>;
@@ -49,6 +53,8 @@ export const createProductFormSchema = z.object({
     cost: z.coerce.number().nonnegative('Cost must be 0 or more').max(MAX_MONEY),
     lowStockThreshold: z.coerce.number().int().nonnegative().max(MAX_STOCK),
     initialStock: z.coerce.number().int().nonnegative().max(MAX_STOCK),
+    leadTimeDays: z.coerce.number().int().nonnegative().max(MAX_LEAD_DAYS),
+    minOrderQty: z.coerce.number().int().nonnegative().max(MAX_STOCK),
   }),
 });
 
@@ -62,6 +68,8 @@ export const addVariantFormSchema = z.object({
   cost: z.coerce.number().nonnegative('Cost must be 0 or more').max(MAX_MONEY),
   lowStockThreshold: z.coerce.number().int().nonnegative().max(MAX_STOCK),
   initialStock: z.coerce.number().int().nonnegative().max(MAX_STOCK),
+  leadTimeDays: z.coerce.number().int().nonnegative().max(MAX_LEAD_DAYS),
+  minOrderQty: z.coerce.number().int().nonnegative().max(MAX_STOCK),
 });
 
 export type AddVariantFormInput = z.infer<typeof addVariantFormSchema>;

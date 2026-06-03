@@ -32,7 +32,16 @@ const DEFAULT_VALUES: CreateProductFormInput = {
   name: '',
   category: '',
   description: '',
-  variant: { sku: '', name: '', price: 0, cost: 0, lowStockThreshold: 0, initialStock: 0 },
+  variant: {
+    sku: '',
+    name: '',
+    price: 0,
+    cost: 0,
+    lowStockThreshold: 0,
+    initialStock: 0,
+    leadTimeDays: 0,
+    minOrderQty: 0,
+  },
 };
 
 export function ProductFormDialog({
@@ -63,6 +72,8 @@ export function ProductFormDialog({
           lowStockThreshold: values.variant.lowStockThreshold,
           initialStock: values.variant.initialStock,
           alertEnabled: true,
+          leadTimeDays: values.variant.leadTimeDays || undefined,
+          minOrderQty: values.variant.minOrderQty || undefined,
         },
       });
       toast.success('Product created', { description: `${values.name} is now in your catalog.` });
@@ -224,6 +235,36 @@ export function ProductFormDialog({
                       <FormControl>
                         <Input type="number" min={0} step={1} {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="variant.leadTimeDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lead time (days)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={0} step={1} {...field} />
+                      </FormControl>
+                      <FormDescription>0 = global default.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="variant.minOrderQty"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Min order qty</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={0} step={1} {...field} />
+                      </FormControl>
+                      <FormDescription>MOQ — 0 = none.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

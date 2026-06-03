@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, SlidersHorizontal } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { useProductQuery } from '../hooks/use-products';
 import type { ProductVariantItem } from '../types';
 import { formatCurrency } from '../utils/format';
 import { AddVariantDialog } from './add-variant-dialog';
+import { EditVariantDialog } from './edit-variant-dialog';
 
 export function ProductDetail({
   productId,
@@ -30,6 +31,7 @@ export function ProductDetail({
 }) {
   const { data, isLoading, error } = useProductQuery(productId);
   const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<ProductVariantItem | null>(null);
 
   if (isLoading) {
     return (
@@ -111,10 +113,16 @@ export function ProductDetail({
                   ) : null}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="outline" size="sm" onClick={() => onAdjustVariant(variant)}>
-                    <SlidersHorizontal className="size-4" />
-                    Adjust
-                  </Button>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setEditTarget(variant)}>
+                      <Pencil className="size-4" />
+                      Edit
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => onAdjustVariant(variant)}>
+                      <SlidersHorizontal className="size-4" />
+                      Adjust
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -123,6 +131,18 @@ export function ProductDetail({
       </div>
 
       <AddVariantDialog productId={productId} open={addOpen} onOpenChange={setAddOpen} />
+
+      {editTarget ? (
+        <EditVariantDialog
+          key={editTarget.id}
+          productId={productId}
+          variant={editTarget}
+          open={Boolean(editTarget)}
+          onOpenChange={(open) => {
+            if (!open) setEditTarget(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

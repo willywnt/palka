@@ -11,6 +11,7 @@ import type { ProductDetail, ProductListItem, ProductVariantItem } from '../type
 import type { CreateProductInput, CreateVariantInput } from '../validators/create-product';
 import type { ListProductsQuery } from '../validators/list-products';
 import type { UpdateProductInput } from '../validators/update-product';
+import type { UpdateVariantInput } from '../validators/update-variant';
 
 type VariantWithInventory = ProductVariant & { inventory: Inventory | null };
 type ProductWithVariants = Product & { variants: VariantWithInventory[] };
@@ -38,11 +39,18 @@ function mapVariant(variant: VariantWithInventory): ProductVariantItem {
     isActive: variant.isActive,
     lowStockThreshold: variant.lowStockThreshold,
     alertEnabled: variant.alertEnabled,
+    leadTimeDays: variant.leadTimeDays,
+    minOrderQty: variant.minOrderQty,
     availableStock,
     isLowStock: isLowStock(variant, availableStock),
     createdAt: variant.createdAt.toISOString(),
     updatedAt: variant.updatedAt.toISOString(),
   };
+}
+
+/** Planning fields use 0 to mean "unset"; persist that as null. */
+function normalizePlanningValue(value: number | undefined): number | null {
+  return value && value > 0 ? value : null;
 }
 
 function mapProductDetail(product: ProductWithVariants): ProductDetail {
@@ -74,6 +82,8 @@ function buildVariantData(
     weight: input.weight ?? null,
     lowStockThreshold: input.lowStockThreshold,
     alertEnabled: input.alertEnabled,
+    leadTimeDays: normalizePlanningValue(input.leadTimeDays),
+    minOrderQty: normalizePlanningValue(input.minOrderQty),
   };
 }
 
@@ -211,6 +221,50 @@ export class CatalogServerService {
     });
 
     return mapVariant(created);
+  }
+
+  /**
+   * Update a single variant's planning fields (low-stock threshold, alert,
+   * reorder lead time / MOQ). Lead time and MOQ use 0 to mean "unset" → null.
+   */
+  async updateVariant(
+    userId: string,
+    productId: string,
+    variantId: string,
+    input: UpdateVariantInput,
+  ): Promise<ProductVariantItem> {
+    await this.assertProductOwned(userId, productId);
+
+    const owned = await prisma.productVariant.findFirst({
+      where: { id: variantId, productId, userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!owned) throw CatalogError.notFound('Variant not found.');
+
+    await prisma.productVariant.update({
+      where: { id: variantId },
+      data: {
+        ...(input.lowStockThreshold !== undefined
+          ? { lowStockThreshold: input.lowStockThreshold }
+          : {}),
+        ...(input.alertEnabled !== undefined ? { alertEnabled: input.alertEnabled } : {}),
+        ...(input.leadTimeDays !== undefined
+          ? { leadTimeDays: normalizePlanningValue(input.leadTimeDays) }
+          : {}),
+        ...(input.minOrderQty !== undefined
+          ? { minOrderQty: normalizePlanningValue(input.minOrderQty) }
+          : {}),
+      },
+    });
+
+    appLogger.info('catalog.variant.updated', { userId, productId, variantId });
+
+    const updated = await prisma.productVariant.findUniqueOrThrow({
+      where: { id: variantId },
+      include: { inventory: true },
+    });
+
+    return mapVariant(updated);
   }
 
   async updateProduct(

@@ -11,6 +11,10 @@ export type ProductVariantItem = {
   isActive: boolean;
   lowStockThreshold: number;
   alertEnabled: boolean;
+  /** Supplier lead time (days); null = use the global reorder default. */
+  leadTimeDays: number | null;
+  /** Minimum reorder quantity (MOQ); null = no minimum. */
+  minOrderQty: number | null;
   availableStock: number;
   isLowStock: boolean;
   createdAt: string;

@@ -5,11 +5,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api/fetch-client';
 import { formatApiErrorMessage } from '@/lib/api/format-api-error';
 import { apiRoutes } from '@/lib/api/routes';
+import { inventoryKeys } from '@/modules/inventory/hooks/inventory-keys';
 
 import { catalogKeys } from './catalog-keys';
 import type { ProductDetail, ProductListItem, ProductVariantItem } from '../types';
 import type { CreateProductInput, CreateVariantInput } from '../validators/create-product';
 import type { ListProductsQuery } from '../validators/list-products';
+import type { UpdateVariantInput } from '../validators/update-variant';
 
 const LIST_PAGE_SIZE = 50;
 
@@ -90,6 +92,30 @@ export function useAddVariantMutation(productId: string) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+    },
+  });
+}
+
+export function useUpdateVariantMutation(productId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ variantId, input }: { variantId: string; input: UpdateVariantInput }) => {
+      const result = await apiFetch<ProductVariantItem>(
+        `${apiRoutes.products}/${productId}/variants/${variantId}`,
+        { method: 'PATCH', body: input },
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      // Planning fields feed the reorder report — refresh it too.
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
     },
   });
 }
