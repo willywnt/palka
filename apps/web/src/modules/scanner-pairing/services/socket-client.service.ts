@@ -71,16 +71,39 @@ function attachConnectErrorLogger(socket: Socket): void {
   });
 }
 
-/** User-facing hint when Engine.IO polling fails (wrong server, cert, or not using dev:web). */
+/**
+ * User-facing hint when the realtime connection fails. The likely cause — and the
+ * advice — differs by environment: local dev talks to the same-origin custom server
+ * (cert / dev:web / Wi‑Fi), whereas production talks to a separate socket host over
+ * the internet. The dev-only hints ("pnpm dev:web", "PC dev server") must NOT surface
+ * in production, where they are misleading.
+ */
 export function formatScannerSocketError(error: Error): string {
   const message = error.message.toLowerCase();
+  const isTransportError =
+    message.includes('xhr poll') ||
+    message.includes('polling') ||
+    message.includes('websocket') ||
+    message.includes('timeout');
 
+  // Production: a separate socket host is configured, reached over the internet.
+  if (usesCrossOriginSocketHost()) {
+    return isTransportError
+      ? 'Cannot reach the recording server. Check your connection and try again — the realtime service may be temporarily unavailable.'
+      : error.message || 'Socket connection failed';
+  }
+
+  // Local dev: the socket is the same-origin custom server (pnpm dev:web).
   if (message.includes('xhr poll') || message.includes('polling')) {
     return 'Cannot reach the scanner socket. Use pnpm dev:web (not next dev), accept the HTTPS certificate on this phone, and open the same URL as the QR code.';
   }
 
   if (message.includes('websocket')) {
     return 'WebSocket connection failed. Check Wi‑Fi and that the PC dev server is still running.';
+  }
+
+  if (message.includes('timeout')) {
+    return 'Could not reach the recording station (socket timeout). Restart with pnpm dev:web.';
   }
 
   return error.message || 'Socket connection failed';

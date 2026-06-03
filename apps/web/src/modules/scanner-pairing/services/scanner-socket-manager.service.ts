@@ -68,11 +68,8 @@ function waitForSocketConnect(socket: ReturnType<typeof getScannerSocket>): Prom
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(
-        new Error(
-          'Could not reach the recording station (socket timeout). Restart with pnpm dev:web.',
-        ),
-      );
+      // Delegate so the hint is environment-aware (no dev:web mention in production).
+      reject(new Error(formatScannerSocketError(new Error('socket timeout'))));
     }, SOCKET_CONNECT_TIMEOUT_MS);
 
     const onConnect = () => {
