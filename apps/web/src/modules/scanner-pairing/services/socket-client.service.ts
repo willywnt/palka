@@ -2,6 +2,9 @@
 
 import { io, type Socket } from 'socket.io-client';
 
+import { apiFetch } from '@/lib/api/fetch-client';
+import { apiRoutes } from '@/lib/api/routes';
+
 import { SOCKET_PATH } from '../config';
 import {
   CLIENT_SOCKET_EVENTS,
@@ -28,6 +31,31 @@ function resolveSocketUrl(): string {
   if (configured) return configured.replace(/\/$/, '');
   if (typeof window === 'undefined') return '';
   return window.location.origin;
+}
+
+/** A separate socket host is configured → it is cross-origin, so use token auth. */
+function usesCrossOriginSocketHost(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SOCKET_URL?.trim());
+}
+
+/**
+ * Fetch a short-lived handshake auth token from the app origin. The request is
+ * same-origin to the app (relative path), so the session cookie is sent and the
+ * server can mint a token. Returns null on any failure so the connection attempt
+ * still proceeds (and fails auth cleanly) rather than hanging.
+ */
+async function fetchScannerSocketToken(): Promise<string | null> {
+  try {
+    const result = await apiFetch<{ token: string }>(`${apiRoutes.scannerPairing}/socket-token`);
+    return result.success ? result.data.token : null;
+  } catch {
+    return null;
+  }
+}
+
+/** socket.io-client `auth` provider: re-invoked on every (re)connect for a fresh token. */
+function provideHandshakeAuth(cb: (data: object) => void): void {
+  void fetchScannerSocketToken().then((token) => cb(token ? { token } : {}));
 }
 
 function attachConnectErrorLogger(socket: Socket): void {
@@ -69,6 +97,9 @@ export function getScannerSocket(): Socket {
       reconnectionAttempts: 12,
       reconnectionDelay: 800,
       timeout: 20_000,
+      // Cross-origin host: authenticate via a short-lived handshake token (the cookie
+      // is not sent cross-origin). Same-origin dev keeps the cookie (no auth provider).
+      ...(usesCrossOriginSocketHost() ? { auth: provideHandshakeAuth } : {}),
     });
     attachConnectErrorLogger(socketInstance);
   }

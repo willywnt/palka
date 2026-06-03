@@ -38,28 +38,30 @@ path (`/api/socket`), CORS, and transports are all correct.
    allowed.
 5. The app CSP already permits `https:` + `wss:` in `connect-src`.
 
-## ⚠️ Auth caveat — cross-origin session cookie (needs a decision)
+## Auth across origins — token-in-handshake (chosen)
 
-The socket authenticates the connection by reading the **next-auth session
-cookie** (`resolve-auth-token.ts` → `getToken`). The browser only sends that
-cookie to the socket host if the cookie is in scope there. With the app on
-`*.vercel.app` and the socket on `*.railway.app` (different registrable
-domains, and `.vercel.app` is on the public-suffix list), **the cookie is not
-sent and socket auth fails.**
+The socket originally authenticated by reading the **next-auth session cookie**
+(`resolve-auth-token.ts` → `getToken`). The browser only sends that cookie to the
+socket host if the cookie is in scope there. With the app on `*.vercel.app` and the
+socket on `*.railway.app` (different registrable domains, and `.vercel.app` is on the
+public-suffix list), **the cookie is not sent and cookie-based socket auth fails.**
 
-Two viable options — both touch sensitive config, so confirm before we proceed:
+We chose **token-in-handshake** so the realtime layer never depends on a cross-origin
+cookie (no `AUTH_COOKIE_DOMAIN`, no shared parent domain required):
 
-- **A. Shared parent domain (recommended).** Put both behind one custom domain:
-  app at `app.example.com`, socket at `socket.example.com`, and set the
-  **`AUTH_COOKIE_DOMAIN=.example.com`** env var. The Auth.js session cookie then
-  carries that `domain` (wired in `auth.config.ts`) so it is sent to both
-  subdomains (same-site, so `SameSite=Lax` still works). Leave the var unset in
-  dev to keep the host-only cookie. The socket host also needs the same
-  `AUTH_SECRET`.
-- **B. Token-in-handshake.** Stop relying on the cookie; pass the session token
-  through the Socket.IO `auth` handshake payload and validate it server-side.
-  Avoids the cookie/domain problem but changes the socket auth mechanism.
+1. The browser fetches a **short-lived token** from the app:
+   `GET /api/v1/scanner-pairing/socket-token` (`createScannerSocketToken`). This call
+   is same-origin to the app, so the session cookie IS sent and the user is
+   authenticated. The token is a next-auth JWE carrying `{ id }`, signed with
+   `AUTH_SECRET` under a dedicated salt (`SOCKET_AUTH_TOKEN_SALT`), TTL
+   `SOCKET_AUTH_TOKEN_TTL_SECONDS` (see `scanner-pairing/config.ts`).
+2. The client passes it in the Socket.IO handshake `auth` payload. The provider is a
+   function, so it is re-invoked on every (re)connect → always a fresh token
+   (`socket-client.service.ts`, enabled only when `NEXT_PUBLIC_SOCKET_URL` is set).
+3. The socket host validates it with `verifyScannerSocketToken`
+   (`decode` with the same secret + salt; jose enforces `exp`) in the connection
+   middleware (`register-handlers.ts`). When no handshake token is present it falls
+   back to the cookie, so **same-origin local dev is unchanged**.
 
-Until one of these is in place, `NEXT_PUBLIC_SOCKET_URL` makes the client reach
-the socket host, but authenticated connections will only succeed when the
-cookie is actually delivered (e.g. option A).
+The socket host therefore only needs the same **`AUTH_SECRET`** (plus `DATABASE_URL`
+and `REDIS_URL`); the cookie domain is irrelevant.

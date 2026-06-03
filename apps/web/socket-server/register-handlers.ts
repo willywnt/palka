@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import { createLogger } from '@olshop/logger/server';
 
 import { resolveAuthToken } from './resolve-auth-token';
+import { verifyScannerSocketToken } from './socket-auth-token';
 
 import { pairingRoomId, SCANNER_HEARTBEAT_STALE_MS } from '../src/modules/scanner-pairing/config';
 import { PairingError } from '../src/modules/scanner-pairing/errors/pairing-errors';
@@ -53,16 +54,24 @@ function sessionPayload(
 export function registerPairingSocketHandlers(io: Server): void {
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
-      const token = await resolveAuthToken({ headers: socket.request.headers });
+      // Cross-origin socket host (production): the browser authenticates with a
+      // short-lived token in the handshake instead of the session cookie, which is
+      // not sent cross-origin. Same-origin dev keeps using the cookie.
+      const handshakeToken = socket.handshake.auth?.token;
+      const userId =
+        typeof handshakeToken === 'string'
+          ? (await verifyScannerSocketToken(handshakeToken))?.id
+          : (await resolveAuthToken({ headers: socket.request.headers }))?.id;
 
-      if (!token?.id || typeof token.id !== 'string') {
+      if (!userId || typeof userId !== 'string') {
         socketLogger.warn('pairing.socket_auth_failed', {
+          via: typeof handshakeToken === 'string' ? 'handshake' : 'cookie',
           hasCookie: Boolean(socket.request.headers.cookie),
         });
         return next(new Error('Unauthorized'));
       }
 
-      socket.data.userId = token.id;
+      socket.data.userId = userId;
       return next();
     } catch {
       return next(new Error('Unauthorized'));
