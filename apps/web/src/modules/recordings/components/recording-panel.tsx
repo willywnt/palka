@@ -40,6 +40,7 @@ import { useScannerAutoRecording } from '@/modules/scanner-pairing/hooks/use-sca
 import { useDesktopScannerSocket } from '@/modules/scanner-pairing/hooks/use-desktop-scanner-socket';
 import { useDesktopStationRecordingSync } from '@/modules/scanner-pairing/hooks/use-desktop-station-recording-sync';
 import { useActivePairingQuery } from '@/modules/scanner-pairing/hooks/use-pairing-api';
+import { isMobileScannerEnabled } from '@/modules/scanner-pairing/config';
 
 export function RecordingPanel() {
   const {
@@ -71,8 +72,10 @@ export function RecordingPanel() {
   const pendingStartRef = useRef(false);
   const [pairingDialogOpen, setPairingDialogOpen] = useState(false);
 
-  const { data: activePairing } = useActivePairingQuery();
-  const pairingSession = activePairing?.session ?? null;
+  // Hidden in production until the realtime socket host is deployed.
+  const scannerEnabled = isMobileScannerEnabled();
+  const { data: activePairing } = useActivePairingQuery(scannerEnabled);
+  const pairingSession = scannerEnabled ? (activePairing?.session ?? null) : null;
 
   const {
     handleBarcodeScanned,
@@ -120,7 +123,9 @@ export function RecordingPanel() {
         <StorageQuotaIndicator variant="warning-only" />
         <LocalStorageUsageIndicator />
 
-        <ScannerStatusWidget onConnectClick={() => setPairingDialogOpen(true)} />
+        {scannerEnabled ? (
+          <ScannerStatusWidget onConnectClick={() => setPairingDialogOpen(true)} />
+        ) : null}
 
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
@@ -236,8 +241,12 @@ export function RecordingPanel() {
         </Card>
       </div>
 
-      <ConnectScannerDialog open={pairingDialogOpen} onOpenChange={setPairingDialogOpen} />
-      <RecordingCountdownModal onCancel={cancelCountdown} onStartNow={startCountdownNow} />
+      {scannerEnabled ? (
+        <>
+          <ConnectScannerDialog open={pairingDialogOpen} onOpenChange={setPairingDialogOpen} />
+          <RecordingCountdownModal onCancel={cancelCountdown} onStartNow={startCountdownNow} />
+        </>
+      ) : null}
 
       <AlertDialog
         open={Boolean(scannerDuplicateWarning)}

@@ -33,3 +33,17 @@ export const PAIRING_ROOM_PREFIX = 'pairing:';
 export function pairingRoomId(sessionId: string): string {
   return `${PAIRING_ROOM_PREFIX}${sessionId}`;
 }
+
+/**
+ * Whether the mobile-scanner pairing feature is surfaced. It needs a separate
+ * always-on Socket.IO host in production (see docs/deployment/socket-server.md);
+ * until that is deployed, the feature is hidden in production to avoid a broken
+ * "connect" flow. Defaults: ON in local dev, OFF in production. Override with
+ * NEXT_PUBLIC_ENABLE_MOBILE_SCANNER=true once the socket host is live.
+ */
+export function isMobileScannerEnabled(): boolean {
+  const flag = process.env.NEXT_PUBLIC_ENABLE_MOBILE_SCANNER?.trim();
+  if (flag === 'true') return true;
+  if (flag === 'false') return false;
+  return process.env.NODE_ENV !== 'production';
+}

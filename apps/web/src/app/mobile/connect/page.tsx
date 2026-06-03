@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 import { MobileScannerView } from '@/modules/scanner-pairing/components/mobile-scanner-view';
 import { pairingCodeSchema, pairingIdSchema } from '@/modules/scanner-pairing/validators/pairing';
+import { isMobileScannerEnabled } from '@/modules/scanner-pairing/config';
 
 const PAIRING_STORAGE_KEY = 'olshop-mobile-pairing-id';
 const PAIRING_CODE_STORAGE_KEY = 'olshop-mobile-pairing-code';
@@ -80,6 +81,17 @@ export default function MobileConnectPage() {
     const returnPath = params.size > 0 ? `/mobile/connect?${params.toString()}` : '/mobile/connect';
     return `/login?callbackUrl=${encodeURIComponent(returnPath)}`;
   }, [codeParam, pairingCode, pairingId, pairingParam]);
+
+  if (!isMobileScannerEnabled()) {
+    return (
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-2 px-6 text-center">
+        <h1 className="text-lg font-medium">Mobile scanner unavailable</h1>
+        <p className="text-muted-foreground text-sm">
+          This feature isn’t available yet. Please check back later.
+        </p>
+      </main>
+    );
+  }
 
   if (pairingParam && !pairingId) {
     return (
