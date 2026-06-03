@@ -1,0 +1,24 @@
+# Reinstalled / rebuilt inside the image
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+.turbo
+
+# VCS & local tooling
+.git
+.gitignore
+**/*.log
+
+# Secrets — never bake into the image (build gets config via build args)
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Test/coverage & misc
+**/coverage
+**/.vscode
+**/.idea
+Dockerfile
+docker-compose*.yml
