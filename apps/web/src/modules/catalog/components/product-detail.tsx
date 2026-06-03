@@ -6,6 +6,7 @@ import { ArrowLeft, Pencil, Plus, ScrollText, SlidersHorizontal } from 'lucide-r
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -58,6 +59,8 @@ export function ProductDetail({
     );
   }
 
+  const totalAvailable = data.variants.reduce((sum, variant) => sum + variant.availableStock, 0);
+
   return (
     <div className="space-y-6">
       <Button variant="ghost" size="sm" asChild className="-ml-2">
@@ -67,76 +70,116 @@ export function ProductDetail({
         </Link>
       </Button>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold tracking-tight">{data.name}</h2>
-            <Badge variant={data.isActive ? 'default' : 'secondary'}>
-              {data.isActive ? 'Active' : 'Inactive'}
-            </Badge>
-          </div>
-          {data.category ? <p className="text-muted-foreground text-sm">{data.category}</p> : null}
-          {data.description ? <p className="text-sm">{data.description}</p> : null}
-        </div>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="size-4" />
-          Add variant
-        </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-xl font-semibold tracking-tight">{data.name}</h2>
+        <Badge variant={data.isActive ? 'default' : 'secondary'}>
+          {data.isActive ? 'Active' : 'Inactive'}
+        </Badge>
       </div>
 
-      <div className="rounded-xl border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Variant</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">In stock</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.variants.map((variant) => (
-              <TableRow key={variant.id}>
-                <TableCell>
-                  <div className="font-medium">{variant.name}</div>
-                  <div className="text-muted-foreground text-xs">{variant.sku}</div>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatCurrency(variant.price)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <span className="font-medium tabular-nums">{variant.availableStock}</span>
-                  {variant.isLowStock ? (
-                    <Badge variant="destructive" className="ml-2">
-                      Low
-                    </Badge>
-                  ) : null}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button asChild variant="ghost" size="sm">
-                      <Link
-                        href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}
-                        title="View stock activity"
-                      >
-                        <ScrollText className="size-4" />
-                        Activity
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setEditTarget(variant)}>
-                      <Pencil className="size-4" />
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => onAdjustVariant(variant)}>
-                      <SlidersHorizontal className="size-4" />
-                      Adjust
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-3 lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium">
+              Variants <span className="text-muted-foreground">· {data.variants.length}</span>
+            </p>
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              <Plus className="size-4" />
+              Add variant
+            </Button>
+          </div>
+          <div className="rounded-xl border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Variant</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">In stock</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.variants.map((variant) => (
+                  <TableRow key={variant.id}>
+                    <TableCell>
+                      <div className="font-medium">{variant.name}</div>
+                      <div className="text-muted-foreground text-xs">{variant.sku}</div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(variant.price)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="font-medium tabular-nums">{variant.availableStock}</span>
+                      {variant.isLowStock ? (
+                        <Badge variant="destructive" className="ml-2">
+                          Low
+                        </Badge>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link
+                            href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}
+                            title="View stock activity"
+                          >
+                            <ScrollText className="size-4" />
+                            Activity
+                          </Link>
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setEditTarget(variant)}>
+                          <Pencil className="size-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onAdjustVariant(variant)}
+                        >
+                          <SlidersHorizontal className="size-4" />
+                          Adjust
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        <aside className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Product</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Total in stock</span>
+                <span className="font-medium tabular-nums">{totalAvailable}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Variants</span>
+                <span className="font-medium tabular-nums">{data.variants.length}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Status</span>
+                <Badge variant={data.isActive ? 'default' : 'secondary'}>
+                  {data.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
+              {data.category ? (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Category</span>
+                  <span className="truncate text-right font-medium">{data.category}</span>
+                </div>
+              ) : null}
+              {data.description ? (
+                <p className="text-muted-foreground border-t pt-3">{data.description}</p>
+              ) : null}
+            </CardContent>
+          </Card>
+        </aside>
       </div>
 
       <AddVariantDialog productId={productId} open={addOpen} onOpenChange={setAddOpen} />
