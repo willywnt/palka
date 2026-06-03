@@ -89,6 +89,19 @@ export class MarketplaceImportService {
     return { imported: listings.length, autoMapped };
   }
 
+  /** Re-runs SKU auto-map over already-imported, still-unmapped listings (no provider fetch). */
+  async rerunAutoMap(userId: string, connectionId: string): Promise<{ autoMapped: number }> {
+    const connection = await prisma.marketplaceConnection.findFirst({
+      where: { id: connectionId, userId, deletedAt: null },
+      select: { id: true, provider: true },
+    });
+    if (!connection) throw MarketplaceError.notFound();
+
+    const autoMapped = await this.autoMapBySku(userId, connection.id, connection.provider);
+    appLogger.info('marketplace.automap.rerun', { userId, connectionId, autoMapped });
+    return { autoMapped };
+  }
+
   /**
    * Auto-maps unmapped listings to internal variants by *normalized* SKU. An
    * exact SKU is mapped (confidence 1); a normalized-only match is mapped as

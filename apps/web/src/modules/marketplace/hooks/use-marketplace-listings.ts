@@ -51,6 +51,28 @@ export function useImportListingsMutation(connectionId: string) {
   });
 }
 
+export function useRerunAutoMapMutation(connectionId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const result = await apiFetch<{ autoMapped: number }>(
+        `${apiRoutes.marketplace}/${connectionId}/auto-map`,
+        { method: 'POST' },
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: marketplaceListingKeys.all(connectionId) });
+    },
+  });
+}
+
 export function useMapListingMutation(connectionId: string) {
   const queryClient = useQueryClient();
 

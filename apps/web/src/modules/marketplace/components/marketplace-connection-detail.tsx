@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, DownloadCloud, Link2, Link2Off, RefreshCw } from 'lucide-react';
+import { ArrowLeft, DownloadCloud, Link2, Link2Off, RefreshCw, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,7 @@ import {
   useImportListingsMutation,
   useMapListingMutation,
   useMarketplaceListingsQuery,
+  useRerunAutoMapMutation,
   useSetSyncEnabledMutation,
   useSyncNowMutation,
   useUnmapListingMutation,
@@ -51,6 +52,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
   const connectionQuery = useMarketplaceConnectionQuery(connectionId);
   const listingsQuery = useMarketplaceListingsQuery(connectionId);
   const importMutation = useImportListingsMutation(connectionId);
+  const rerunMutation = useRerunAutoMapMutation(connectionId);
   const mapMutation = useMapListingMutation(connectionId);
   const unmapMutation = useUnmapListingMutation(connectionId);
   const syncToggleMutation = useSetSyncEnabledMutation(connectionId);
@@ -64,6 +66,22 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
       });
     } catch (error) {
       toast.error('Import failed', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  async function handleRerunAutoMap() {
+    try {
+      const result = await rerunMutation.mutateAsync();
+      toast.success('Auto-map complete', {
+        description:
+          result.autoMapped > 0
+            ? `${result.autoMapped} listing(s) newly mapped.`
+            : 'No new SKU matches found.',
+      });
+    } catch (error) {
+      toast.error('Auto-map failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -140,10 +158,20 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
             <Skeleton className="h-8 w-48" />
           )}
         </div>
-        <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
-          <DownloadCloud className="size-4" />
-          {importMutation.isPending ? 'Importing...' : 'Import listings'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => void handleRerunAutoMap()}
+            disabled={rerunMutation.isPending || listings.length === 0}
+          >
+            <Wand2 className="size-4" />
+            {rerunMutation.isPending ? 'Mapping...' : 'Re-run auto-map'}
+          </Button>
+          <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
+            <DownloadCloud className="size-4" />
+            {importMutation.isPending ? 'Importing...' : 'Import listings'}
+          </Button>
+        </div>
       </div>
 
       {listingsQuery.isLoading ? (
