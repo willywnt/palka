@@ -42,6 +42,9 @@ model User {
   pairingSessions        PairingSession[]
   marketplaceConnections MarketplaceConnection[]
   auditLogs              AuditLog[]
+  products               Product[]
+  productVariants        ProductVariant[]
+  stockLedgerEntries     StockLedger[]
 
   @@map("users")
 }
@@ -135,4 +138,104 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@map("audit_logs")
+}
+
+enum StockLedgerReason {
+  MANUAL_ADJUST
+  RESTOCK
+  DAMAGE
+  ORDER_RESERVE
+  ORDER_RELEASE
+  ORDER_SHIP
+  MARKETPLACE_SYNC
+  RECONCILE
+}
+
+enum StockLedgerSource {
+  MANUAL
+  MARKETPLACE
+  SYSTEM
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  name        String
+  description String?
+  category    String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  variants ProductVariant[]
+
+  @@index([userId])
+  @@map("products")
+}
+
+model ProductVariant {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  productId         String
+  product           Product   @relation(fields: [productId], references: [id])
+  sku               String
+  name              String
+  barcode           String?
+  price             Decimal   @db.Decimal(12, 2)
+  cost              Decimal?  @db.Decimal(12, 2)
+  weight            Decimal?  @db.Decimal(10, 3) // kilograms
+  dimensions        Json?
+  isActive          Boolean   @default(true)
+  lowStockThreshold Int       @default(0)
+  alertEnabled      Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  inventory     Inventory?
+  ledgerEntries StockLedger[]
+
+  @@unique([userId, sku])
+  @@index([userId])
+  @@index([productId])
+  @@index([barcode])
+  @@map("product_variants")
+}
+
+model Inventory {
+  id             String         @id @default(cuid())
+  variantId      String         @unique
+  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  availableStock Int            @default(0)
+  reservedStock  Int            @default(0)
+  damagedStock   Int            @default(0)
+  incomingStock  Int            @default(0)
+  lastAdjustedAt DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("inventories")
+}
+
+model StockLedger {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id])
+  variantId    String
+  variant      ProductVariant    @relation(fields: [variantId], references: [id])
+  delta        Int
+  balanceAfter Int
+  reason       StockLedgerReason
+  source       StockLedgerSource
+  referenceId  String?
+  note         String?
+  createdAt    DateTime          @default(now())
+
+  @@index([userId])
+  @@index([variantId])
+  @@index([createdAt])
+  @@map("stock_ledger_entries")
 }
