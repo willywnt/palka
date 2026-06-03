@@ -1,5 +1,9 @@
 import type { StockLedgerReason, StockLedgerSource } from '@prisma/client';
 
+import type { ReorderStatus } from '../utils/reorder-math';
+
+export type { ReorderStatus };
+
 export type InventorySnapshot = {
   variantId: string;
   availableStock: number;
@@ -76,4 +80,44 @@ export type InventoryDashboard = {
   summary: InventoryDashboardSummary;
   lowStock: InventoryLowStockItem[];
   recentMovements: InventoryMovementItem[];
+};
+
+export type ReorderItem = {
+  variantId: string;
+  productId: string;
+  productName: string;
+  variantName: string;
+  sku: string;
+  availableStock: number;
+  incomingStock: number;
+  /** Net units sold inside the window (returns netted out). */
+  unitsSold: number;
+  /** Average units sold per day over the variant's effective window. */
+  dailyVelocity: number;
+  /** Days the available stock lasts at the current velocity; null = no demand. */
+  daysOfCover: number | null;
+  /** Units suggested to reorder up to the lead+target horizon. */
+  suggestedReorderQty: number;
+  status: ReorderStatus;
+  /** available * cost, rounded + serialized; '0' when cost is unset. */
+  stockValue: string;
+};
+
+export type ReorderSummary = {
+  windowDays: number;
+  leadTimeDays: number;
+  targetCoverDays: number;
+  /** Variants needing a reorder (URGENT or SOON). */
+  reorderCount: number;
+  /** Subset of reorderCount that will stock out within the lead time. */
+  urgentCount: number;
+  /** Variants holding stock with no sales past the dead-stock age. */
+  deadStockCount: number;
+  /** Sum of stock value across dead-stock variants, rounded + serialized. */
+  deadStockValue: string;
+};
+
+export type ReorderReport = {
+  summary: ReorderSummary;
+  items: ReorderItem[];
 };
