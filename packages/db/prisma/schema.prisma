@@ -48,6 +48,7 @@ model User {
   marketplaceProducts        MarketplaceProduct[]
   marketplaceProductMappings MarketplaceProductMapping[]
   marketplaceSyncJobs        MarketplaceSyncJob[]
+  orders                     Order[]
 
   @@map("users")
 }
@@ -128,6 +129,7 @@ model MarketplaceConnection {
   marketplaceProducts MarketplaceProduct[]
   productMappings     MarketplaceProductMapping[]
   syncJobs            MarketplaceSyncJob[]
+  orders              Order[]
 
   @@index([userId])
   @@index([provider])
@@ -206,6 +208,7 @@ model ProductVariant {
   inventory           Inventory?
   ledgerEntries       StockLedger[]
   marketplaceMappings MarketplaceProductMapping[]
+  orderItems          OrderItem[]
 
   @@unique([userId, sku])
   @@index([userId])
@@ -352,4 +355,64 @@ model MarketplaceSyncJob {
   @@index([marketplaceProductMappingId])
   @@index([syncStatus])
   @@map("marketplace_sync_jobs")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+model Order {
+  id                      String                @id @default(cuid())
+  userId                  String
+  user                    User                  @relation(fields: [userId], references: [id])
+  marketplaceConnectionId String
+  connection              MarketplaceConnection @relation(fields: [marketplaceConnectionId], references: [id], onDelete: Cascade)
+  provider                MarketplaceProvider
+  externalOrderId         String
+  status                  OrderStatus
+  noResi                  String?
+  buyerName               String?
+  totalAmount             Decimal?              @db.Decimal(14, 2)
+  currency                String?
+  rawPayload              Json?
+  placedAt                DateTime
+  /**
+   * Set once a PAID order's items have decremented internal stock (idempotency).
+   */
+  inventoryAppliedAt      DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  items OrderItem[]
+
+  @@unique([marketplaceConnectionId, externalOrderId])
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String          @id @default(cuid())
+  orderId           String
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  externalProductId String
+  externalVariantId String
+  externalSku       String?
+  externalName      String
+  quantity          Int
+  unitPrice         Decimal?        @db.Decimal(12, 2)
+  /**
+   * Resolved internal variant (via marketplace mapping); null when unresolved.
+   */
+  productVariantId  String?
+  productVariant    ProductVariant? @relation(fields: [productVariantId], references: [id])
+  createdAt         DateTime        @default(now())
+
+  @@index([orderId])
+  @@index([productVariantId])
+  @@map("order_items")
 }
