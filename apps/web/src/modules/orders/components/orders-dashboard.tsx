@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EmptyState } from '@/components/empty-state';
 import { formatDateTime } from '@/lib/formatters';
 
 import { useOrdersQuery } from '../hooks/use-orders';
@@ -39,13 +40,11 @@ export function OrdersDashboard() {
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed p-12 text-center">
-          <ShoppingCart className="text-muted-foreground size-8" />
-          <p className="font-medium">No orders yet</p>
-          <p className="text-muted-foreground text-sm">
-            Open a connected store and use &ldquo;Pull orders&rdquo; to bring orders into stock.
-          </p>
-        </div>
+        <EmptyState
+          icon={ShoppingCart}
+          title="No orders yet"
+          description={'Open a connected store and use “Pull orders” to bring orders into stock.'}
+        />
       ) : (
         <div className="rounded-xl border">
           <Table>
