@@ -248,7 +248,9 @@ model StockLedger {
   note         String?
   createdAt    DateTime          @default(now())
 
-  @@index([userId])
+  // Serves the reorder report's per-bucket demand sums (userId + reason IN + createdAt range).
+  // Its userId prefix also covers plain userId lookups, so no separate @@index([userId]).
+  @@index([userId, reason, createdAt])
   @@index([variantId])
   @@index([createdAt])
   @@map("stock_ledger_entries")
