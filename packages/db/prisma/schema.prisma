@@ -122,6 +122,7 @@ model MarketplaceConnection {
   tokenExpiresAt        DateTime?
   isActive              Boolean             @default(true)
   lastImportedAt        DateTime?
+  lastOrdersPulledAt    DateTime? // last time orders were pulled from this store (display + pull cooldown)
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   deletedAt             DateTime?
