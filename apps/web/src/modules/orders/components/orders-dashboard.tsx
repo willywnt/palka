@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ShoppingCart } from 'lucide-react';
+import { DownloadCloud, ShoppingCart } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -18,15 +20,24 @@ import { formatDateTime } from '@/lib/formatters';
 
 import { useOrdersQuery } from '../hooks/use-orders';
 import { OrderStatusBadge } from './order-status-badge';
+import { PullOrdersDialog } from './pull-orders-dialog';
 
 export function OrdersDashboard() {
   const { data, isLoading, error } = useOrdersQuery();
+  const [pullOpen, setPullOpen] = useState(false);
 
   const orders = data ?? [];
   const isEmpty = !isLoading && orders.length === 0;
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button onClick={() => setPullOpen(true)}>
+          <DownloadCloud className="size-4" />
+          Pull orders
+        </Button>
+      </div>
+
       {error ? (
         <div className="border-destructive/30 bg-destructive/5 text-destructive rounded-lg border p-4 text-sm">
           Failed to load orders. {error instanceof Error ? error.message : 'Please try again.'}
@@ -43,7 +54,13 @@ export function OrdersDashboard() {
         <EmptyState
           icon={ShoppingCart}
           title="No orders yet"
-          description={'Open a connected store and use “Pull orders” to bring orders into stock.'}
+          description="Pull orders from your connected stores to bring them into stock."
+          action={
+            <Button onClick={() => setPullOpen(true)}>
+              <DownloadCloud className="size-4" />
+              Pull orders
+            </Button>
+          }
         />
       ) : (
         <div className="rounded-xl border">
@@ -56,6 +73,7 @@ export function OrdersDashboard() {
                 <TableHead className="text-right">Items</TableHead>
                 <TableHead>Stock</TableHead>
                 <TableHead>Placed</TableHead>
+                <TableHead>Last pulled</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,13 +109,24 @@ export function OrdersDashboard() {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell suppressHydrationWarning>{formatDateTime(order.placedAt)}</TableCell>
+                  <TableCell className="whitespace-nowrap" suppressHydrationWarning>
+                    {formatDateTime(order.placedAt)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                    {order.lastPulledAt ? (
+                      <span suppressHydrationWarning>{formatDateTime(order.lastPulledAt)}</span>
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       )}
+
+      <PullOrdersDialog open={pullOpen} onOpenChange={setPullOpen} />
     </div>
   );
 }
