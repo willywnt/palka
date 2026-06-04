@@ -10,6 +10,7 @@ import {
   Settings,
   ShoppingBag,
   ShoppingCart,
+  Store,
   Undo2,
   Video,
   Warehouse,
@@ -45,6 +46,7 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
     items: [
       { title: 'Marketplaces', href: '/dashboard/marketplace', icon: ShoppingBag },
       { title: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
+      { title: 'Sales (POS)', href: '/dashboard/sales', icon: Store },
     ],
   },
   {
