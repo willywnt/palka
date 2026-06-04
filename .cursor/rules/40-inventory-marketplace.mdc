@@ -51,6 +51,13 @@ Per-user scoped (internal-first, multi-tenant-ready). Roadmap + locked decisions
   from the order page (via `mapByExternalRef`) then reserves stock for just the newly-resolved items of
   a PAID order (idempotent). Endpoints: `POST /api/v1/orders/pull`, `/orders/:id/resolve-item`. Pull
   lives on the **Orders** page (removed from marketplace detail).
+- **fulfillment (Phase 5)** — orders ↔ packing videos are joined by the shared **`noResi`** (no FK).
+  `Order.fulfilledAt` is stamped best-effort when a packing video completes (the recordings complete
+  route calls `markFulfilledByResi` — never fails the save). `findByResi` resolves the order for a resi
+  (the station **pack view** shows its items via `useOrderByResiQuery`); recordings `findByResi` lists
+  completed videos for a resi (order/return **evidence**, via `useRecordingsByResiQuery`). Services stay
+  decoupled — composition is at the route/page/hook layer. Endpoints: `GET /api/v1/orders/by-resi`,
+  `GET /api/v1/recordings/by-resi`.
 - **returns** — RMA flow (`Return` + `ReturnItem`). A return opens (PENDING) for an order whose goods
   shipped — auto on a detected post-ship cancellation, or manually from the order page — then is
   processed once goods arrive: each line routed to **RESTOCK** (`applyReturnRestockTx`, available+) or
@@ -105,4 +112,5 @@ token → lift token-crypto to `@olshop/*`; queue package has no vitest (engine 
 > stock activity log + CSV; variant editing; multi-store order pull + cooldown; order-item mapping;
 > cancellation→restock (`ORDER_RELEASE`); exclude source channel from propagation; reserved-vs-available
 > reserve→ship→release lifecycle (reserved bucket surfaced in overview + dashboard); returns/RMA
-> (auto-open on post-ship cancel + manual; process restock/damaged; packing-video evidence by noResi).
+> (auto-open on post-ship cancel + manual; process restock/damaged; packing-video evidence by noResi);
+> Phase 5 fulfillment (order↔packing-video by noResi, station pack view, auto-fulfill + Fulfilled badge).
