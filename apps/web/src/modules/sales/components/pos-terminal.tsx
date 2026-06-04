@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { PackageSearch, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SalePaymentMethod } from '@prisma/client';
@@ -281,9 +280,6 @@ export function PosTerminal() {
             >
               <PackageSearch className="size-4" />
               {createSale.isPending ? 'Processing...' : 'Checkout'}
-            </Button>
-            <Button variant="link" asChild className="w-full">
-              <Link href="/dashboard/sales">View sales history</Link>
             </Button>
           </div>
         </CardContent>
