@@ -27,6 +27,8 @@ import { NumberInput } from '@/components/ui/number-input';
 import { useUpdateVariantMutation } from '../hooks/use-products';
 import type { ProductVariantItem } from '../types';
 import { editVariantFormSchema, type EditVariantFormInput } from '../validators/update-variant';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 function toDefaults(variant: ProductVariantItem): EditVariantFormInput {
   return {
@@ -138,16 +140,16 @@ export function EditVariantDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Low-stock alert</FormLabel>
-                    <FormControl>
-                      <Button
-                        type="button"
-                        variant={field.value ? 'default' : 'outline'}
-                        className="w-full justify-start"
-                        onClick={() => field.onChange(!field.value)}
-                      >
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="alert-enabled"
+                        checked={field.value}
+                        onCheckedChange={(checked) => field.onChange(checked)}
+                      />
+                      <Label htmlFor="alert-enabled" className="text-sm font-normal">
                         {field.value ? 'Enabled' : 'Disabled'}
-                      </Button>
-                    </FormControl>
+                      </Label>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

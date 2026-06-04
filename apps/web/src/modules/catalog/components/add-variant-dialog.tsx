@@ -131,7 +131,7 @@ export function AddVariantDialog({
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel required>Price (IDR)</FormLabel>
+                    <FormLabel>Price (IDR)</FormLabel>
                     <FormControl>
                       <NumberInput min={0} step={1} {...field} />
                     </FormControl>

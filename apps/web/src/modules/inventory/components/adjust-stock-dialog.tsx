@@ -39,6 +39,11 @@ const DEFAULT_VALUES: AdjustStockFormInput = {
   note: '',
 };
 
+const directionOptions = [
+  { label: 'Add', value: 'add' },
+  { label: 'Remove', value: 'remove' },
+];
+
 /** Reasons that make sense for the chosen action — keeps the options relevant. */
 function allowedReasons(mode: 'adjust' | 'set', direction: 'add' | 'remove'): ManualStockReason[] {
   if (mode === 'set') return ['RECONCILE', 'MANUAL_ADJUST'];
@@ -155,19 +160,29 @@ export function AdjustStockDialog({
               ))}
             </div>
 
-            <div className="flex items-end gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {mode === 'adjust' ? (
-                <Select
-                  className="w-32"
-                  value={direction}
-                  onChange={(event) =>
-                    form.setValue('direction', event.target.value as 'add' | 'remove')
-                  }
-                  aria-label="Direction"
-                >
-                  <option value="add">Add</option>
-                  <option value="remove">Remove</option>
-                </Select>
+                <FormField
+                  control={form.control}
+                  name="direction"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Direction</FormLabel>
+                      <Select
+                        value={field.value}
+                        onChange={(event) => field.onChange(event.target.value as 'add' | 'remove')}
+                        aria-label="Direction"
+                      >
+                        {directionOptions.map((direction) => (
+                          <option key={direction.value} value={direction.value}>
+                            {direction.label}
+                          </option>
+                        ))}
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               ) : null}
 
               <FormField

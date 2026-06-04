@@ -35,9 +35,11 @@ const FormField = <
   ...props
 }: ControllerProps<TFieldValues, TName>) => {
   return (
-    <FormFieldContext.Provider value={{ name: props.name }}>
-      <Controller {...props} />
-    </FormFieldContext.Provider>
+    <div>
+      <FormFieldContext.Provider value={{ name: props.name }}>
+        <Controller {...props} />
+      </FormFieldContext.Provider>
+    </div>
   );
 };
 
@@ -92,13 +94,13 @@ function FormLabel({
     <Label
       data-slot="form-label"
       data-error={!!error}
-      className={cn('data-[error=true]:text-destructive', className)}
+      className={cn('data-[error=true]:text-destructive flex items-center gap-0.5', className)}
       htmlFor={formItemId}
       {...props}
     >
       {children}
       {required ? (
-        <span className="text-destructive ml-0.5" aria-hidden>
+        <span className="text-destructive" aria-hidden>
           *
         </span>
       ) : null}
@@ -127,7 +129,7 @@ function FormDescription({ className, children, ...props }: React.ComponentProps
     <p
       data-slot="form-description"
       id={formDescriptionId}
-      className={cn('text-muted-foreground flex items-start gap-1 text-xs', className)}
+      className={cn('text-muted-foreground flex items-center gap-1 text-xs', className)}
       {...props}
     >
       <Info className="mt-px size-3 shrink-0" aria-hidden />
