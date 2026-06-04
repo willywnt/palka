@@ -18,6 +18,7 @@ import { usePullOrdersMutation } from '@/modules/orders/hooks/use-orders';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -26,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/empty-state';
 import { StatCard } from '@/components/stat-card';
 
@@ -300,40 +302,60 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
                     </TableCell>
                     <TableCell className="text-right">
                       {mapping ? (
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant={mapping.syncEnabled ? 'default' : 'outline'}
-                            size="sm"
-                            disabled={syncToggleMutation.isPending}
-                            onClick={() =>
-                              void handleToggleSync(
-                                listing.marketplaceProductId,
-                                !mapping.syncEnabled,
-                              )
-                            }
-                          >
-                            {mapping.syncEnabled ? 'Sync on' : 'Sync off'}
-                          </Button>
+                        <div className="flex items-center justify-end gap-3">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex items-center gap-2">
+                                <Switch
+                                  checked={mapping.syncEnabled}
+                                  disabled={
+                                    syncToggleMutation.isPending ||
+                                    mapping.mappingStatus === 'NEEDS_REVIEW'
+                                  }
+                                  onCheckedChange={(checked) =>
+                                    void handleToggleSync(listing.marketplaceProductId, checked)
+                                  }
+                                  aria-label="Sync stock to this listing"
+                                />
+                                <span className="text-muted-foreground text-xs">Sync</span>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {mapping.mappingStatus === 'NEEDS_REVIEW'
+                                ? 'Confirm the match before turning sync on.'
+                                : mapping.syncEnabled
+                                  ? 'Stock is pushed to this listing.'
+                                  : 'Turn on to push stock to this listing.'}
+                            </TooltipContent>
+                          </Tooltip>
                           {mapping.syncEnabled ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={syncNowMutation.isPending}
-                              onClick={() => void handleSyncNow(listing.marketplaceProductId)}
-                            >
-                              <RefreshCw className="size-4" />
-                              Sync now
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  disabled={syncNowMutation.isPending}
+                                  onClick={() => void handleSyncNow(listing.marketplaceProductId)}
+                                >
+                                  <RefreshCw className="size-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Push stock now</TooltipContent>
+                            </Tooltip>
                           ) : null}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Unmap"
-                            disabled={unmapMutation.isPending}
-                            onClick={() => void handleUnmap(listing.marketplaceProductId)}
-                          >
-                            <Link2Off className="size-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={unmapMutation.isPending}
+                                onClick={() => void handleUnmap(listing.marketplaceProductId)}
+                              >
+                                <Link2Off className="size-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Unmap this listing</TooltipContent>
+                          </Tooltip>
                         </div>
                       ) : (
                         <div className="flex justify-end gap-2">
