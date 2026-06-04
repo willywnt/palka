@@ -50,11 +50,12 @@ function stubItem(
  * Deterministic stand-in for a real order API that walks a scripted lifecycle so
  * the reserve → ship → release behavior is observable end-to-end across pulls:
  *
- *   pull #1   → all 3 orders PAID                  → each RESERVES stock (available−, reserved+)
- *   pull #2+  → `${s}-SHIP`   becomes SHIPPED      → reservation consumed (reserved−)
- *               `${s}-RELEASE` becomes CANCELLED   → reservation released (available+, reserved−)
- *               `${s}-RESERVE` stays PAID          → a standing reservation
- *               `${s}-PENDING` stays PENDING       → unpaid, never touches stock
+ *   pull #1   → all paid orders PAID                → each RESERVES stock (available−, reserved+)
+ *   pull #2   → `${s}-SHIP`/`${s}-RETURN` → SHIPPED → reservation consumed (reserved−)
+ *               `${s}-RELEASE` → CANCELLED          → reservation released (available+, reserved−)
+ *   pull #3+  → `${s}-RETURN` → CANCELLED (post-ship) → auto-opens a RETURN (no stock credit)
+ *               `${s}-RESERVE` stays PAID           → a standing reservation
+ *               `${s}-PENDING` stays PENDING        → unpaid, never touches stock
  *
  * Each order references a distinct stub listing (mirrors StubMarketplaceImportAdapter's
  * external ids) so it resolves to a mapped internal variant. The per-shop pull counter
@@ -76,6 +77,9 @@ export class StubMarketplaceOrderAdapter implements MarketplaceOrderAdapter {
 
     const shipStatus: NormalizedOrderStatus = step === 0 ? 'PAID' : 'SHIPPED';
     const releaseStatus: NormalizedOrderStatus = step === 0 ? 'PAID' : 'CANCELLED';
+    // PAID → SHIPPED (pull 2) → CANCELLED after shipping (pull 3+) = a return.
+    const returnStatus: NormalizedOrderStatus =
+      step === 0 ? 'PAID' : step === 1 ? 'SHIPPED' : 'CANCELLED';
     const raw = { source: 'stub', step };
 
     return Promise.resolve([
@@ -110,6 +114,17 @@ export class StubMarketplaceOrderAdapter implements MarketplaceOrderAdapter {
         currency: 'IDR',
         placedAt: new Date(Date.UTC(2026, 0, 12)),
         items: [stubItem(s, 4, 'NATURAL', 'Canvas Tote - Natural', 1)],
+        raw,
+      },
+      {
+        externalOrderId: `${s}-RETURN`,
+        status: returnStatus,
+        noResi: `RESI-${s}-RETURN`,
+        buyerName: 'Citra (return)',
+        totalAmount: 120_000,
+        currency: 'IDR',
+        placedAt: new Date(Date.UTC(2026, 0, 13)),
+        items: [stubItem(s, 3, 'WHITE-M', 'Cotton Tee - White / M', 1)],
         raw,
       },
       {

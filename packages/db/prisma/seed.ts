@@ -25,6 +25,7 @@ async function hashSeedPassword(password: string): Promise<string> {
 const DEMO_VARIANTS = [
   { index: 1, productName: 'Cotton Tee', variantName: 'Black / S', sku: 'BLACK-S', stock: 50 },
   { index: 2, productName: 'Cotton Tee', variantName: 'Black / M', sku: 'BLACK-M', stock: 50 },
+  { index: 3, productName: 'Cotton Tee', variantName: 'White / M', sku: 'WHITE-M', stock: 50 },
   { index: 4, productName: 'Canvas Tote', variantName: 'Natural', sku: 'NATURAL', stock: 50 },
 ] as const;
 
