@@ -44,6 +44,11 @@ export type StockOverviewItem = {
   availableStock: number;
   lowStockThreshold: number;
   isLowStock: boolean;
+  /** When stock was last changed (ISO), and the most recent movement. */
+  lastUpdatedAt: string | null;
+  lastChange: number | null;
+  balanceBefore: number | null;
+  balanceAfter: number | null;
 };
 
 export type InventoryDashboardSummary = {

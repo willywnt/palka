@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { LineChart, ScrollText } from 'lucide-react';
 
@@ -31,7 +32,9 @@ export default function InventoryPage() {
           </Link>
         </Button>
       </PageHeader>
-      <InventoryOverview />
+      <Suspense fallback={null}>
+        <InventoryOverview />
+      </Suspense>
     </div>
   );
 }
