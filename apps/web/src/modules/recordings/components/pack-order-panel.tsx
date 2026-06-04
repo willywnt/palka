@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { PackageSearch } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -43,7 +44,10 @@ export function PackOrderPanel({ noResi }: { noResi: string }) {
         <Badge variant="secondary">{order.status}</Badge>
       </div>
       <div className="text-muted-foreground text-xs">
-        {order.shopName} · {order.buyerName ?? '—'} · {order.externalOrderId}
+        {order.shopName} · {order.buyerName ?? '—'} ·{' '}
+        <Link href={`/dashboard/orders/${order.id}`} className="hover:text-foreground underline">
+          {order.externalOrderId}
+        </Link>
       </div>
       <ul className="space-y-1">
         {order.items.map((item) => (

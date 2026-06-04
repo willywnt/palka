@@ -1,5 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+
+import { useOrderByResiQuery } from '@/modules/orders/hooks/use-orders';
+
 import type { RecordingDetail } from '../types';
 import {
   formatRecordingDate,
@@ -43,6 +47,9 @@ export function RecordingDetailModal({
     ? getRecordingFailureDetail(recording.failureCode, recording.failureReason)
     : null;
 
+  // Reverse link: the order this packing video belongs to (matched by resi).
+  const { data: linkedOrder } = useOrderByResiQuery(recording?.noResi ?? null, open);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -69,6 +76,18 @@ export function RecordingDetailModal({
 
             <div className="space-y-3">
               <DetailRow label="Tracking number" value={recording.noResi} />
+              {linkedOrder ? (
+                <div className="flex items-start justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">Linked order</span>
+                  <Link
+                    href={`/dashboard/orders/${linkedOrder.id}`}
+                    onClick={() => onOpenChange(false)}
+                    className="text-primary max-w-[60%] text-right font-medium hover:underline"
+                  >
+                    {linkedOrder.externalOrderId} →
+                  </Link>
+                </div>
+              ) : null}
               <DetailRow
                 label="Duration"
                 value={formatRecordingDuration(recording.durationSeconds)}
