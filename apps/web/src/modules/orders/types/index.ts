@@ -35,7 +35,10 @@ export type MultiPullOrdersResult = {
   storesPulled: number;
   storesSkipped: string[];
   pulled: number;
+  /** Paid orders whose stock was reserved (available−, reserved+). */
   applied: number;
-  /** Cancelled orders whose previously-applied decrement was restocked. */
+  /** Shipped/completed orders whose reservation was consumed (reserved−). */
+  shipped: number;
+  /** Cancelled orders whose reservation was released back to available. */
   reverted: number;
 };

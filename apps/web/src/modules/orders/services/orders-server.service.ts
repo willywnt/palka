@@ -148,12 +148,12 @@ export class OrdersServerService {
       data: { productVariantId: variantId },
     });
 
-    // For a PAID order, decrement for the items just resolved (they were never
+    // For a PAID order, reserve stock for the items just resolved (they were never
     // applied), stamping inventoryAppliedAt if it wasn't set yet.
     if (order.status === 'PAID' && newlyResolved.length > 0) {
       await prisma.$transaction(async (tx) => {
         for (const entry of newlyResolved) {
-          await inventoryServerService.applyOrderDecrementTx(tx, {
+          await inventoryServerService.applyOrderReserveTx(tx, {
             userId,
             variantId,
             quantity: entry.quantity,
@@ -193,6 +193,7 @@ export class OrdersServerService {
 
     let pulled = 0;
     let applied = 0;
+    let shipped = 0;
     let reverted = 0;
     let storesPulled = 0;
     const storesSkipped: string[] = [];
@@ -212,23 +213,38 @@ export class OrdersServerService {
 
       pulled += result.pulled;
       applied += result.applied;
+      shipped += result.shipped;
       reverted += result.reverted;
       storesPulled += 1;
     }
 
-    appLogger.info('orders.pulled.multi', { userId, storesPulled, pulled, applied, reverted });
-    return { storesPulled, storesSkipped, pulled, applied, reverted };
+    appLogger.info('orders.pulled.multi', {
+      userId,
+      storesPulled,
+      pulled,
+      applied,
+      shipped,
+      reverted,
+    });
+    return { storesPulled, storesSkipped, pulled, applied, shipped, reverted };
   }
 
   private async pullOneConnection(
     userId: string,
     connection: MarketplaceConnection,
-  ): Promise<{ pulled: number; applied: number; reverted: number; affected: Set<string> }> {
+  ): Promise<{
+    pulled: number;
+    applied: number;
+    shipped: number;
+    reverted: number;
+    affected: Set<string>;
+  }> {
     const adapter = getMarketplaceOrderAdapter(connection.provider);
     const orders = await adapter.fetchOrders({ shopId: connection.shopId, accessToken: '' });
 
     let pulled = 0;
     let applied = 0;
+    let shipped = 0;
     let reverted = 0;
     const affectedVariantIds = new Set<string>();
 
@@ -299,16 +315,26 @@ export class OrdersServerService {
       });
       pulled += 1;
 
-      const shouldApply =
-        saved.status === 'PAID' &&
-        saved.inventoryAppliedAt === null &&
-        resolvedItems.some((item) => item.productVariantId !== null);
+      // Inbound stock lifecycle, advanced at most once per stage (idempotent via the
+      // order's inventory* timestamps). Operates on the current resolved line items
+      // (assumes the marketplace doesn't change items after payment).
+      const wasReserved = saved.inventoryAppliedAt !== null;
+      const wasShipped = saved.inventoryShippedAt !== null;
+      const wasReleased = saved.inventoryRevertedAt !== null;
+      const isPaidOrBeyond =
+        saved.status === 'PAID' || saved.status === 'SHIPPED' || saved.status === 'COMPLETED';
+      const isShippedStatus = saved.status === 'SHIPPED' || saved.status === 'COMPLETED';
+      const hasResolvedItems = resolvedItems.some((item) => item.productVariantId !== null);
 
-      if (shouldApply) {
+      let reservedNow = wasReserved;
+
+      // RESERVE: paid → commit stock (available−, reserved+). Also covers an order
+      // first seen already SHIPPED (it reserves here, then ships just below).
+      if (isPaidOrBeyond && !wasReserved && !wasReleased && hasResolvedItems) {
         await prisma.$transaction(async (tx) => {
           for (const item of resolvedItems) {
             if (!item.productVariantId) continue;
-            await inventoryServerService.applyOrderDecrementTx(tx, {
+            await inventoryServerService.applyOrderReserveTx(tx, {
               userId,
               variantId: item.productVariantId,
               quantity: item.quantity,
@@ -322,21 +348,34 @@ export class OrdersServerService {
           });
         });
         applied += 1;
+        reservedNow = true;
       }
 
-      // A previously-applied order that is now cancelled must give its units back.
-      // Reverses the current resolved line items (assumes the marketplace doesn't
-      // change items after payment, same assumption as the decrement above).
-      const shouldRevert =
-        saved.status === 'CANCELLED' &&
-        saved.inventoryAppliedAt !== null &&
-        saved.inventoryRevertedAt === null;
-
-      if (shouldRevert) {
+      if (isShippedStatus && reservedNow && !wasShipped && !wasReleased) {
+        // SHIP: consume the reservation (reserved−). Available is unchanged, so the
+        // shipped variants are intentionally NOT added to affectedVariantIds.
         await prisma.$transaction(async (tx) => {
           for (const item of resolvedItems) {
             if (!item.productVariantId) continue;
-            await inventoryServerService.applyOrderRestockTx(tx, {
+            await inventoryServerService.applyOrderShipTx(tx, {
+              userId,
+              variantId: item.productVariantId,
+              quantity: item.quantity,
+              orderId: saved.id,
+            });
+          }
+          await tx.order.update({
+            where: { id: saved.id },
+            data: { inventoryShippedAt: new Date() },
+          });
+        });
+        shipped += 1;
+      } else if (saved.status === 'CANCELLED' && reservedNow && !wasShipped && !wasReleased) {
+        // RELEASE: cancelled before shipping → give the reserved units back.
+        await prisma.$transaction(async (tx) => {
+          for (const item of resolvedItems) {
+            if (!item.productVariantId) continue;
+            await inventoryServerService.applyOrderReleaseTx(tx, {
               userId,
               variantId: item.productVariantId,
               quantity: item.quantity,
@@ -353,7 +392,7 @@ export class OrdersServerService {
       }
     }
 
-    return { pulled, applied, reverted, affected: affectedVariantIds };
+    return { pulled, applied, shipped, reverted, affected: affectedVariantIds };
   }
 
   /** Best-effort: push each decremented variant's new available stock to its other channels. */

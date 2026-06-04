@@ -256,12 +256,15 @@ export class InventoryServerService {
   }
 
   /**
-   * Decrements available stock for a marketplace sale WITHIN the caller's
-   * transaction. Allows the balance to go negative — an oversell that already
-   * happened on the channel — so the ledger stays honest. Returns the new
-   * balance. Does NOT enqueue propagation; the caller does that after commit.
+   * Reserves stock for a paid marketplace order WITHIN the caller's transaction:
+   * the units are committed, so available drops (no longer sellable) and reserved
+   * rises (held until shipped) — on-hand (available + reserved) is unchanged.
+   * Available MAY go negative (an oversell that already happened on the channel) so
+   * the ledger stays honest. Records an `ORDER_RESERVE` row (negative available
+   * delta). Returns the new available balance. Does NOT enqueue propagation; the
+   * caller does that after commit.
    */
-  async applyOrderDecrementTx(
+  async applyOrderReserveTx(
     tx: TransactionClient,
     params: { userId: string; variantId: string; quantity: number; orderId: string },
   ): Promise<number> {
@@ -271,8 +274,17 @@ export class InventoryServerService {
 
     await tx.inventory.upsert({
       where: { variantId: params.variantId },
-      create: { variantId: params.variantId, availableStock: balanceAfter, lastAdjustedAt: now },
-      update: { availableStock: balanceAfter, lastAdjustedAt: now },
+      create: {
+        variantId: params.variantId,
+        availableStock: balanceAfter,
+        reservedStock: params.quantity,
+        lastAdjustedAt: now,
+      },
+      update: {
+        availableStock: balanceAfter,
+        reservedStock: { increment: params.quantity },
+        lastAdjustedAt: now,
+      },
     });
 
     await tx.stockLedger.create({
@@ -292,24 +304,65 @@ export class InventoryServerService {
   }
 
   /**
-   * Reverses a marketplace sale's decrement WITHIN the caller's transaction — used
-   * when an applied order is cancelled. Adds the units back to available stock and
-   * records an `ORDER_RELEASE` ledger row (positive delta), so the reorder velocity
-   * nets it out against the original `ORDER_RESERVE`. Returns the new balance. Does
-   * NOT enqueue propagation; the caller does that after commit.
+   * Consumes a reservation WITHIN the caller's transaction — the order shipped, so
+   * the reserved units physically leave: reserved drops (clamped at 0 for orders
+   * reserved before this lifecycle existed), available is unchanged. Records an
+   * `ORDER_SHIP` row with delta 0 (the ledger tracks available; shipping only moves
+   * on-hand) for a complete order audit trail. Returns the unchanged available
+   * balance.
    */
-  async applyOrderRestockTx(
+  async applyOrderShipTx(
+    tx: TransactionClient,
+    params: { userId: string; variantId: string; quantity: number; orderId: string },
+  ): Promise<number> {
+    const existing = await tx.inventory.findUnique({ where: { variantId: params.variantId } });
+    const available = existing?.availableStock ?? 0;
+    const reservedStock = this.decrementReserved(existing?.reservedStock ?? 0, params);
+    const now = new Date();
+
+    await tx.inventory.upsert({
+      where: { variantId: params.variantId },
+      create: { variantId: params.variantId, availableStock: available, lastAdjustedAt: now },
+      update: { reservedStock, lastAdjustedAt: now },
+    });
+
+    await tx.stockLedger.create({
+      data: {
+        userId: params.userId,
+        variantId: params.variantId,
+        delta: 0,
+        balanceAfter: available,
+        reason: 'ORDER_SHIP',
+        source: 'MARKETPLACE',
+        referenceId: params.orderId,
+        note: 'Marketplace order shipped',
+      },
+    });
+
+    return available;
+  }
+
+  /**
+   * Releases a reservation WITHIN the caller's transaction — used when a reserved
+   * (not-yet-shipped) order is cancelled. Available rises back and reserved drops
+   * (clamped at 0), reversing applyOrderReserveTx. Records an `ORDER_RELEASE` row
+   * (positive available delta) so the reorder velocity nets it out against the
+   * original `ORDER_RESERVE`. Returns the new available balance. Does NOT enqueue
+   * propagation; the caller does that after commit.
+   */
+  async applyOrderReleaseTx(
     tx: TransactionClient,
     params: { userId: string; variantId: string; quantity: number; orderId: string },
   ): Promise<number> {
     const existing = await tx.inventory.findUnique({ where: { variantId: params.variantId } });
     const balanceAfter = (existing?.availableStock ?? 0) + params.quantity;
+    const reservedStock = this.decrementReserved(existing?.reservedStock ?? 0, params);
     const now = new Date();
 
     await tx.inventory.upsert({
       where: { variantId: params.variantId },
       create: { variantId: params.variantId, availableStock: balanceAfter, lastAdjustedAt: now },
-      update: { availableStock: balanceAfter, lastAdjustedAt: now },
+      update: { availableStock: balanceAfter, reservedStock, lastAdjustedAt: now },
     });
 
     await tx.stockLedger.create({
@@ -326,6 +379,27 @@ export class InventoryServerService {
     });
 
     return balanceAfter;
+  }
+
+  /**
+   * Reserved units never go below zero. Orders reserved before this lifecycle
+   * existed carry no reservation, so shipping/cancelling them would underflow — we
+   * clamp at 0 and log instead.
+   */
+  private decrementReserved(
+    current: number,
+    params: { variantId: string; quantity: number; orderId: string },
+  ): number {
+    if (current < params.quantity) {
+      appLogger.warn('inventory.reserved.underflow_clamped', {
+        variantId: params.variantId,
+        orderId: params.orderId,
+        current,
+        quantity: params.quantity,
+      });
+      return 0;
+    }
+    return current - params.quantity;
   }
 
   private async assertVariantOwned(userId: string, variantId: string): Promise<void> {

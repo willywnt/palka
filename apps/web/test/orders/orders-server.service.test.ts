@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Inbound-order correctness gaps, exercised through the real pullFromConnections
- * service code with Prisma / the order adapter / the queue mocked:
- *  - Gap 1: a previously-applied order that flips to CANCELLED restocks exactly
- *    once (guarded by inventoryRevertedAt); a never-applied cancel is a no-op.
- *  - Gap 2: stock propagation from an inbound order excludes the source channel.
+ * Inbound-order stock lifecycle, exercised through the real pullFromConnections
+ * service code with Prisma / the order adapter / the queue mocked. Per order the
+ * service advances at most one stage of reserve → ship → release, idempotently via
+ * the order's inventory* timestamps, and propagates available changes excluding the
+ * source channel (Gap 2). Ship does not change available, so it is not propagated.
  */
 
 type TxClient = {
@@ -20,7 +20,6 @@ const { state, prismaMock, txMock, enqueueMock, inventoryMock, fetchOrdersMock }
       orderItem: { deleteMany: vi.fn(), createMany: vi.fn() },
     };
     return {
-      // Per-test knobs.
       state: {
         saved: {} as Record<string, unknown>,
         variantId: 'v1' as string | null,
@@ -30,8 +29,9 @@ const { state, prismaMock, txMock, enqueueMock, inventoryMock, fetchOrdersMock }
       fetchOrdersMock: vi.fn(),
       enqueueMock: vi.fn(),
       inventoryMock: {
-        applyOrderDecrementTx: vi.fn().mockResolvedValue(0),
-        applyOrderRestockTx: vi.fn().mockResolvedValue(0),
+        applyOrderReserveTx: vi.fn().mockResolvedValue(0),
+        applyOrderShipTx: vi.fn().mockResolvedValue(0),
+        applyOrderReleaseTx: vi.fn().mockResolvedValue(0),
       },
       prismaMock: {
         marketplaceConnection: { findMany: vi.fn(), update: vi.fn() },
@@ -64,6 +64,8 @@ const { OrdersServerService } = await import('@/modules/orders/services/orders-s
 const service = new OrdersServerService();
 const USER = 'user-1';
 const CONN_ID = 'conn-A';
+const APPLIED_AT = new Date('2026-01-11T00:00:00.000Z');
+const SHIPPED_AT = new Date('2026-01-12T00:00:00.000Z');
 
 function orderFromAdapter(status: string) {
   return {
@@ -85,6 +87,18 @@ function orderFromAdapter(status: string) {
       },
     ],
     raw: { source: 'test' },
+  };
+}
+
+/** A saved order row with the lifecycle timestamps defaulted to null. */
+function savedOrder(overrides: Record<string, unknown>) {
+  return {
+    id: 'o1',
+    marketplaceConnectionId: CONN_ID,
+    inventoryAppliedAt: null,
+    inventoryShippedAt: null,
+    inventoryRevertedAt: null,
+    ...overrides,
   };
 }
 
@@ -112,89 +126,105 @@ beforeEach(() => {
   state.variantId = 'v1';
 });
 
-describe('pullFromConnections — Gap 1 (cancellation restock)', () => {
-  it('restocks a previously-applied order that is now CANCELLED', async () => {
-    state.orders = [orderFromAdapter('CANCELLED')];
-    state.saved = {
-      id: 'o1',
-      status: 'CANCELLED',
-      marketplaceConnectionId: CONN_ID,
-      inventoryAppliedAt: new Date('2026-01-11T00:00:00.000Z'),
-      inventoryRevertedAt: null,
-    };
+describe('pullFromConnections — reserve (PAID)', () => {
+  it('reserves a freshly-paid order and propagates excluding the source channel', async () => {
+    state.orders = [orderFromAdapter('PAID')];
+    state.saved = savedOrder({ status: 'PAID' });
 
     const result = await service.pullFromConnections(USER);
 
-    expect(inventoryMock.applyOrderRestockTx).toHaveBeenCalledTimes(1);
-    expect(inventoryMock.applyOrderRestockTx).toHaveBeenCalledWith(
+    expect(inventoryMock.applyOrderReserveTx).toHaveBeenCalledTimes(1);
+    expect(inventoryMock.applyOrderReserveTx).toHaveBeenCalledWith(
       txMock,
-      expect.objectContaining({ userId: USER, variantId: 'v1', quantity: 2, orderId: 'o1' }),
+      expect.objectContaining({ variantId: 'v1', quantity: 2, orderId: 'o1' }),
     );
-    expect(inventoryMock.applyOrderDecrementTx).not.toHaveBeenCalled();
-    // inventoryRevertedAt is stamped so a re-pull won't restock again.
-    const updateArgs = txMock.order.update.mock.calls.at(-1)?.[0] as {
-      data: { inventoryRevertedAt: Date };
-    };
-    expect(updateArgs.data.inventoryRevertedAt).toBeInstanceOf(Date);
-    expect(result.reverted).toBe(1);
-    expect(result.applied).toBe(0);
+    expect(result.applied).toBe(1);
+    expect(result.shipped).toBe(0);
+    expect(enqueueMock).toHaveBeenCalledTimes(1);
+    expect(enqueueMock.mock.calls[0]?.[0]).toMatchObject({
+      variantId: 'v1',
+      excludeConnectionId: CONN_ID,
+    });
+  });
+});
+
+describe('pullFromConnections — ship (SHIPPED/COMPLETED)', () => {
+  it('reserves then ships an order first seen as SHIPPED', async () => {
+    state.orders = [orderFromAdapter('SHIPPED')];
+    state.saved = savedOrder({ status: 'SHIPPED' });
+
+    const result = await service.pullFromConnections(USER);
+
+    expect(inventoryMock.applyOrderReserveTx).toHaveBeenCalledTimes(1);
+    expect(inventoryMock.applyOrderShipTx).toHaveBeenCalledTimes(1);
+    expect(result.applied).toBe(1);
+    expect(result.shipped).toBe(1);
+    // Reserve changed available → propagated; ship did not add anything extra.
+    expect(enqueueMock).toHaveBeenCalledTimes(1);
   });
 
-  it('does not double-restock an order that was already reverted', async () => {
-    state.orders = [orderFromAdapter('CANCELLED')];
-    state.saved = {
-      id: 'o1',
-      status: 'CANCELLED',
-      marketplaceConnectionId: CONN_ID,
-      inventoryAppliedAt: new Date('2026-01-11T00:00:00.000Z'),
-      inventoryRevertedAt: new Date('2026-01-12T00:00:00.000Z'),
-    };
+  it('only ships an already-reserved order and does NOT propagate (available unchanged)', async () => {
+    state.orders = [orderFromAdapter('COMPLETED')];
+    state.saved = savedOrder({ status: 'COMPLETED', inventoryAppliedAt: APPLIED_AT });
 
     const result = await service.pullFromConnections(USER);
 
-    expect(inventoryMock.applyOrderRestockTx).not.toHaveBeenCalled();
+    expect(inventoryMock.applyOrderReserveTx).not.toHaveBeenCalled();
+    expect(inventoryMock.applyOrderShipTx).toHaveBeenCalledTimes(1);
+    expect(result.applied).toBe(0);
+    expect(result.shipped).toBe(1);
+    expect(enqueueMock).not.toHaveBeenCalled();
+  });
+
+  it('does not re-ship an order already shipped', async () => {
+    state.orders = [orderFromAdapter('COMPLETED')];
+    state.saved = savedOrder({
+      status: 'COMPLETED',
+      inventoryAppliedAt: APPLIED_AT,
+      inventoryShippedAt: SHIPPED_AT,
+    });
+
+    const result = await service.pullFromConnections(USER);
+
+    expect(inventoryMock.applyOrderShipTx).not.toHaveBeenCalled();
+    expect(result.shipped).toBe(0);
+  });
+});
+
+describe('pullFromConnections — release (CANCELLED)', () => {
+  it('releases a reserved order that is cancelled before shipping', async () => {
+    state.orders = [orderFromAdapter('CANCELLED')];
+    state.saved = savedOrder({ status: 'CANCELLED', inventoryAppliedAt: APPLIED_AT });
+
+    const result = await service.pullFromConnections(USER);
+
+    expect(inventoryMock.applyOrderReleaseTx).toHaveBeenCalledTimes(1);
+    expect(result.reverted).toBe(1);
+    expect(enqueueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not release a cancellation that arrives after the order already shipped', async () => {
+    state.orders = [orderFromAdapter('CANCELLED')];
+    state.saved = savedOrder({
+      status: 'CANCELLED',
+      inventoryAppliedAt: APPLIED_AT,
+      inventoryShippedAt: SHIPPED_AT,
+    });
+
+    const result = await service.pullFromConnections(USER);
+
+    expect(inventoryMock.applyOrderReleaseTx).not.toHaveBeenCalled();
     expect(result.reverted).toBe(0);
     expect(enqueueMock).not.toHaveBeenCalled();
   });
 
-  it('does not restock a cancelled order that was never applied', async () => {
+  it('does not release a cancelled order that was never reserved', async () => {
     state.orders = [orderFromAdapter('CANCELLED')];
-    state.saved = {
-      id: 'o1',
-      status: 'CANCELLED',
-      marketplaceConnectionId: CONN_ID,
-      inventoryAppliedAt: null,
-      inventoryRevertedAt: null,
-    };
+    state.saved = savedOrder({ status: 'CANCELLED' });
 
     const result = await service.pullFromConnections(USER);
 
-    expect(inventoryMock.applyOrderRestockTx).not.toHaveBeenCalled();
+    expect(inventoryMock.applyOrderReleaseTx).not.toHaveBeenCalled();
     expect(result.reverted).toBe(0);
-  });
-});
-
-describe('pullFromConnections — Gap 2 (exclude source channel)', () => {
-  it('decrements a PAID order and propagates excluding the order source channel', async () => {
-    state.orders = [orderFromAdapter('PAID')];
-    state.saved = {
-      id: 'o1',
-      status: 'PAID',
-      marketplaceConnectionId: CONN_ID,
-      inventoryAppliedAt: null,
-      inventoryRevertedAt: null,
-    };
-
-    const result = await service.pullFromConnections(USER);
-
-    expect(inventoryMock.applyOrderDecrementTx).toHaveBeenCalledTimes(1);
-    expect(result.applied).toBe(1);
-    expect(enqueueMock).toHaveBeenCalledTimes(1);
-    const payload = enqueueMock.mock.calls[0]?.[0] as {
-      variantId: string;
-      excludeConnectionId: string;
-    };
-    expect(payload.variantId).toBe('v1');
-    expect(payload.excludeConnectionId).toBe(CONN_ID);
   });
 });

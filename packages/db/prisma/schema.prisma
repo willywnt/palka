@@ -394,6 +394,11 @@ model Order {
    * (restocked) back to internal stock (idempotency; mirrors inventoryAppliedAt).
    */
   inventoryRevertedAt     DateTime?
+  /**
+   * Set once a SHIPPED/COMPLETED order's reservation has been consumed — the
+   * reserved units physically left (idempotency; mirrors inventoryAppliedAt).
+   */
+  inventoryShippedAt      DateTime?
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
 

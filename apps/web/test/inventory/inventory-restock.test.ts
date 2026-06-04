@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Gap 1 (cancellation restock): applyOrderRestockTx must add the cancelled units
- * back to available stock and append a positive-delta ORDER_RELEASE ledger row, so
- * the reorder velocity nets it out against the original ORDER_RESERVE. Prisma is
- * mocked — this guards the transaction body, not a real database.
+ * Gap 3 (reserved-vs-available lifecycle): the inbound-order stock trio.
+ *  - reserve: available−, reserved+ (ORDER_RESERVE, negative available delta)
+ *  - ship:    reserved− only, available unchanged (ORDER_SHIP, delta 0)
+ *  - release: available+, reserved− (ORDER_RELEASE, positive available delta)
+ * Prisma is mocked — this guards the transaction bodies, not a real database.
  */
 
 type TxClient = {
@@ -12,17 +13,18 @@ type TxClient = {
   stockLedger: { create: ReturnType<typeof vi.fn> };
 };
 
-const { txMock } = vi.hoisted(() => ({
+const { txMock, warnMock } = vi.hoisted(() => ({
   txMock: {
     inventory: { findUnique: vi.fn(), upsert: vi.fn() },
     stockLedger: { create: vi.fn() },
   } satisfies TxClient,
+  warnMock: vi.fn(),
 }));
 
 vi.mock('@olshop/db', () => ({ prisma: {} }));
 vi.mock('@olshop/queue', () => ({ enqueuePropagateInventoryStock: vi.fn() }));
 vi.mock('@/lib/logger', () => ({
-  appLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  appLogger: { info: vi.fn(), warn: warnMock, error: vi.fn(), debug: vi.fn() },
 }));
 
 const { InventoryServerService } =
@@ -31,49 +33,90 @@ const { InventoryServerService } =
 const service = new InventoryServerService();
 const PARAMS = { userId: 'user-1', variantId: 'v1', quantity: 3, orderId: 'order-1' };
 
+function upsertUpdateArg() {
+  return txMock.inventory.upsert.mock.calls[0]?.[0] as {
+    update: { availableStock?: number; reservedStock?: number | { increment: number } };
+  };
+}
+function ledgerArg() {
+  return txMock.stockLedger.create.mock.calls[0]?.[0] as {
+    data: {
+      delta: number;
+      balanceAfter: number;
+      reason: string;
+      source: string;
+      referenceId: string;
+    };
+  };
+}
+
 beforeEach(() => {
   txMock.inventory.upsert.mockResolvedValue({});
   txMock.stockLedger.create.mockResolvedValue({});
 });
 
-describe('applyOrderRestockTx', () => {
-  it('adds the quantity back onto current available stock', async () => {
-    txMock.inventory.findUnique.mockResolvedValue({ availableStock: 5 });
+describe('applyOrderReserveTx', () => {
+  it('drops available and bumps reserved, logging an ORDER_RESERVE row', async () => {
+    txMock.inventory.findUnique.mockResolvedValue({ availableStock: 5, reservedStock: 1 });
 
-    const balanceAfter = await service.applyOrderRestockTx(txMock as never, PARAMS);
+    const balanceAfter = await service.applyOrderReserveTx(txMock as never, PARAMS);
 
-    expect(balanceAfter).toBe(8);
-    const upsertArgs = txMock.inventory.upsert.mock.calls[0]?.[0] as {
-      update: { availableStock: number };
-    };
-    expect(upsertArgs.update.availableStock).toBe(8);
+    expect(balanceAfter).toBe(2);
+    expect(upsertUpdateArg().update).toMatchObject({
+      availableStock: 2,
+      reservedStock: { increment: 3 },
+    });
+    expect(ledgerArg().data).toMatchObject({
+      delta: -3,
+      balanceAfter: 2,
+      reason: 'ORDER_RESERVE',
+      source: 'MARKETPLACE',
+      referenceId: 'order-1',
+    });
   });
 
-  it('treats a missing inventory row as zero available', async () => {
-    txMock.inventory.findUnique.mockResolvedValue(null);
+  it('allows available to go negative (channel oversell stays honest)', async () => {
+    txMock.inventory.findUnique.mockResolvedValue({ availableStock: 1, reservedStock: 0 });
+    expect(await service.applyOrderReserveTx(txMock as never, PARAMS)).toBe(-2);
+  });
+});
 
-    const balanceAfter = await service.applyOrderRestockTx(txMock as never, PARAMS);
+describe('applyOrderShipTx', () => {
+  it('consumes the reservation without touching available (ORDER_SHIP, delta 0)', async () => {
+    txMock.inventory.findUnique.mockResolvedValue({ availableStock: 2, reservedStock: 3 });
 
-    expect(balanceAfter).toBe(3);
+    const balanceAfter = await service.applyOrderShipTx(txMock as never, PARAMS);
+
+    expect(balanceAfter).toBe(2);
+    expect(upsertUpdateArg().update).toMatchObject({ reservedStock: 0 });
+    expect(upsertUpdateArg().update.availableStock).toBeUndefined();
+    expect(ledgerArg().data).toMatchObject({ delta: 0, balanceAfter: 2, reason: 'ORDER_SHIP' });
   });
 
-  it('writes a positive-delta ORDER_RELEASE / MARKETPLACE ledger row keyed to the order', async () => {
-    txMock.inventory.findUnique.mockResolvedValue({ availableStock: 5 });
+  it('clamps reserved at 0 and warns for an order reserved before this lifecycle', async () => {
+    txMock.inventory.findUnique.mockResolvedValue({ availableStock: 5, reservedStock: 0 });
 
-    await service.applyOrderRestockTx(txMock as never, PARAMS);
+    await service.applyOrderShipTx(txMock as never, PARAMS);
 
-    const ledgerArgs = txMock.stockLedger.create.mock.calls[0]?.[0] as {
-      data: {
-        delta: number;
-        balanceAfter: number;
-        reason: string;
-        source: string;
-        referenceId: string;
-      };
-    };
-    expect(ledgerArgs.data).toMatchObject({
+    expect(upsertUpdateArg().update.reservedStock).toBe(0);
+    expect(warnMock).toHaveBeenCalledWith(
+      'inventory.reserved.underflow_clamped',
+      expect.any(Object),
+    );
+  });
+});
+
+describe('applyOrderReleaseTx', () => {
+  it('restores available and drops reserved (ORDER_RELEASE, positive delta)', async () => {
+    txMock.inventory.findUnique.mockResolvedValue({ availableStock: 2, reservedStock: 3 });
+
+    const balanceAfter = await service.applyOrderReleaseTx(txMock as never, PARAMS);
+
+    expect(balanceAfter).toBe(5);
+    expect(upsertUpdateArg().update).toMatchObject({ availableStock: 5, reservedStock: 0 });
+    expect(ledgerArg().data).toMatchObject({
       delta: 3,
-      balanceAfter: 8,
+      balanceAfter: 5,
       reason: 'ORDER_RELEASE',
       source: 'MARKETPLACE',
       referenceId: 'order-1',

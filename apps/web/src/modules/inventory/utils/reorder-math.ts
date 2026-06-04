@@ -3,10 +3,10 @@ import { StockLedgerReason } from '@prisma/client';
 /**
  * Ledger reasons that represent real customer demand, used to measure sales
  * velocity. `ORDER_RESERVE` removes units for a sale (negative delta);
- * `ORDER_RELEASE` adds them back on cancel/return (positive delta), so a net of
- * the two is true demand. `ORDER_SHIP` is intentionally EXCLUDED: once the
- * reserve→ship lifecycle lands it would double-count units already counted at
- * reserve time. This is the single place to revisit when that lifecycle ships.
+ * `ORDER_RELEASE` adds them back on cancel (positive delta), so a net of the two
+ * is true demand. `ORDER_SHIP` is intentionally EXCLUDED: the reserve→ship
+ * lifecycle records demand at reserve time, and ship rows carry a delta of 0
+ * (they move on-hand, not available), so including them would be noise.
  */
 export const SALES_LEDGER_REASONS = [
   StockLedgerReason.ORDER_RESERVE,
