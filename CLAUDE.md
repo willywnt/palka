@@ -103,8 +103,16 @@ mapping; the handler gets a guaranteed-non-null `{ user, requestId }`.
 
 **Errors:** throw a module error extending `DomainError(code, message, statusCode, details?)`.
 `handleApiError` maps ANY `DomainError` generically (code+statusCode) — the shared layer
-imports no modules. Client: `apiFetch` → `ApiResult<T>`; `apiFetchOrThrow` throws a
-`DomainError` **preserving the server code** (never collapse to `UNKNOWN`).
+imports no modules. Client: `apiFetch` → `ApiResult<T>` (unwraps the `{ data }` envelope; a
+legitimately-null `data` STAYS null — never fall back to the whole payload); `apiFetchOrThrow`
+throws a `DomainError` **preserving the server code** (never collapse to `UNKNOWN`).
+
+**Session expiry:** a `401` from ANY route = session gone. `apiFetch` fires `onUnauthorized`
+listeners (registry in `lib/api/fetch-client.ts`) → `SessionExpiryWatcher` (mounted in
+`Providers`) hard-redirects to `/login?callbackUrl=<current url>`, so re-login returns the
+user where they were. Reuse this — never add ad-hoc per-call 401 redirects. (Route gating for
+unauthenticated users + the same `callbackUrl` round-trip already live in `middleware.ts` +
+`authConfig.authorized` — HARD CONSTRAINT #2, don't duplicate.)
 
 **Data fetching (hook):**
 

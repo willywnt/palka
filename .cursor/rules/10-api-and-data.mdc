@@ -28,8 +28,18 @@ NO business logic, NO Prisma, NO manual auth in the handler.
 
 ## Errors
 `handleApiError` maps ANY `DomainError` generically from code+statusCode (no module imports).
-Client `apiFetch` → `ApiResult<T>`; `apiFetchOrThrow` throws `DomainError` **preserving the
-real server code** — never collapse to `UNKNOWN`.
+Client `apiFetch` → `ApiResult<T>` (unwraps the `{ data }` envelope; a legitimately-null
+`data` STAYS null — never fall back to the whole payload, or a `null` result reads as truthy);
+`apiFetchOrThrow` throws `DomainError` **preserving the real server code** — never collapse
+to `UNKNOWN`.
+
+## Session expiry (401 = global redirect)
+A `401` from ANY route means the session is gone (the API only 401s via `apiUnauthorized`).
+`apiFetch` broadcasts `onUnauthorized` (a listener registry in `lib/api/fetch-client.ts`);
+`SessionExpiryWatcher` (mounted in `Providers`) hard-redirects to
+`/login?callbackUrl=<current url>` so re-login returns the user where they were. Don't add
+ad-hoc per-call 401 redirects — reuse this. (Unauthenticated route gating + the same
+`callbackUrl` round-trip is already handled by `middleware.ts` + `authConfig.authorized`.)
 
 ## Data fetching (hooks)
 `apiFetch`/`apiFetchOrThrow` + TanStack Query. Keys in `*-keys.ts` (one hierarchy).
