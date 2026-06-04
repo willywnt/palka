@@ -105,7 +105,7 @@ export class OrdersServerService {
   /**
    * Map an unmapped order item to an internal variant: persist the listing→variant
    * mapping (so future pulls resolve), resolve every matching item in this order,
-   * and — for a PAID order — decrement stock for the items just resolved.
+   * and — for a PAID order — reserve stock for the items just resolved.
    */
   async resolveOrderItem(
     userId: string,

@@ -66,7 +66,10 @@ export function InventoryDashboard() {
       value: formatCurrency(summary.totalStockValue),
       icon: Wallet,
       tone: 'primary',
-      hint: `${summary.totalAvailableUnits} units in stock`,
+      hint:
+        summary.totalReservedUnits > 0
+          ? `${summary.totalAvailableUnits} available · ${summary.totalReservedUnits} reserved`
+          : `${summary.totalAvailableUnits} units in stock`,
     },
     { label: 'Products (SKUs)', value: String(summary.variantCount), icon: Boxes, tone: 'sky' },
     {

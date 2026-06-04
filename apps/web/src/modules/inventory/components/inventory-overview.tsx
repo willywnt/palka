@@ -105,7 +105,8 @@ export function InventoryOverview() {
               <TableRow>
                 <TableHead>Variant</TableHead>
                 <TableHead>SKU</TableHead>
-                <TableHead className="text-right">In stock</TableHead>
+                <TableHead className="text-right">Available</TableHead>
+                <TableHead className="text-right">Reserved</TableHead>
                 <TableHead className="text-right">Last change</TableHead>
                 <TableHead>Updated</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -129,6 +130,15 @@ export function InventoryOverview() {
                     {item.isLowStock ? (
                       <LowStockBadge threshold={item.lowStockThreshold} className="ml-2" />
                     ) : null}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">
+                    {item.reservedStock > 0 ? (
+                      <span title="Committed to paid, not-yet-shipped orders">
+                        {item.reservedStock}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right text-sm whitespace-nowrap tabular-nums">
                     {item.lastChange === null ? (

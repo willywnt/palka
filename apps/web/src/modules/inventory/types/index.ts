@@ -42,6 +42,8 @@ export type StockOverviewItem = {
   sku: string;
   variantName: string;
   availableStock: number;
+  /** Units committed to paid-not-shipped orders. on-hand = available + reserved. */
+  reservedStock: number;
   lowStockThreshold: number;
   isLowStock: boolean;
   /** When stock was last changed (ISO), and the most recent movement. */
@@ -54,6 +56,8 @@ export type StockOverviewItem = {
 export type InventoryDashboardSummary = {
   variantCount: number;
   totalAvailableUnits: number;
+  /** Units committed to paid-not-shipped orders across all variants. */
+  totalReservedUnits: number;
   lowStockCount: number;
   outOfStockCount: number;
   oversoldCount: number;
