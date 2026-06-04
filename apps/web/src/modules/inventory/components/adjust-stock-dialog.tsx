@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -20,14 +21,14 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
+import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { formatDateTime } from '@/lib/formatters';
 
 import { useAdjustStockMutation, useVariantInventoryQuery } from '../hooks/use-inventory';
 import { stockReasonLabel } from '../utils/reason-display';
-import { MANUAL_STOCK_REASONS } from '../utils/stock-math';
+import { type ManualStockReason } from '../utils/stock-math';
 import { adjustStockFormSchema, type AdjustStockFormInput } from '../validators/adjust-stock';
 
 const DEFAULT_VALUES: AdjustStockFormInput = {
@@ -37,6 +38,14 @@ const DEFAULT_VALUES: AdjustStockFormInput = {
   reason: 'RESTOCK',
   note: '',
 };
+
+/** Reasons that make sense for the chosen action — keeps the options relevant. */
+function allowedReasons(mode: 'adjust' | 'set', direction: 'add' | 'remove'): ManualStockReason[] {
+  if (mode === 'set') return ['RECONCILE', 'MANUAL_ADJUST'];
+  return direction === 'add'
+    ? ['RESTOCK', 'MANUAL_ADJUST', 'RECONCILE']
+    : ['DAMAGE', 'MANUAL_ADJUST', 'RECONCILE'];
+}
 
 export function AdjustStockDialog({
   variantId,
@@ -63,7 +72,25 @@ export function AdjustStockDialog({
 
   const mode = form.watch('mode');
   const direction = form.watch('direction');
+  const quantity = Number(form.watch('quantity')) || 0;
   const currentStock = data?.snapshot.availableStock ?? availableStock;
+
+  const reasons = useMemo(() => allowedReasons(mode, direction), [mode, direction]);
+
+  // Keep the selected reason valid for the current action.
+  useEffect(() => {
+    const current = form.getValues('reason');
+    if (!reasons.some((reason) => reason === current)) {
+      form.setValue('reason', reasons[0] ?? 'MANUAL_ADJUST');
+    }
+  }, [reasons, form]);
+
+  const resultStock =
+    mode === 'set'
+      ? quantity
+      : direction === 'add'
+        ? currentStock + quantity
+        : currentStock - quantity;
 
   async function onSubmit(values: AdjustStockFormInput) {
     const delta =
@@ -73,8 +100,8 @@ export function AdjustStockDialog({
           ? values.quantity
           : -values.quantity;
 
-    if (values.mode === 'set' && delta === 0) {
-      toast.info(`Stock is already ${currentStock}.`);
+    if (delta === 0) {
+      toast.info(values.mode === 'set' ? `Stock is already ${currentStock}.` : 'Enter a quantity.');
       return;
     }
 
@@ -110,11 +137,6 @@ export function AdjustStockDialog({
           <DialogDescription>{variantLabel}</DialogDescription>
         </DialogHeader>
 
-        <div className="bg-muted/40 flex items-center justify-between rounded-lg border px-4 py-3">
-          <span className="text-muted-foreground text-sm">Available now</span>
-          <span className="text-2xl font-semibold tabular-nums">{currentStock}</span>
-        </div>
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
@@ -133,37 +155,45 @@ export function AdjustStockDialog({
               ))}
             </div>
 
-            {mode === 'adjust' ? (
-              <div className="grid grid-cols-2 gap-2">
-                {(['add', 'remove'] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => form.setValue('direction', value)}
-                    className={cn(
-                      'rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-colors',
-                      direction === value ? 'border-primary bg-primary/5' : 'hover:bg-muted/50',
-                    )}
-                  >
-                    {value === 'add' ? 'Add stock' : 'Remove stock'}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+            <div className="flex items-end gap-2">
+              {mode === 'adjust' ? (
+                <Select
+                  className="w-32"
+                  value={direction}
+                  onChange={(event) =>
+                    form.setValue('direction', event.target.value as 'add' | 'remove')
+                  }
+                  aria-label="Direction"
+                >
+                  <option value="add">Add</option>
+                  <option value="remove">Remove</option>
+                </Select>
+              ) : null}
 
-            <FormField
-              control={form.control}
-              name="quantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{mode === 'set' ? 'New stock count' : 'Quantity'}</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={mode === 'set' ? 0 : 1} step={1} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>{mode === 'set' ? 'New stock count' : 'Quantity'}</FormLabel>
+                    <FormControl>
+                      <NumberInput min={mode === 'set' ? 0 : 1} step={1} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="bg-muted/40 flex items-center justify-between rounded-lg border px-4 py-2.5 text-sm">
+              <span className="text-muted-foreground">Available after</span>
+              <span className="flex items-center gap-2 font-semibold tabular-nums">
+                <span className="text-muted-foreground">{currentStock}</span>→
+                <span className={cn('text-base', resultStock < 0 && 'text-destructive')}>
+                  {resultStock}
+                </span>
+              </span>
+            </div>
 
             <FormField
               control={form.control}
@@ -171,23 +201,17 @@ export function AdjustStockDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Reason</FormLabel>
-                  <div className="grid grid-cols-2 gap-2">
-                    {MANUAL_STOCK_REASONS.map((reason) => (
-                      <button
-                        key={reason}
-                        type="button"
-                        onClick={() => field.onChange(reason)}
-                        className={cn(
-                          'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                          field.value === reason
-                            ? 'border-primary bg-primary/5'
-                            : 'hover:bg-muted/50',
-                        )}
-                      >
+                  <Select
+                    value={field.value}
+                    onChange={(event) => field.onChange(event.target.value)}
+                    aria-label="Reason"
+                  >
+                    {reasons.map((reason) => (
+                      <option key={reason} value={reason}>
                         {stockReasonLabel(reason)}
-                      </button>
+                      </option>
                     ))}
-                  </div>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -216,41 +240,6 @@ export function AdjustStockDialog({
             </Button>
           </form>
         </Form>
-
-        {data && data.ledger.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-              Recent movements
-            </p>
-            <div className="max-h-48 space-y-1 overflow-y-auto">
-              {data.ledger.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                >
-                  <div>
-                    <span
-                      className={cn(
-                        'font-medium tabular-nums',
-                        entry.delta >= 0 ? 'text-emerald-600' : 'text-destructive',
-                      )}
-                    >
-                      {entry.delta >= 0 ? '+' : ''}
-                      {entry.delta}
-                    </span>
-                    <span className="text-muted-foreground ml-2">
-                      {stockReasonLabel(entry.reason)}
-                    </span>
-                  </div>
-                  <div className="text-muted-foreground text-right text-xs">
-                    <div className="tabular-nums">= {entry.balanceAfter}</div>
-                    <div suppressHydrationWarning>{formatDateTime(entry.createdAt)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
       </DialogContent>
     </Dialog>
   );
