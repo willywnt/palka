@@ -13,8 +13,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { usePullOrdersMutation } from '@/modules/orders/hooks/use-orders';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -67,7 +65,6 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
   const listingsQuery = useMarketplaceListingsQuery(connectionId);
   const importMutation = useImportListingsMutation(connectionId);
   const rerunMutation = useRerunAutoMapMutation(connectionId);
-  const pullMutation = usePullOrdersMutation(connectionId);
   const mapMutation = useMapListingMutation(connectionId);
   const unmapMutation = useUnmapListingMutation(connectionId);
   const syncToggleMutation = useSetSyncEnabledMutation(connectionId);
@@ -97,19 +94,6 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
       });
     } catch (error) {
       toast.error('Auto-map failed', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  }
-
-  async function handlePullOrders() {
-    try {
-      const result = await pullMutation.mutateAsync();
-      toast.success('Orders pulled', {
-        description: `${result.pulled} order(s) pulled, ${result.applied} applied to stock.`,
-      });
-    } catch (error) {
-      toast.error('Pull orders failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });
     }
@@ -203,14 +187,6 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
           <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
             <DownloadCloud className="size-4" />
             {importMutation.isPending ? 'Importing...' : 'Import listings'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => void handlePullOrders()}
-            disabled={pullMutation.isPending}
-          >
-            <ShoppingCart className="size-4" />
-            {pullMutation.isPending ? 'Pulling...' : 'Pull orders'}
           </Button>
         </div>
       </div>
