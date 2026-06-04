@@ -30,6 +30,21 @@ import type { ReorderItem } from '../types';
 
 const WINDOW_OPTIONS = [7, 30, 90] as const;
 
+/** A right-aligned column header with an info icon explaining the metric. */
+function HeadWithHint({ label, hint }: { label: string; hint: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex cursor-default items-center gap-1">
+          {label}
+          <Info className="text-muted-foreground size-3.5" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs text-xs">{hint}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function formatVelocity(value: number): string {
   return value > 0 ? `${value.toFixed(1)}/day` : '—';
 }
@@ -135,23 +150,36 @@ export function ReorderReport() {
             <TableHeader>
               <TableRow>
                 <TableHead>Variant</TableHead>
-                <TableHead className="text-right">Velocity</TableHead>
-                <TableHead className="text-right">Cover</TableHead>
+                <TableHead className="text-right">
+                  <HeadWithHint
+                    label="Velocity"
+                    hint="Average units sold per day over the selected sales window."
+                  />
+                </TableHead>
+                <TableHead className="text-right">
+                  <HeadWithHint
+                    label="Cover"
+                    hint="How many days your current stock will last at the current sales velocity."
+                  />
+                </TableHead>
                 <TableHead className="text-right">In stock</TableHead>
                 <TableHead className="text-right">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex items-center gap-1">
-                        Reorder
-                        <Info className="text-muted-foreground size-3.5" />
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs text-xs">
-                      Suggested quantity to buy: enough to cover your lead time (days until a
-                      restock arrives) plus the target days of cover, and at least the supplier MOQ
-                      (minimum order quantity).
-                    </TooltipContent>
-                  </Tooltip>
+                  <HeadWithHint
+                    label="Lead time"
+                    hint="Days until a restock arrives after you place a reorder."
+                  />
+                </TableHead>
+                <TableHead className="text-right">
+                  <HeadWithHint
+                    label="MOQ"
+                    hint="Minimum order quantity: the smallest amount your supplier will accept per order."
+                  />
+                </TableHead>
+                <TableHead className="text-right">
+                  <HeadWithHint
+                    label="Reorder"
+                    hint="Suggested quantity to buy: enough to cover your lead time plus the target days of cover, and at least the supplier MOQ."
+                  />
                 </TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
@@ -184,22 +212,8 @@ function ReorderRow({ item }: { item: ReorderItem }) {
           {item.variantName} · {item.sku}
         </div>
       </TableCell>
-      <TableCell className="text-right text-sm tabular-nums">
-        <div className="text-muted-foreground">{formatVelocity(item.dailyVelocity)}</div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="text-muted-foreground w-fit cursor-default text-xs">
-              {item.leadTimeDays}d lead
-              {item.minOrderQty ? ` · MOQ ${item.minOrderQty}` : ''}
-            </div>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-xs text-xs">
-            Lead time: days until a restock arrives.{' '}
-            {item.minOrderQty
-              ? `MOQ: supplier minimum order of ${item.minOrderQty}.`
-              : 'No supplier minimum order set.'}
-          </TooltipContent>
-        </Tooltip>
+      <TableCell className="text-muted-foreground text-right text-sm tabular-nums">
+        {formatVelocity(item.dailyVelocity)}
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {formatDaysOfCover(item.daysOfCover)}
@@ -211,6 +225,10 @@ function ReorderRow({ item }: { item: ReorderItem }) {
         {item.incomingStock > 0 ? (
           <div className="text-muted-foreground text-xs">+{item.incomingStock} incoming</div>
         ) : null}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">{item.leadTimeDays}d</TableCell>
+      <TableCell className="text-right tabular-nums">
+        {item.minOrderQty ?? <span className="text-muted-foreground">—</span>}
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {item.suggestedReorderQty > 0 ? (
