@@ -47,7 +47,7 @@ const {
       marketplaceConnection: { findMany: vi.fn(), update: vi.fn() },
       marketplaceProduct: { findUnique: vi.fn() },
       inventory: { findUnique: vi.fn() },
-      order: { findFirst: vi.fn() },
+      order: { findFirst: vi.fn(), updateMany: vi.fn() },
       $transaction: vi.fn((cb: (tx: TxClient) => Promise<unknown>) => cb(txMock)),
     },
   };
@@ -239,5 +239,39 @@ describe('pullFromConnections — release (CANCELLED)', () => {
 
     expect(inventoryMock.applyOrderReleaseTx).not.toHaveBeenCalled();
     expect(result.reverted).toBe(0);
+  });
+});
+
+describe('findByResi / markFulfilledByResi (fulfillment)', () => {
+  it('resolves the most recent order for a resi', async () => {
+    prismaMock.order.findFirst.mockResolvedValue({ id: 'o9' });
+    const getOrderSpy = vi
+      .spyOn(service, 'getOrder')
+      .mockResolvedValue({ id: 'o9' } as Awaited<ReturnType<typeof service.getOrder>>);
+
+    const result = await service.findByResi(USER, 'RESI-1');
+
+    expect(getOrderSpy).toHaveBeenCalledWith(USER, 'o9');
+    expect(result).toMatchObject({ id: 'o9' });
+    getOrderSpy.mockRestore();
+  });
+
+  it('returns null when no order matches the resi', async () => {
+    prismaMock.order.findFirst.mockResolvedValue(null);
+    expect(await service.findByResi(USER, 'RESI-NONE')).toBeNull();
+  });
+
+  it('stamps fulfilledAt only on not-yet-fulfilled matching orders', async () => {
+    prismaMock.order.updateMany.mockResolvedValue({ count: 1 });
+
+    const count = await service.markFulfilledByResi(USER, 'RESI-1');
+
+    expect(count).toBe(1);
+    const args = prismaMock.order.updateMany.mock.calls[0]?.[0] as {
+      where: { userId: string; noResi: string; fulfilledAt: null };
+      data: { fulfilledAt: Date };
+    };
+    expect(args.where).toMatchObject({ userId: USER, noResi: 'RESI-1', fulfilledAt: null });
+    expect(args.data.fulfilledAt).toBeInstanceOf(Date);
   });
 });

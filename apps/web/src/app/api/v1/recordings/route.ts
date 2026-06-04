@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+import { ordersServerService } from '@/modules/orders/services/orders-server.service';
 import { recordingServerService } from '@/modules/recordings/services/recording-server.service';
 import { saveRecordingMetadataSchema } from '@/modules/recordings/validators/create-recording';
 import { listRecordingsQuerySchema } from '@/modules/recordings/validators/list-recordings';
@@ -50,6 +51,18 @@ export const POST = withApiRoute(
       storageKey: saved.storageKey,
       fileSizeBytes: saved.fileSizeBytes,
     });
+
+    // A completed packing video fulfills the matching order(s) (best-effort —
+    // never fail the recording save if there's no order or the update errors).
+    try {
+      await ordersServerService.markFulfilledByResi(user.id, saved.noResi);
+    } catch (error) {
+      appLogger.warn('recording.fulfill.failed', {
+        userId: user.id,
+        recordingId: saved.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     return apiSuccess(saved, 201);
   },

@@ -28,6 +28,7 @@
     "db:migrate:reset": "pnpm --filter @olshop/db db:migrate:reset",
     "db:seed": "pnpm --filter @olshop/db db:seed",
     "db:studio": "pnpm --filter @olshop/db db:studio",
+    "db:reset-demo": "pnpm --filter @olshop/db db:reset-demo",
     "prepare": "node scripts/prepare.mjs"
   },
   "devDependencies": {

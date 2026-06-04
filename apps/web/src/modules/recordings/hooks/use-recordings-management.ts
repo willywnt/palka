@@ -33,6 +33,22 @@ function buildListQueryString(query: ListRecordingsQuery): string {
   return params.toString();
 }
 
+/** Completed packing videos for an exact tracking number — order/return evidence. */
+export function useRecordingsByResiQuery(noResi: string | null, enabled = true) {
+  const trimmed = noResi?.trim() ?? '';
+  return useQuery({
+    queryKey: recordingKeys.byResi(trimmed),
+    queryFn: async () => {
+      const result = await apiFetch<RecordingListItem[]>(
+        `${apiRoutes.recordings}/by-resi?noResi=${encodeURIComponent(trimmed)}`,
+      );
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    enabled: trimmed.length > 0 && enabled,
+  });
+}
+
 export function useRecordingsListQuery(query: ListRecordingsQuery) {
   return useQuery({
     queryKey: recordingKeys.list(query),

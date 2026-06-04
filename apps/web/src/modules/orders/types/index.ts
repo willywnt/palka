@@ -23,6 +23,8 @@ export type OrderListItem = {
   itemCount: number;
   unresolvedCount: number;
   inventoryApplied: boolean;
+  /** When a packing video for this order's resi completed (ISO), if ever. */
+  fulfilledAt: string | null;
   placedAt: string;
   /** When this order's store was last pulled (ISO), if ever. */
   lastPulledAt: string | null;

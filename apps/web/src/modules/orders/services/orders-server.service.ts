@@ -45,6 +45,7 @@ export class OrdersServerService {
       itemCount: order.items.length,
       unresolvedCount: order.items.filter((item) => item.productVariantId === null).length,
       inventoryApplied: order.inventoryAppliedAt !== null,
+      fulfilledAt: order.fulfilledAt?.toISOString() ?? null,
       placedAt: order.placedAt.toISOString(),
       lastPulledAt: order.connection.lastOrdersPulledAt?.toISOString() ?? null,
     }));
@@ -97,10 +98,38 @@ export class OrdersServerService {
       itemCount: items.length,
       unresolvedCount: items.filter((item) => !item.resolved).length,
       inventoryApplied: order.inventoryAppliedAt !== null,
+      fulfilledAt: order.fulfilledAt?.toISOString() ?? null,
       placedAt: order.placedAt.toISOString(),
       lastPulledAt: order.connection.lastOrdersPulledAt?.toISOString() ?? null,
       items,
     };
+  }
+
+  /** The most recent order matching a tracking number — for the packing-station view. */
+  async findByResi(userId: string, noResi: string): Promise<OrderDetail | null> {
+    const order = await prisma.order.findFirst({
+      where: { userId, noResi },
+      orderBy: { placedAt: 'desc' },
+      select: { id: true },
+    });
+    if (!order) return null;
+    return this.getOrder(userId, order.id);
+  }
+
+  /**
+   * Mark the order(s) with this tracking number as fulfilled (packed + recorded).
+   * Idempotent — only stamps where `fulfilledAt` is null. Returns how many were
+   * stamped. Called best-effort after a packing video completes.
+   */
+  async markFulfilledByResi(userId: string, noResi: string): Promise<number> {
+    const result = await prisma.order.updateMany({
+      where: { userId, noResi, fulfilledAt: null },
+      data: { fulfilledAt: new Date() },
+    });
+    if (result.count > 0) {
+      appLogger.info('orders.fulfilled', { userId, noResi, count: result.count });
+    }
+    return result.count;
   }
 
   /**

@@ -401,6 +401,11 @@ model Order {
    * reserved units physically left (idempotency; mirrors inventoryAppliedAt).
    */
   inventoryShippedAt      DateTime?
+  /**
+   * Set when a packing video (a Recording with the same noResi) completes — the
+   * order has been packed + recorded. Matched by noResi (no FK).
+   */
+  fulfilledAt             DateTime?
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
 

@@ -366,6 +366,25 @@ export class RecordingServerService {
     return recording ? mapListItem(recording) : null;
   }
 
+  /**
+   * Completed packing videos for an EXACT tracking number — the order/return
+   * dispute evidence. Newest first; excludes soft-deleted.
+   */
+  async findByResi(userId: string, noResi: string): Promise<RecordingListItem[]> {
+    const recordings = await prisma.recording.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        status: RecordingStatus.COMPLETED,
+        noResi: { equals: noResi, mode: 'insensitive' },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: RECORDING_LIST_ITEM_SELECT,
+    });
+
+    return recordings.map(mapListItem);
+  }
+
   async getRecordingById(userId: string, recordingId: string): Promise<RecordingDetail> {
     const recording = await prisma.recording.findFirst({
       where: {
