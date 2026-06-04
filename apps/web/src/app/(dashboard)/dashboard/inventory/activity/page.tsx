@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 
 import { PageHeader } from '@/components/page-header';
 import { StockActivity } from '@/modules/inventory/components/stock-activity';
@@ -7,14 +8,7 @@ export const metadata: Metadata = {
   title: 'Stock activity',
 };
 
-export default async function StockActivityPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ search?: string | string[] }>;
-}) {
-  const params = await searchParams;
-  const initialSearch = typeof params.search === 'string' ? params.search : undefined;
-
+export default function StockActivityPage() {
   return (
     <div className="space-y-6">
       <PageHeader
@@ -22,7 +16,9 @@ export default async function StockActivityPage({
         title="Stock activity"
         description="Every stock change, newest first — search and export the full history."
       />
-      <StockActivity initialSearch={initialSearch} />
+      <Suspense fallback={null}>
+        <StockActivity />
+      </Suspense>
     </div>
   );
 }
