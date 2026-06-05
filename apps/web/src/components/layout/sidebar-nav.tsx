@@ -8,6 +8,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   Library,
+  QrCode,
   Settings,
   ShoppingBag,
   ShoppingCart,
@@ -43,6 +44,7 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
       { title: 'Products', href: '/dashboard/products', icon: Boxes },
       { title: 'Inventory', href: '/dashboard/inventory', icon: Warehouse },
       { title: 'Purchasing', href: '/dashboard/purchasing', icon: Truck },
+      { title: 'Labels', href: '/dashboard/labels', icon: QrCode },
     ],
   },
   {

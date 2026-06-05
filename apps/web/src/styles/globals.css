@@ -189,3 +189,35 @@
 .sidebar-scroll:hover::-webkit-scrollbar-thumb {
   background-color: rgb(255 255 255 / 0.3);
 }
+
+/*
+ * Print: reveal only the label sheet. Everything is hidden, then the single
+ * `[data-print-root]` subtree (the printable label grid) is shown and floated to
+ * the page origin so the app chrome (sidebar/header/controls) never prints.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  [data-print-root],
+  [data-print-root] * {
+    visibility: visible;
+  }
+
+  [data-print-root] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}
