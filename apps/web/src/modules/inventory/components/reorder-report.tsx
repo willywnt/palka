@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CalendarRange, Info, PackageSearch, PackageX, ShoppingCart } from 'lucide-react';
+import { CalendarRange, Info, PackageSearch, PackageX, ShoppingCart, Truck } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -113,11 +113,23 @@ export function ReorderReport() {
             </Button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <Switch id="needs-reorder-only" checked={reorderOnly} onCheckedChange={setReorderOnly} />
-          <Label htmlFor="needs-reorder-only" className="text-sm font-normal">
-            Needs reorder only
-          </Label>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="needs-reorder-only"
+              checked={reorderOnly}
+              onCheckedChange={setReorderOnly}
+            />
+            <Label htmlFor="needs-reorder-only" className="text-sm font-normal">
+              Needs reorder only
+            </Label>
+          </div>
+          <Button size="sm" asChild>
+            <Link href="/dashboard/purchasing/new">
+              <Truck className="size-4" />
+              Create PO
+            </Link>
+          </Button>
         </div>
       </div>
 

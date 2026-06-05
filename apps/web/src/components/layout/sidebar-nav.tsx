@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Store,
+  Truck,
   Undo2,
   Video,
   Warehouse,
@@ -41,6 +42,7 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
     items: [
       { title: 'Products', href: '/dashboard/products', icon: Boxes },
       { title: 'Inventory', href: '/dashboard/inventory', icon: Warehouse },
+      { title: 'Purchasing', href: '/dashboard/purchasing', icon: Truck },
     ],
   },
   {
