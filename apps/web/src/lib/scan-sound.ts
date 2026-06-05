@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Tiny Web Audio "beep" feedback for the POS scanner — no audio asset needed.
- * Browsers block audio that wasn't started from a user gesture, so call
- * `unlockScanSound()` from a click handler (e.g. opening the scanner dialog or
- * toggling sound on) before the first socket-driven beep can play.
+ * Tiny Web Audio "beep" feedback for scanners — no audio asset needed. Shared by
+ * the POS till, the phone scanner, and the recording countdown. Browsers block
+ * audio that wasn't started from a user gesture, so call `unlockScanSound()` from
+ * a click/touch handler before the first socket-driven beep can play.
  */
 
 type WebkitWindow = Window & { webkitAudioContext?: typeof AudioContext };
@@ -32,6 +32,7 @@ function tone(
   startOffset: number,
   durationMs: number,
   type: OscillatorType,
+  peak = 0.18,
 ): void {
   const ctx = getContext();
   if (!ctx) return;
@@ -47,7 +48,7 @@ function tone(
 
   // Fast attack + decay so it reads as a clean "blip" rather than a click.
   gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(0.18, start + 0.012);
+  gain.gain.exponentialRampToValueAtTime(peak, start + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001, end);
 
   osc.connect(gain).connect(ctx.destination);
@@ -55,7 +56,7 @@ function tone(
   osc.stop(end + 0.02);
 }
 
-/** Friendly two-note rising chirp — "added to cart". */
+/** Friendly two-note rising chirp — "scanned / added". */
 export function playScanSuccess(): void {
   tone(880, 0, 90, 'sine');
   tone(1175, 0.09, 120, 'sine');
@@ -64,4 +65,14 @@ export function playScanSuccess(): void {
 /** Low buzz — "no match / scan failed". */
 export function playScanError(): void {
   tone(196, 0, 240, 'square');
+}
+
+/** Single soft tick — one per second of the recording countdown. */
+export function playCountdownTick(): void {
+  tone(660, 0, 70, 'sine', 0.14);
+}
+
+/** Bright confirmation — the countdown finished and recording is starting. */
+export function playCountdownGo(): void {
+  tone(988, 0, 140, 'sine');
 }

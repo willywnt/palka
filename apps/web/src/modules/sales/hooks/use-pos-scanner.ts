@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { playScanError, playScanSuccess } from '@/lib/scan-sound';
 import { isMobileScannerEnabled } from '@/modules/scanner-pairing/config';
 import { useDesktopScannerSocket } from '@/modules/scanner-pairing/hooks/use-desktop-scanner-socket';
 import { useActivePairingQuery } from '@/modules/scanner-pairing/hooks/use-pairing-api';
 import type { BarcodeScannedServerPayload } from '@/modules/scanner-pairing/socket/events';
 
-import { playScanError, playScanSuccess } from '../utils/scan-sound';
 import { useResolveVariantMutation } from './use-sales';
 import type { SellableVariant } from '../types';
 

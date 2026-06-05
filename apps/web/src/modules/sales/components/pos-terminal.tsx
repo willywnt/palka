@@ -23,13 +23,14 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { useSoundUnlock } from '@/hooks/use-sound-unlock';
 import { formatCurrency } from '@/lib/formatters';
+import { unlockScanSound } from '@/lib/scan-sound';
 import { cn } from '@/lib/utils';
 import { ConnectScannerDialog } from '@/modules/scanner-pairing/components/connect-scanner-dialog';
 
 import { useCreateSaleMutation, useSellableVariantsQuery } from '../hooks/use-sales';
 import { usePosScanner, type PosScannerStatus } from '../hooks/use-pos-scanner';
-import { unlockScanSound } from '../utils/scan-sound';
 import type { SellableVariant } from '../types';
 
 const SCAN_SOUND_STORAGE_KEY = 'olshop-pos-scan-sound';
@@ -86,6 +87,9 @@ export function PosTerminal() {
   const [customerName, setCustomerName] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+
+  // Unlock Web Audio on the first interaction so scan beeps can play.
+  useSoundUnlock();
 
   // Restore the cashier's sound preference (defaults to on).
   useEffect(() => {

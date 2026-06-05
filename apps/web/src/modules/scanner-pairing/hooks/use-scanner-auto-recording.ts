@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
+import { playCountdownGo, playCountdownTick } from '@/lib/scan-sound';
 import { useAnotherTabRecording } from '@/modules/recordings/recovery/hooks/use-another-tab-recording';
 import { recoverDefaultCameraPreview } from '@/modules/recordings/recovery/utils/camera-stream';
 import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
@@ -91,12 +92,14 @@ export function useScannerAutoRecording({
       let remaining = RECORDING_COUNTDOWN_SECONDS;
       setCountdownSeconds(remaining);
       setBlockReason(null);
+      playCountdownTick();
 
       countdownTimerRef.current = window.setInterval(() => {
         remaining -= 1;
         if (remaining <= 0) {
           clearCountdownTimer();
           closeCountdown();
+          playCountdownGo();
           if (pendingStartRef.current) {
             pendingStartRef.current = false;
             const resi = useScannerPairingStore.getState().countdownBarcode;
@@ -105,6 +108,7 @@ export function useScannerAutoRecording({
           return;
         }
         setCountdownSeconds(remaining);
+        playCountdownTick();
       }, 1000);
     },
     [

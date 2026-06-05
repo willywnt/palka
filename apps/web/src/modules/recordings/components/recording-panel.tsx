@@ -8,6 +8,7 @@ import { RecordingReliabilityShell } from '@/modules/recordings/recovery/compone
 import { recoverDefaultCameraPreview } from '@/modules/recordings/recovery/utils/camera-stream';
 import { useAnotherTabRecording } from '@/modules/recordings/recovery/hooks/use-another-tab-recording';
 import { useCameraDevices } from '@/modules/recordings/recovery/hooks/use-camera-devices';
+import { useSoundUnlock } from '@/hooks/use-sound-unlock';
 
 import { useRecording } from '../hooks/use-recording';
 import { useDuplicateResiWarning } from '../hooks/use-duplicate-resi-warning';
@@ -75,6 +76,8 @@ export function RecordingPanel() {
 
   // Hidden in production until the realtime socket host is deployed.
   const scannerEnabled = isMobileScannerEnabled();
+  // First interaction unlocks audio so the countdown ticks can play.
+  useSoundUnlock(scannerEnabled);
   const { data: activePairing } = useActivePairingQuery(scannerEnabled);
   // Only act on a phone paired for RECORDING — a POS pairing must not auto-record.
   const pairingSession =
