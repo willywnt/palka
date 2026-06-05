@@ -47,6 +47,7 @@ import {
 import type { ProductVariantItem } from '../types';
 import { formatCurrency } from '../utils/format';
 import { buildVariantBlocks } from '../utils/variants';
+import { AddSubvariantsDialog } from './add-subvariants-dialog';
 import { AddVariantDialog } from './add-variant-dialog';
 import { DeleteVariantDialog } from './delete-variant-dialog';
 import { EditVariantDialog } from './edit-variant-dialog';
@@ -66,6 +67,7 @@ export function ProductDetail({
     targets: ProductVariantItem[];
     label: string;
   } | null>(null);
+  const [addSubGroup, setAddSubGroup] = useState<string | null>(null);
   const markPrinted = useMarkLabelsPrintedMutation();
   const deleteVariants = useDeleteVariantsMutation(productId);
 
@@ -270,6 +272,10 @@ export function ProductDetail({
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setAddSubGroup(block.name)}>
+                                      <Plus className="size-4" />
+                                      Add subvariant
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive"
                                       onClick={() =>
@@ -349,6 +355,17 @@ export function ProductDetail({
       ) : null}
 
       <AddVariantDialog productId={productId} open={addOpen} onOpenChange={setAddOpen} />
+
+      {addSubGroup !== null ? (
+        <AddSubvariantsDialog
+          productId={productId}
+          groupName={addSubGroup}
+          open={addSubGroup !== null}
+          onOpenChange={(open) => {
+            if (!open) setAddSubGroup(null);
+          }}
+        />
+      ) : null}
 
       <DeleteVariantDialog
         targets={deleteTarget?.targets ?? []}

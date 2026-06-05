@@ -26,8 +26,8 @@ export type AddVariantsInput = z.infer<typeof addVariantsSchema>;
 const money = () => z.coerce.number().nonnegative('Must be 0 or more').max(MAX_MONEY);
 const stock = () => z.coerce.number().int().nonnegative().max(MAX_STOCK);
 
-/** One subvariant row inside a variant block. */
-const subvariantRowSchema = z.object({
+/** One subvariant row inside a variant block (or the add-subvariants dialog). */
+export const subvariantRowSchema = z.object({
   name: z.string().trim().max(200),
   sku: z.string().trim().max(64),
   price: money(),
@@ -35,6 +35,49 @@ const subvariantRowSchema = z.object({
   initialStock: stock(),
   lowStockThreshold: stock(),
 });
+
+export type SubvariantRowForm = z.infer<typeof subvariantRowSchema>;
+
+/**
+ * Shared Zod refinement for a list of subvariant rows: at least one, each with a
+ * name + SKU, and no duplicate option names. Issues are added at `subvariants[...]`,
+ * relative to the schema root (works inside a variant block or a flat form).
+ */
+export function addSubvariantRowIssues(rows: SubvariantRowForm[], ctx: z.RefinementCtx): void {
+  if (rows.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['subvariants'],
+      message: 'Add at least one option',
+    });
+  }
+
+  const names = rows.map((row) => row.name.trim().toLowerCase());
+  rows.forEach((row, index) => {
+    if (!row.name.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['subvariants', index, 'name'],
+        message: 'Required',
+      });
+    }
+    if (!row.sku.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['subvariants', index, 'sku'],
+        message: 'Required',
+      });
+    }
+    const name = names[index] ?? '';
+    if (name && names.indexOf(name) !== index) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['subvariants', index, 'name'],
+        message: 'Duplicate option',
+      });
+    }
+  });
+}
 
 /**
  * One variant block in the builder: a variant name plus either a single SKU
@@ -66,40 +109,15 @@ export const variantBlockSchema = z
       return;
     }
 
-    if (data.subvariants.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['subvariants'],
-        message: 'Add at least one option',
-      });
-    }
-
-    const names = data.subvariants.map((row) => row.name.trim().toLowerCase());
-    data.subvariants.forEach((row, index) => {
-      if (!row.name.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['subvariants', index, 'name'],
-          message: 'Required',
-        });
-      }
-      if (!row.sku.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['subvariants', index, 'sku'],
-          message: 'Required',
-        });
-      }
-      const name = names[index] ?? '';
-      if (name && names.indexOf(name) !== index) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['subvariants', index, 'name'],
-          message: 'Duplicate option',
-        });
-      }
-    });
+    addSubvariantRowIssues(data.subvariants, ctx);
   });
+
+/** Form-facing schema for the add-subvariants dialog (adds to an existing group). */
+export const addSubvariantsFormSchema = z
+  .object({ subvariants: z.array(subvariantRowSchema).max(MAX_SUBVARIANTS) })
+  .superRefine((data, ctx) => addSubvariantRowIssues(data.subvariants, ctx));
+
+export type AddSubvariantsFormInput = z.infer<typeof addSubvariantsFormSchema>;
 
 export type VariantBlockForm = z.infer<typeof variantBlockSchema>;
 

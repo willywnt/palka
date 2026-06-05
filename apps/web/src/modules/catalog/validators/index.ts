@@ -8,9 +8,11 @@ export {
 export {
   addVariantsSchema,
   addVariantFormSchema,
+  addSubvariantsFormSchema,
   variantBlockSchema,
   type AddVariantsInput,
   type AddVariantFormInput,
+  type AddSubvariantsFormInput,
   type VariantBlockForm,
 } from './add-variant';
 export { updateProductSchema, type UpdateProductInput } from './update-product';
