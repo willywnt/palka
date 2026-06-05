@@ -8,6 +8,7 @@ import { inventoryServerService } from '@/modules/inventory/services/inventory-s
 
 import { CatalogError } from '../errors/catalog-errors';
 import type { LabelVariant, ProductDetail, ProductListItem, ProductVariantItem } from '../types';
+import { parseOptionTypes, parseVariantOptions } from '../validators/options';
 import type { CreateProductInput, CreateVariantInput } from '../validators/create-product';
 import type { LabelVariantsQuery } from '../validators/label-variants';
 import type { ListProductsQuery } from '../validators/list-products';
@@ -33,6 +34,7 @@ function mapVariant(variant: VariantWithInventory): ProductVariantItem {
     productId: variant.productId,
     sku: variant.sku,
     name: variant.name,
+    options: parseVariantOptions(variant.options),
     barcode: variant.barcode,
     price: variant.price.toString(),
     cost: variant.cost?.toString() ?? null,
@@ -61,6 +63,7 @@ function mapProductDetail(product: ProductWithVariants): ProductDetail {
     name: product.name,
     description: product.description,
     category: product.category,
+    optionTypes: parseOptionTypes(product.optionTypes),
     isActive: product.isActive,
     variants: product.variants.map(mapVariant),
     createdAt: product.createdAt.toISOString(),

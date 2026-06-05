@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  Layers,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -36,6 +37,7 @@ import {
 import { useMarkLabelsPrintedMutation, useProductQuery } from '../hooks/use-products';
 import type { ProductVariantItem } from '../types';
 import { formatCurrency } from '../utils/format';
+import { formatSubOptions, groupVariantsByFirstOption } from '../utils/options';
 import { AddVariantDialog } from './add-variant-dialog';
 import { EditVariantDialog } from './edit-variant-dialog';
 
@@ -78,6 +80,81 @@ export function ProductDetail({
   }
 
   const totalAvailable = data.variants.reduce((sum, variant) => sum + variant.availableStock, 0);
+  const variantGroups = groupVariantsByFirstOption(data.variants);
+  const firstDimension = data.optionTypes[0] ?? null;
+
+  function renderVariantRow(variant: ProductVariantItem, indented: boolean) {
+    const subOptions = formatSubOptions(variant.options);
+    return (
+      <TableRow key={variant.id}>
+        <TableCell className={indented ? 'pl-10' : undefined}>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setQrTarget(variant)}
+              className="hover:ring-primary/40 shrink-0 rounded transition hover:ring-2"
+              title="View QR label"
+            >
+              <QrImage
+                value={variant.barcode?.trim() || variant.sku}
+                size={40}
+                className="rounded"
+              />
+              <span className="sr-only">View QR label for {variant.sku}</span>
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{variant.name}</span>
+                {subOptions ? (
+                  <Badge variant="secondary" className="font-normal">
+                    {subOptions}
+                  </Badge>
+                ) : null}
+              </div>
+              <div className="text-muted-foreground text-xs">{variant.sku}</div>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="text-right tabular-nums">{formatCurrency(variant.price)}</TableCell>
+        <TableCell className="text-right">
+          <span className="font-medium tabular-nums">{variant.availableStock}</span>
+          {variant.isLowStock ? (
+            <LowStockBadge threshold={variant.lowStockThreshold} className="ml-2" />
+          ) : null}
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => onAdjustVariant(variant)}>
+              <SlidersHorizontal className="size-4" />
+              Adjust
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="size-4" />
+                  <span className="sr-only">More actions</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditTarget(variant)}>
+                  <Pencil className="size-4" />
+                  Edit variant
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}
+                  >
+                    <ScrollText className="size-4" />
+                    View activity
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -117,74 +194,34 @@ export function ProductDetail({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.variants.map((variant) => (
-                  <TableRow key={variant.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setQrTarget(variant)}
-                          className="hover:ring-primary/40 shrink-0 rounded transition hover:ring-2"
-                          title="View QR label"
-                        >
-                          <QrImage
-                            value={variant.barcode?.trim() || variant.sku}
-                            size={40}
-                            className="rounded"
-                          />
-                          <span className="sr-only">View QR label for {variant.sku}</span>
-                        </button>
-                        <div>
-                          <div className="font-medium">{variant.name}</div>
-                          <div className="text-muted-foreground text-xs">{variant.sku}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(variant.price)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-medium tabular-nums">{variant.availableStock}</span>
-                      {variant.isLowStock ? (
-                        <LowStockBadge threshold={variant.lowStockThreshold} className="ml-2" />
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onAdjustVariant(variant)}
-                        >
-                          <SlidersHorizontal className="size-4" />
-                          Adjust
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="size-4" />
-                              <span className="sr-only">More actions</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditTarget(variant)}>
-                              <Pencil className="size-4" />
-                              Edit variant
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link
-                                href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}
-                              >
-                                <ScrollText className="size-4" />
-                                View activity
-                              </Link>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {variantGroups
+                  ? variantGroups.map((group) => (
+                      <Fragment key={group.value || '__ungrouped'}>
+                        {group.value ? (
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell colSpan={4} className="py-2">
+                              <div className="flex items-center gap-2">
+                                <Layers className="text-muted-foreground size-3.5" />
+                                {firstDimension ? (
+                                  <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                                    {firstDimension}
+                                  </span>
+                                ) : null}
+                                <span className="font-semibold">{group.value}</span>
+                                <Badge variant="outline" className="font-normal">
+                                  {group.variants.length}{' '}
+                                  {group.variants.length === 1 ? 'variant' : 'variants'}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
+                        {group.variants.map((variant) =>
+                          renderVariantRow(variant, Boolean(group.value)),
+                        )}
+                      </Fragment>
+                    ))
+                  : data.variants.map((variant) => renderVariantRow(variant, false))}
               </TableBody>
             </Table>
           </div>

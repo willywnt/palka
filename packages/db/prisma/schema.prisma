@@ -190,6 +190,9 @@ model Product {
   name        String
   description String?
   category    String?
+  // Ordered option dimensions for this product, e.g. ["Model", "Warna"].
+  // null/empty = a simple product whose variants carry no options.
+  optionTypes Json?
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -214,6 +217,10 @@ model ProductVariant {
   cost              Decimal?  @db.Decimal(12, 2)
   weight            Decimal?  @db.Decimal(10, 3) // kilograms
   dimensions        Json?
+  // Option values keyed to the product's optionTypes, e.g.
+  // [{ "name": "Model", "value": "16" }, { "name": "Warna", "value": "Hitam" }].
+  // null/empty = a plain variant with no options. The variant stays the SKU.
+  options           Json?
   isActive          Boolean   @default(true)
   lowStockThreshold Int       @default(0)
   alertEnabled      Boolean   @default(true)
