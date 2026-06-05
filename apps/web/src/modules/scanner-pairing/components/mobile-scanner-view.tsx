@@ -215,14 +215,17 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
           <BarcodeDetectionOverlay bounds={detectionBounds} detected={barcodeDetected} />
         ) : null}
 
-        {/* Aim reticle — a centered frame so the operator knows where to point. */}
+        {/* Aim frame — a landscape window that fits a wide 1D barcode and a QR
+            alike (POS product labels or recording resi). The center line hints
+            at lining up a 1D barcode; a QR just needs to sit inside the frame. */}
         {canScan && !stationBusy ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="relative size-56 max-w-[68vw]">
-              <span className="absolute top-0 left-0 size-7 rounded-tl-2xl border-t-2 border-l-2 border-white/85" />
-              <span className="absolute top-0 right-0 size-7 rounded-tr-2xl border-t-2 border-r-2 border-white/85" />
-              <span className="absolute bottom-0 left-0 size-7 rounded-bl-2xl border-b-2 border-l-2 border-white/85" />
-              <span className="absolute right-0 bottom-0 size-7 rounded-br-2xl border-r-2 border-b-2 border-white/85" />
+            <div className="relative aspect-[7/4] w-[82vw] max-w-sm">
+              <span className="absolute top-0 left-0 size-8 rounded-tl-2xl border-t-2 border-l-2 border-white/85" />
+              <span className="absolute top-0 right-0 size-8 rounded-tr-2xl border-t-2 border-r-2 border-white/85" />
+              <span className="absolute bottom-0 left-0 size-8 rounded-bl-2xl border-b-2 border-l-2 border-white/85" />
+              <span className="absolute right-0 bottom-0 size-8 rounded-br-2xl border-r-2 border-b-2 border-white/85" />
+              <span className="absolute inset-x-5 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-white/45" />
             </div>
           </div>
         ) : null}

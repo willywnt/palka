@@ -1,8 +1,9 @@
 'use client';
 
-import { Smartphone, Wifi, WifiOff } from 'lucide-react';
+import { ScanLine } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 import { useActivePairingQuery, useDisconnectPairingMutation } from '../hooks/use-pairing-api';
 import { useDesktopScannerSocket } from '../hooks/use-desktop-scanner-socket';
@@ -12,16 +13,34 @@ type ScannerStatusWidgetProps = {
   onConnectClick: () => void;
 };
 
+/**
+ * Compact phone-scanner status for the recording station — same visual language
+ * as the POS till (colour-coded dot + concise status + small action). Only
+ * reflects a RECORDING pairing so a POS phone never lights this up.
+ */
 export function ScannerStatusWidget({ onConnectClick }: ScannerStatusWidgetProps) {
-  const { data: activeSession, refetch } = useActivePairingQuery();
+  const { data: active, refetch } = useActivePairingQuery();
   const connectionState = useScannerPairingStore((s) => s.connectionState);
 
-  const session = activeSession?.session ?? null;
+  const session = active?.session?.purpose === 'RECORDING' ? active.session : null;
   const disconnectMutation = useDisconnectPairingMutation();
 
   useDesktopScannerSocket(session?.id ?? null);
 
-  const isConnected = session?.status === 'CONNECTED' || connectionState === 'connected';
+  const isConnected =
+    Boolean(session) && (session?.status === 'CONNECTED' || connectionState === 'connected');
+  const isWaiting = !isConnected && session?.status === 'PENDING';
+
+  const dot = isConnected
+    ? 'bg-emerald-500'
+    : isWaiting
+      ? 'bg-amber-500'
+      : 'bg-muted-foreground/40';
+  const label = isConnected
+    ? 'Phone connected — scan resi barcodes'
+    : isWaiting
+      ? 'Waiting for phone to connect…'
+      : 'Phone scanner not connected';
 
   const handleDisconnect = async () => {
     if (!session?.id) return;
@@ -30,28 +49,14 @@ export function ScannerStatusWidget({ onConnectClick }: ScannerStatusWidgetProps
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <Smartphone className="text-muted-foreground size-4 shrink-0" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium">Mobile scanner</p>
-          <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            {isConnected ? (
-              <>
-                <Wifi className="size-3 text-emerald-600" />
-                Connected — scan barcodes on your phone
-              </>
-            ) : (
-              <>
-                <WifiOff className="size-3" />
-                {session?.status === 'PENDING' ? 'Waiting for phone…' : 'Not connected'}
-              </>
-            )}
-          </p>
-        </div>
-      </div>
+    <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2">
+      <span className="flex min-w-0 items-center gap-2">
+        <span className={cn('size-2 shrink-0 rounded-full', dot)} aria-hidden />
+        <ScanLine className="text-muted-foreground size-4 shrink-0" />
+        <span className="text-muted-foreground truncate text-xs">{label}</span>
+      </span>
 
-      <div className="flex shrink-0 gap-2">
+      <span className="flex shrink-0 items-center gap-1">
         {isConnected && session?.id ? (
           <Button
             type="button"
@@ -63,10 +68,10 @@ export function ScannerStatusWidget({ onConnectClick }: ScannerStatusWidgetProps
             Disconnect
           </Button>
         ) : null}
-        <Button type="button" size="sm" onClick={onConnectClick}>
-          {isConnected ? 'QR' : 'Connect'}
+        <Button type="button" size="sm" variant="outline" onClick={onConnectClick}>
+          {isConnected || isWaiting ? 'Show QR' : 'Connect'}
         </Button>
-      </div>
+      </span>
     </div>
   );
 }
