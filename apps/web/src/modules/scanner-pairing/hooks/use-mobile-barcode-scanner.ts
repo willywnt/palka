@@ -28,7 +28,11 @@ const SUPPORTED_SCAN_FORMATS = [
 ];
 
 const MAX_SCAN_HISTORY = 30;
+// How long with no decode before the detection highlight is hidden (visual only).
 const DETECTION_CLEAR_MS = 350;
+// How long a code must be ABSENT before the same code may fire again. Longer than
+// the highlight clear so brief decode flicker on a steady barcode never re-fires it.
+const REARM_AFTER_GAP_MS = 1200;
 
 type UseMobileBarcodeScannerOptions = {
   pairingId: string | null;
@@ -46,11 +50,12 @@ export function useMobileBarcodeScanner({
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   // The code currently held in frame — used to debounce the continuous decode
-  // stream WITHOUT blocking a deliberate re-scan of the same code (it resets the
-  // moment the barcode leaves the frame, i.e. when the detection highlight clears).
+  // stream WITHOUT blocking a deliberate re-scan: it stays set while the barcode
+  // keeps decoding and only re-arms after REARM_AFTER_GAP_MS of no decode.
   const inFrameCodeRef = useRef<string | null>(null);
   const scanSeqRef = useRef(0);
   const detectionClearTimerRef = useRef<number | null>(null);
+  const rearmTimerRef = useRef<number | null>(null);
 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -67,8 +72,6 @@ export function useMobileBarcodeScanner({
     setBarcodeDetected(false);
     setDetectionBounds(null);
     setPreviewBarcode(null);
-    // The barcode left the frame — re-arm so the same code can be scanned again.
-    inFrameCodeRef.current = null;
   }, []);
 
   const markBarcodeDetected = useCallback(
@@ -89,6 +92,15 @@ export function useMobileBarcodeScanner({
       detectionClearTimerRef.current = window.setTimeout(() => {
         clearDetectionHighlight();
       }, DETECTION_CLEAR_MS);
+
+      // Keep the in-frame code "held" while it keeps decoding; only a sustained
+      // absence (not brief flicker) re-arms it for another scan.
+      if (rearmTimerRef.current !== null) {
+        window.clearTimeout(rearmTimerRef.current);
+      }
+      rearmTimerRef.current = window.setTimeout(() => {
+        inFrameCodeRef.current = null;
+      }, REARM_AFTER_GAP_MS);
     },
     [clearDetectionHighlight],
   );
@@ -109,6 +121,11 @@ export function useMobileBarcodeScanner({
     controlsRef.current = null;
     readerRef.current = null;
     setIsScanning(false);
+    if (rearmTimerRef.current !== null) {
+      window.clearTimeout(rearmTimerRef.current);
+      rearmTimerRef.current = null;
+    }
+    inFrameCodeRef.current = null;
     clearDetectionHighlight();
   }, [clearDetectionHighlight]);
 
@@ -205,6 +222,9 @@ export function useMobileBarcodeScanner({
     return () => {
       if (detectionClearTimerRef.current !== null) {
         window.clearTimeout(detectionClearTimerRef.current);
+      }
+      if (rearmTimerRef.current !== null) {
+        window.clearTimeout(rearmTimerRef.current);
       }
     };
   }, []);

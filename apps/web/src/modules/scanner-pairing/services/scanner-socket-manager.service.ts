@@ -152,18 +152,17 @@ function ensureSocketHandlers(): void {
     }
   };
 
+  // The station phase is driven authoritatively by the desktop via
+  // STATION_RECORDING_STATE. We deliberately do NOT react to RECORDING_TRIGGERED
+  // here: it would optimistically flip the phone into "countdown" on every scan,
+  // even when the desktop then rejects the resi as a duplicate — leaving the phone
+  // stuck. Letting the desktop report the real phase keeps the phone in sync.
   socket.on(
     scannerSocketEvents.server.STATION_RECORDING_STATE,
     (payload: { phase?: string; barcode?: string }) => {
       applyStationPhase(payload.phase, payload.barcode);
     },
   );
-
-  socket.on(scannerSocketEvents.server.RECORDING_TRIGGERED, (payload: { barcode?: string }) => {
-    if (payload.barcode) {
-      applyStationPhase('countdown', payload.barcode);
-    }
-  });
 
   handlersAttached = true;
 }
