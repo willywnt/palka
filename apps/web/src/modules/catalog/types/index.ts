@@ -18,6 +18,10 @@ export type ProductVariantItem = {
   /** Minimum reorder quantity (MOQ); null = no minimum. */
   minOrderQty: number | null;
   availableStock: number;
+  /** Reserved for unshipped orders — deleting a variant with reserved stock is blocked. */
+  reservedStock: number;
+  /** Incoming from open purchase orders. */
+  incomingStock: number;
   isLowStock: boolean;
   /** When a QR/barcode label was last printed for this variant; null = never. */
   labelPrintedAt: string | null;

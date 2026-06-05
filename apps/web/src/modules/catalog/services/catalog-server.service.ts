@@ -46,6 +46,8 @@ function mapVariant(variant: VariantWithInventory): ProductVariantItem {
     leadTimeDays: variant.leadTimeDays,
     minOrderQty: variant.minOrderQty,
     availableStock,
+    reservedStock: variant.inventory?.reservedStock ?? 0,
+    incomingStock: variant.inventory?.incomingStock ?? 0,
     isLowStock: isLowStock(variant, availableStock),
     labelPrintedAt: variant.labelPrintedAt?.toISOString() ?? null,
     createdAt: variant.createdAt.toISOString(),
@@ -391,6 +393,40 @@ export class CatalogServerService {
     });
 
     appLogger.info('catalog.product.deleted', { userId, productId, variants: variants.length });
+  }
+
+  /**
+   * Soft-delete one variant or a whole group's leaves. Blocked when any target has
+   * reserved stock (units committed to unshipped orders). Stock history is kept;
+   * each freed SKU becomes reusable. Marketplace mappings are NOT auto-unmapped.
+   */
+  async deleteVariants(userId: string, productId: string, variantIds: string[]): Promise<void> {
+    await this.assertProductOwned(userId, productId);
+
+    const variants = await prisma.productVariant.findMany({
+      where: { id: { in: variantIds }, productId, userId, deletedAt: null },
+      select: { id: true, sku: true, name: true, inventory: { select: { reservedStock: true } } },
+    });
+    if (variants.length === 0) throw CatalogError.notFound('Variant not found.');
+
+    const reserved = variants.filter((variant) => (variant.inventory?.reservedStock ?? 0) > 0);
+    if (reserved.length > 0) {
+      const names = reserved.map((variant) => variant.name).join(', ');
+      throw CatalogError.validation(
+        `Cannot delete ${names}: stock is reserved for unshipped orders. Ship or cancel those orders first.`,
+      );
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await this.archiveVariantRows(
+        tx,
+        variants.map((variant) => ({ id: variant.id, sku: variant.sku })),
+        now,
+      );
+    });
+
+    appLogger.info('catalog.variants.deleted', { userId, productId, count: variants.length });
   }
 
   /** Soft-delete the given variants, freeing each SKU for reuse (see archivedSku). */

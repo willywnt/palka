@@ -13,7 +13,9 @@ import {
   QrCode,
   ScrollText,
   SlidersHorizontal,
+  Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,11 +39,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-import { useMarkLabelsPrintedMutation, useProductQuery } from '../hooks/use-products';
+import {
+  useDeleteVariantsMutation,
+  useMarkLabelsPrintedMutation,
+  useProductQuery,
+} from '../hooks/use-products';
 import type { ProductVariantItem } from '../types';
 import { formatCurrency } from '../utils/format';
 import { buildVariantBlocks } from '../utils/variants';
 import { AddVariantDialog } from './add-variant-dialog';
+import { DeleteVariantDialog } from './delete-variant-dialog';
 import { EditVariantDialog } from './edit-variant-dialog';
 
 export function ProductDetail({
@@ -55,7 +62,29 @@ export function ProductDetail({
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductVariantItem | null>(null);
   const [qrTarget, setQrTarget] = useState<ProductVariantItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    targets: ProductVariantItem[];
+    label: string;
+  } | null>(null);
   const markPrinted = useMarkLabelsPrintedMutation();
+  const deleteVariants = useDeleteVariantsMutation(productId);
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    try {
+      await deleteVariants.mutateAsync(deleteTarget.targets.map((variant) => variant.id));
+      toast.success('Deleted', {
+        description: `${deleteTarget.targets.length} ${
+          deleteTarget.targets.length === 1 ? 'variant' : 'variants'
+        } archived.`,
+      });
+      setDeleteTarget(null);
+    } catch (error) {
+      toast.error('Could not delete', {
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
 
   if (isLoading) {
     return (
@@ -143,6 +172,15 @@ export function ProductDetail({
                     View activity
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() =>
+                    setDeleteTarget({ targets: [variant], label: `“${variant.name}”` })
+                  }
+                >
+                  <Trash2 className="size-4" />
+                  {grouped ? 'Delete subvariant' : 'Delete variant'}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -214,15 +252,39 @@ export function ProductDetail({
                                 <Layers className="text-muted-foreground size-3.5" />
                                 <span className="font-semibold">{block.name}</span>
                               </div>
-                              <span className="text-muted-foreground text-xs tabular-nums">
-                                {block.variants.length}{' '}
-                                {block.variants.length === 1 ? 'subvariant' : 'subvariants'} ·{' '}
-                                {block.variants.reduce(
-                                  (sum, variant) => sum + variant.availableStock,
-                                  0,
-                                )}{' '}
-                                in stock
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground text-xs tabular-nums">
+                                  {block.variants.length}{' '}
+                                  {block.variants.length === 1 ? 'subvariant' : 'subvariants'} ·{' '}
+                                  {block.variants.reduce(
+                                    (sum, variant) => sum + variant.availableStock,
+                                    0,
+                                  )}{' '}
+                                  in stock
+                                </span>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="size-7">
+                                      <MoreHorizontal className="size-4" />
+                                      <span className="sr-only">Group actions</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() =>
+                                        setDeleteTarget({
+                                          targets: block.variants,
+                                          label: `the “${block.name}” group`,
+                                        })
+                                      }
+                                    >
+                                      <Trash2 className="size-4" />
+                                      Delete group
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -287,6 +349,17 @@ export function ProductDetail({
       ) : null}
 
       <AddVariantDialog productId={productId} open={addOpen} onOpenChange={setAddOpen} />
+
+      <DeleteVariantDialog
+        targets={deleteTarget?.targets ?? []}
+        label={deleteTarget?.label ?? ''}
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        onConfirm={() => void handleDeleteConfirm()}
+        isDeleting={deleteVariants.isPending}
+      />
 
       {editTarget ? (
         <EditVariantDialog

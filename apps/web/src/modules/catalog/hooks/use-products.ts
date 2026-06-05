@@ -175,6 +175,30 @@ export function useUpdateVariantMutation(productId: string) {
   });
 }
 
+/** Soft-delete one variant or a whole group (its leaf ids) and refresh views. */
+export function useDeleteVariantsMutation(productId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variantIds: string[]) => {
+      const result = await apiFetch<{ ok: boolean }>(
+        `${apiRoutes.products}/${productId}/variants`,
+        { method: 'DELETE', body: { variantIds } },
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+    },
+  });
+}
+
 export function useDeleteProductMutation() {
   const queryClient = useQueryClient();
 

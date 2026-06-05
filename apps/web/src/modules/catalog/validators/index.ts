@@ -22,6 +22,7 @@ export {
   type VariantRouteParam,
   type EditVariantFormInput,
 } from './update-variant';
+export { deleteVariantsSchema, type DeleteVariantsInput } from './delete-variants';
 export { listProductsQuerySchema, type ListProductsQuery } from './list-products';
 export { labelVariantsQuerySchema, type LabelVariantsQuery } from './label-variants';
 export { markLabelsPrintedSchema, type MarkLabelsPrintedInput } from './mark-labels-printed';
