@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import QRCode from 'qrcode';
-import { Loader2, Smartphone } from 'lucide-react';
+import { Loader2, Smartphone, Wifi, WifiOff } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import type { PairingPurpose } from '@prisma/client';
@@ -23,6 +24,7 @@ import {
   useDisconnectPairingMutation,
 } from '../hooks/use-pairing-api';
 import { useScannerPairingStore } from '../store/scanner-pairing.store';
+import { stationPurposeMeta } from '../station-purpose';
 
 type ConnectScannerDialogProps = {
   open: boolean;
@@ -38,6 +40,9 @@ export function ConnectScannerDialog({
 }: ConnectScannerDialogProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  const meta = stationPurposeMeta(purpose);
+  const pathname = usePathname();
 
   const { status: authStatus } = useSession();
   const isAuthenticated = authStatus === 'authenticated';
@@ -160,12 +165,12 @@ export function ConnectScannerDialog({
   };
 
   const statusLabel = isConnected
-    ? 'Connected'
+    ? 'Phone connected — ready to scan'
     : displaySession?.status === 'PENDING'
-      ? 'Scan QR with your phone'
+      ? 'Scan this QR with your phone camera'
       : displaySession?.status === 'DISCONNECTED'
-        ? 'Reconnect your phone'
-        : 'Waiting…';
+        ? 'Phone dropped — scan again to reconnect'
+        : 'Preparing QR…';
 
   const isQrLoading =
     authStatus === 'loading' ||
@@ -176,12 +181,15 @@ export function ConnectScannerDialog({
       <DialogContent className="flex w-[min(100%-2rem,22rem)] max-w-[22rem] flex-col gap-0 overflow-hidden p-0 sm:max-w-[22rem]">
         <div className="space-y-1.5 px-5 pt-5 pr-12">
           <DialogHeader className="gap-1.5 text-left">
-            <DialogTitle className="flex items-center gap-2 text-base">
+            <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
               <Smartphone className="size-4 shrink-0" />
-              Mobile scanner
+              Phone scanner
+              <span className="bg-secondary text-secondary-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                {meta.shortLabel}
+              </span>
             </DialogTitle>
             <DialogDescription className="text-left text-xs">
-              Scan with your phone camera. Same account as this PC.
+              {meta.description} Use the same account as this PC.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -194,10 +202,10 @@ export function ConnectScannerDialog({
           ) : !isAuthenticated ? (
             <div className="space-y-3 py-6 text-center">
               <p className="text-muted-foreground text-sm">
-                Sign in on this PC first (https://localhost:3000), then open this dialog again.
+                Sign in on this PC first (same browser), then reopen this dialog.
               </p>
               <Button asChild size="sm">
-                <a href="/login?callbackUrl=/recordings">Sign in</a>
+                <a href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}>Sign in</a>
               </Button>
             </div>
           ) : (
@@ -230,7 +238,12 @@ export function ConnectScannerDialog({
                   </Button>
                 </div>
               ) : (
-                <p className="text-muted-foreground mt-3 text-center text-xs">
+                <p className="text-muted-foreground mt-3 flex items-center justify-center gap-1.5 text-center text-xs">
+                  {isConnected ? (
+                    <Wifi className="size-3.5 shrink-0 text-emerald-600" />
+                  ) : (
+                    <WifiOff className="size-3.5 shrink-0" />
+                  )}
                   <span className="text-foreground font-medium">{statusLabel}</span>
                 </p>
               )}

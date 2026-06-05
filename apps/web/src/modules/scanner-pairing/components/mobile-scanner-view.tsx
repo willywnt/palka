@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { Route } from 'next';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Loader2, ScanLine, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -15,6 +15,7 @@ import { useMobileHeartbeat } from '../hooks/use-mobile-heartbeat';
 import { useMobilePairingConnect } from '../hooks/use-mobile-pairing-connect';
 import { useMobilePairingQrAuth } from '../hooks/use-mobile-pairing-qr-auth';
 import { useScannerPairingStore } from '../store/scanner-pairing.store';
+import { stationPurposeMeta } from '../station-purpose';
 import { getSuggestedSecureOrigin } from '../utils/camera-environment';
 
 type MobileScannerViewProps = {
@@ -69,9 +70,15 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
   const stationBusy = stationPhase !== 'idle';
   const canScan = isSessionConnected && !stationBusy;
 
+  // Copy follows the station the phone is paired to (recordings vs POS). A ref
+  // keeps the scan handler stable so the camera isn't restarted when it resolves.
+  const meta = stationPurposeMeta(session?.purpose);
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
+
   const handleScanSuccess = useCallback((barcode: string) => {
     toast.success('Barcode sent', {
-      description: `${barcode} — handled on desktop`,
+      description: metaRef.current.mobileScanSuccess(barcode),
     });
   }, []);
 
@@ -99,7 +106,7 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
       <CenteredMessage
         icon={<ScanLine className="text-muted-foreground size-10" />}
         title="Invalid link"
-        description="Scan the QR code from the desktop recording station."
+        description="Scan the QR code shown on the desktop to pair this phone."
       />
     );
   }
@@ -146,7 +153,7 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
       <CenteredMessage
         icon={<Loader2 className="text-primary size-10 animate-spin" />}
         title="Connecting"
-        description="Linking to the recording station…"
+        description={meta.connectingLabel}
       />
     );
   }
@@ -166,7 +173,7 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
       <CenteredMessage
         icon={<WifiOff className="text-destructive size-10" />}
         title="Not connected"
-        description={errorMessage ?? 'Could not reach the recording station.'}
+        description={errorMessage ?? meta.unreachableLabel}
         action={
           <Button className="w-full max-w-xs" type="button" onClick={retry}>
             Try again
@@ -214,10 +221,12 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
 
         <div className="absolute inset-x-0 top-0 flex justify-between gap-2 bg-gradient-to-b from-black/75 to-transparent px-4 py-3 text-white">
           <div className="min-w-0">
-            <p className="text-sm font-medium">Resi scanner</p>
+            <p className="text-sm font-medium">{meta.mobileTitle}</p>
             {previewBarcode && !stationBusy ? (
               <p className="truncate font-mono text-xs text-white/80">{previewBarcode}</p>
-            ) : null}
+            ) : (
+              <p className="truncate text-xs text-white/70">{meta.scanHint}</p>
+            )}
           </div>
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusClass}`}>
             {statusLabel}
