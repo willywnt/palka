@@ -290,7 +290,9 @@ export class PairingService {
     // Stored/relayed verbatim (just trimmed) — see scannedCodeSchema.
     const barcode = rawBarcode.trim();
 
-    if (isDuplicateScan(pairingId, barcode)) {
+    // A POS pairing may legitimately re-scan the same product to add another unit;
+    // only recordings dedupes (to avoid double-triggering a recording for one resi).
+    if (session.purpose === 'RECORDING' && isDuplicateScan(pairingId, barcode)) {
       throw PairingError.duplicateScan();
     }
 

@@ -7,6 +7,7 @@ import { Loader2, ScanLine, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { useSoundUnlock } from '@/hooks/use-sound-unlock';
 import { BarcodeDetectionOverlay } from './barcode-detection-overlay';
 import { MobileScanHistory } from './mobile-scan-history';
 import { MobileStationBusyOverlay } from './mobile-station-busy-overlay';
@@ -83,6 +84,8 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
   }, []);
 
   useMobileHeartbeat(pairingId, isSessionConnected);
+  // First touch unlocks audio so the scan beep can play.
+  useSoundUnlock();
 
   const {
     videoRef,
@@ -212,6 +215,18 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
           <BarcodeDetectionOverlay bounds={detectionBounds} detected={barcodeDetected} />
         ) : null}
 
+        {/* Aim reticle — a centered frame so the operator knows where to point. */}
+        {canScan && !stationBusy ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="relative size-56 max-w-[68vw]">
+              <span className="absolute top-0 left-0 size-7 rounded-tl-2xl border-t-2 border-l-2 border-white/85" />
+              <span className="absolute top-0 right-0 size-7 rounded-tr-2xl border-t-2 border-r-2 border-white/85" />
+              <span className="absolute bottom-0 left-0 size-7 rounded-bl-2xl border-b-2 border-l-2 border-white/85" />
+              <span className="absolute right-0 bottom-0 size-7 rounded-br-2xl border-r-2 border-b-2 border-white/85" />
+            </div>
+          </div>
+        ) : null}
+
         {stationBusy ? (
           <MobileStationBusyOverlay
             phase={stationPhase}
@@ -228,7 +243,10 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
               <p className="truncate text-xs text-white/70">{meta.scanHint}</p>
             )}
           </div>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusClass}`}>
+          <span
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-white ${statusClass}`}
+          >
+            <span className="size-1.5 rounded-full bg-white/90" />
             {statusLabel}
           </span>
         </div>

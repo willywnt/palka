@@ -43,6 +43,7 @@ function fakeSession(overrides: Partial<PairingSession> = {}): PairingSession {
     userId: USER,
     pairingCode: PAIRING_CODE,
     status: 'PENDING',
+    purpose: 'RECORDING',
     expiresAt: new Date('2099-01-01T00:00:00.000Z'),
     connectedAt: null,
     lastSeenAt: null,
@@ -158,5 +159,27 @@ describe('submitBarcode', () => {
     await expect(service.submitBarcode(USER, 'pair-bc', 'jne 123')).rejects.toMatchObject({
       code: PAIRING_ERROR_CODES.DUPLICATE_SCAN,
     });
+  });
+
+  it('does not dedupe re-scans on a POS pairing (each scan adds a unit)', async () => {
+    const connected = fakeSession({
+      id: 'pair-pos',
+      status: 'CONNECTED',
+      purpose: 'POS',
+      connectedAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+    repoMock.findById.mockResolvedValue(connected);
+    repoMock.recordScan.mockResolvedValue(
+      fakeSession({ id: 'pair-pos', status: 'CONNECTED', purpose: 'POS', lastBarcode: 'BLACK-S' }),
+    );
+
+    const first = await service.submitBarcode(USER, 'pair-pos', 'BLACK-S');
+    expect(first.barcode).toBe('BLACK-S');
+
+    // Same code again — POS allows it (no DUPLICATE_SCAN), so 2 units can be rung up.
+    const second = await service.submitBarcode(USER, 'pair-pos', 'BLACK-S');
+    expect(second.barcode).toBe('BLACK-S');
+    expect(repoMock.recordScan).toHaveBeenCalledTimes(2);
   });
 });

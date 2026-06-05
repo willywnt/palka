@@ -5,6 +5,8 @@ import { BarcodeFormat, BrowserMultiFormatReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import type { Result } from '@zxing/library';
 
+import { playScanSuccess } from '@/lib/scan-sound';
+
 import { PAIRING_ERROR_MESSAGES, PAIRING_ERROR_CODES } from '../errors/pairing-errors';
 import { emitBarcodeScanned, getScannerSocket } from '../services/socket-client.service';
 import { boundsFromResultPoints, type BarcodeOverlayBounds } from '../utils/barcode-overlay-bounds';
@@ -43,7 +45,11 @@ export function useMobileBarcodeScanner({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
-  const lastScanRef = useRef<{ barcode: string; at: number } | null>(null);
+  // The code currently held in frame — used to debounce the continuous decode
+  // stream WITHOUT blocking a deliberate re-scan of the same code (it resets the
+  // moment the barcode leaves the frame, i.e. when the detection highlight clears).
+  const inFrameCodeRef = useRef<string | null>(null);
+  const scanSeqRef = useRef(0);
   const detectionClearTimerRef = useRef<number | null>(null);
 
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -61,6 +67,8 @@ export function useMobileBarcodeScanner({
     setBarcodeDetected(false);
     setDetectionBounds(null);
     setPreviewBarcode(null);
+    // The barcode left the frame — re-arm so the same code can be scanned again.
+    inFrameCodeRef.current = null;
   }, []);
 
   const markBarcodeDetected = useCallback(
@@ -86,11 +94,14 @@ export function useMobileBarcodeScanner({
   );
 
   const pushScanHistory = useCallback((barcode: string) => {
-    const scannedAt = new Date().toISOString();
-    setScanHistory((prev) => {
-      const next = [{ barcode, scannedAt }, ...prev.filter((e) => e.barcode !== barcode)];
-      return next.slice(0, MAX_SCAN_HISTORY);
-    });
+    scanSeqRef.current += 1;
+    const entry: MobileScanHistoryEntry = {
+      id: `${Date.now()}-${scanSeqRef.current}`,
+      barcode,
+      scannedAt: new Date().toISOString(),
+    };
+    // Every scan is its own entry — re-scanning the same code logs it again.
+    setScanHistory((prev) => [entry, ...prev].slice(0, MAX_SCAN_HISTORY));
   }, []);
 
   const stopScanner = useCallback(() => {
@@ -139,23 +150,23 @@ export function useMobileBarcodeScanner({
           if (!parsed.success) return;
           const code = parsed.data;
 
-          const now = Date.now();
-          if (
-            lastScanRef.current &&
-            lastScanRef.current.barcode === code &&
-            now - lastScanRef.current.at < 2000
-          ) {
-            return;
-          }
-          lastScanRef.current = { barcode: code, at: now };
+          // Fire once per appearance: skip the continuous decode of the code that
+          // is still in frame, but allow it again after it leaves (re-armed in
+          // clearDetectionHighlight) so deliberate re-scans always register.
+          if (inFrameCodeRef.current === code) return;
+          inFrameCodeRef.current = code;
 
           const socket = getScannerSocket();
-          if (!socket.connected) return;
+          if (!socket.connected) {
+            inFrameCodeRef.current = null;
+            return;
+          }
 
           const ack = await emitBarcodeScanned(socket, pairingId, code);
           if (ack.ok) {
             pushScanHistory(code);
             onScanSuccess?.(code);
+            playScanSuccess();
           }
         },
       );
