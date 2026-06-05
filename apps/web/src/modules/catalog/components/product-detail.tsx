@@ -4,11 +4,13 @@ import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  Image as ImageIcon,
   Layers,
   MoreHorizontal,
   Package,
   Pencil,
   Plus,
+  QrCode,
   ScrollText,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -26,7 +28,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { LowStockBadge } from '@/components/low-stock-badge';
 import { QrCodeDialog } from '@/components/qr-code-dialog';
-import { QrImage } from '@/components/qr-image';
 import {
   Table,
   TableBody,
@@ -91,19 +92,14 @@ export function ProductDetail({
       <TableRow key={variant.id}>
         <TableCell className={grouped ? 'pl-10' : undefined}>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setQrTarget(variant)}
-              className="hover:ring-primary/40 shrink-0 rounded transition hover:ring-2"
-              title="View QR label"
+            {/* Product photo slot (upload lands later); QR moved to the ⋯ menu. */}
+            <div
+              className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded"
+              aria-hidden="true"
+              title="Product photo (coming soon)"
             >
-              <QrImage
-                value={variant.barcode?.trim() || variant.sku}
-                size={40}
-                className="rounded"
-              />
-              <span className="sr-only">View QR label for {variant.sku}</span>
-            </button>
+              <ImageIcon className="size-4" />
+            </div>
             <div>
               <div className="font-medium">{variant.name}</div>
               <div className="text-muted-foreground text-xs">{variant.sku}</div>
@@ -131,6 +127,10 @@ export function ProductDetail({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setQrTarget(variant)}>
+                  <QrCode className="size-4" />
+                  Show QR code
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setEditTarget(variant)}>
                   <Pencil className="size-4" />
                   Edit variant
@@ -278,7 +278,9 @@ export function ProductDetail({
           }}
           value={qrTarget.barcode?.trim() || qrTarget.sku}
           title={`${data.name} · ${qrTarget.name}`}
-          subtitle={`${qrTarget.sku} · ${formatCurrency(qrTarget.price)}`}
+          subtitle={
+            qrTarget.variantGroup ? `${qrTarget.variantGroup} - ${qrTarget.name}` : qrTarget.name
+          }
           lastPrintedAt={qrTarget.labelPrintedAt}
           onPrint={() => markPrinted.mutate([qrTarget.id])}
         />
