@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Check, Printer, QrCode } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, Printer, QrCode } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +25,13 @@ import { LabelSheet, labelCodeFor } from './label-sheet';
 export function LabelStudio() {
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput.trim(), 300);
-  const { data: results, isLoading } = useLabelVariantsQuery(debouncedSearch);
+  const [page, setPage] = useState(1);
+  const { data: results, isLoading } = useLabelVariantsQuery(debouncedSearch, page);
+
+  // A new search resets to the first page.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const [selected, setSelected] = useState<Map<string, LabelVariant>>(new Map());
   const labels = useMemo(() => [...selected.values()], [selected]);
@@ -34,7 +40,8 @@ export function LabelStudio() {
   const qrReady = codeValues.every((value) => qrCodes.has(value));
   const markPrinted = useMarkLabelsPrintedMutation();
 
-  const variants = results ?? [];
+  const variants = results?.items ?? [];
+  const meta = results?.meta;
 
   function handlePrint() {
     if (labels.length === 0 || !qrReady) return;
@@ -52,7 +59,7 @@ export function LabelStudio() {
     });
   }
 
-  function addAll() {
+  function selectPage() {
     setSelected((prev) => {
       const next = new Map(prev);
       for (const variant of variants) next.set(variant.variantId, variant);
@@ -74,8 +81,8 @@ export function LabelStudio() {
           className="sm:max-w-xs"
         />
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={addAll} disabled={variants.length === 0}>
-            Select all
+          <Button variant="outline" onClick={selectPage} disabled={variants.length === 0}>
+            Select page
           </Button>
           <Button variant="outline" onClick={clearAll} disabled={selected.size === 0}>
             Clear ({selected.size})
@@ -90,9 +97,14 @@ export function LabelStudio() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
         <Card className="print:hidden">
           <CardHeader>
-            <CardTitle className="text-base">Variants</CardTitle>
+            <CardTitle className="text-base">
+              Variants
+              {meta ? (
+                <span className="text-muted-foreground font-normal"> · {meta.total}</span>
+              ) : null}
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             {isLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 6 }).map((_, index) => (
@@ -147,6 +159,34 @@ export function LabelStudio() {
                 })}
               </ul>
             )}
+
+            {meta && meta.totalPages > 1 ? (
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-muted-foreground text-xs">
+                  Page {meta.page} of {meta.totalPages}
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!meta.hasPreviousPage}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  >
+                    <ChevronLeft className="size-4" />
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!meta.hasNextPage}
+                    onClick={() => setPage((current) => current + 1)}
+                  >
+                    Next
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 

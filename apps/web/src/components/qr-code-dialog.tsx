@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -52,8 +51,16 @@ export function QrCodeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xs">
         <DialogHeader>
-          <DialogTitle>QR label</DialogTitle>
-          <DialogDescription className="truncate">{title}</DialogDescription>
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <div className="min-w-0 space-y-1 text-left">
+              <DialogTitle>QR label</DialogTitle>
+              <DialogDescription className="truncate">{title}</DialogDescription>
+            </div>
+            <Button type="button" size="sm" onClick={handlePrint} className="shrink-0">
+              <Printer className="size-4" />
+              {lastPrintedAt ? 'Print again' : 'Print'}
+            </Button>
+          </div>
         </DialogHeader>
 
         <div
@@ -69,13 +76,6 @@ export function QrCodeDialog({
         <p className="text-muted-foreground text-center text-xs" suppressHydrationWarning>
           {lastPrintedAt ? `Last printed ${formatRelativeTime(lastPrintedAt)}` : 'Not printed yet'}
         </p>
-
-        <DialogFooter>
-          <Button type="button" onClick={handlePrint}>
-            <Printer className="size-4" />
-            {lastPrintedAt ? 'Print again' : 'Print'}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

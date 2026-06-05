@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiFetch } from '@/lib/api/fetch-client';
 import { formatApiErrorMessage } from '@/lib/api/format-api-error';
@@ -14,6 +14,21 @@ import type { ListProductsQuery } from '../validators/list-products';
 import type { UpdateVariantInput } from '../validators/update-variant';
 
 const LIST_PAGE_SIZE = 50;
+/** Per-page size for the label studio picker. */
+export const LABEL_PAGE_SIZE = 24;
+
+/** A page of label-studio variants (mirror of the server's PaginatedResult). */
+export type LabelVariantsPage = {
+  items: LabelVariant[];
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
 
 function listQuery(search?: string): ListProductsQuery {
   return { page: 1, pageSize: LIST_PAGE_SIZE, search: search || undefined };
@@ -36,14 +51,14 @@ export function useProductsQuery(search?: string) {
   });
 }
 
-/** Active variants for the label studio (debounced search by SKU/barcode/name). */
-export function useLabelVariantsQuery(q: string) {
+/** A paginated page of label-studio variants (debounced search by SKU/barcode/name). */
+export function useLabelVariantsQuery(q: string, page: number) {
   const trimmed = q.trim();
   return useQuery({
-    queryKey: catalogKeys.labelVariants(trimmed),
+    queryKey: catalogKeys.labelVariants(trimmed, page),
     queryFn: async () => {
-      const result = await apiFetch<LabelVariant[]>(`${apiRoutes.products}/variants`, {
-        params: trimmed ? { q: trimmed } : undefined,
+      const result = await apiFetch<LabelVariantsPage>(`${apiRoutes.products}/variants`, {
+        params: { page, pageSize: LABEL_PAGE_SIZE, ...(trimmed ? { q: trimmed } : {}) },
       });
 
       if (!result.success) {
@@ -52,6 +67,8 @@ export function useLabelVariantsQuery(q: string) {
 
       return result.data;
     },
+    // Keep the current page visible while the next one loads (smoother paging).
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -9,6 +9,7 @@ import { inventoryServerService } from '@/modules/inventory/services/inventory-s
 import { CatalogError } from '../errors/catalog-errors';
 import type { LabelVariant, ProductDetail, ProductListItem, ProductVariantItem } from '../types';
 import type { CreateProductInput, CreateVariantInput } from '../validators/create-product';
+import type { LabelVariantsQuery } from '../validators/label-variants';
 import type { ListProductsQuery } from '../validators/list-products';
 import type { UpdateProductInput } from '../validators/update-product';
 import type { UpdateVariantInput } from '../validators/update-variant';
@@ -88,40 +89,55 @@ function buildVariantData(
   };
 }
 
-/** A label sheet for a large catalog is paginated by search, not by page — cap the read. */
-const LABEL_VARIANTS_LIMIT = 500;
-
 /**
  * Owns the catalog master (`Product` / `ProductVariant`). Stock lives in the
  * inventory module — this service reaches it only through `inventoryServerService`,
  * never by writing the inventory tables directly.
  */
 export class CatalogServerService {
-  /** Active variants for the label studio — matched by SKU/barcode/name, flat across products. */
-  async listLabelVariants(userId: string, q: string): Promise<LabelVariant[]> {
-    const term = q.trim();
-    const variants = await prisma.productVariant.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        isActive: true,
-        ...(term
-          ? {
-              OR: [
-                { sku: { contains: term, mode: 'insensitive' } },
-                { barcode: { contains: term, mode: 'insensitive' } },
-                { name: { contains: term, mode: 'insensitive' } },
-                { product: { name: { contains: term, mode: 'insensitive' } } },
-              ],
-            }
-          : {}),
-      },
-      include: { product: { select: { name: true } } },
-      orderBy: [{ product: { name: 'asc' } }, { name: 'asc' }],
-      take: LABEL_VARIANTS_LIMIT,
-    });
+  /**
+   * Active variants for the label studio — matched by SKU/barcode/name, flat
+   * across products, paginated. Already-printed variants sort to the end so the
+   * next not-yet-printed ones surface first.
+   */
+  async listLabelVariants(
+    userId: string,
+    query: LabelVariantsQuery,
+  ): Promise<PaginatedResult<LabelVariant>> {
+    const term = query.q.trim();
+    const where: Prisma.ProductVariantWhereInput = {
+      userId,
+      deletedAt: null,
+      isActive: true,
+      ...(term
+        ? {
+            OR: [
+              { sku: { contains: term, mode: 'insensitive' } },
+              { barcode: { contains: term, mode: 'insensitive' } },
+              { name: { contains: term, mode: 'insensitive' } },
+              { product: { name: { contains: term, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
 
-    return variants.map((variant) => ({
+    const [variants, total] = await Promise.all([
+      prisma.productVariant.findMany({
+        where,
+        include: { product: { select: { name: true } } },
+        // Not-yet-printed (null) first; printed ones sink to the end.
+        orderBy: [
+          { labelPrintedAt: { sort: 'asc', nulls: 'first' } },
+          { product: { name: 'asc' } },
+          { name: 'asc' },
+        ],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      prisma.productVariant.count({ where }),
+    ]);
+
+    const items: LabelVariant[] = variants.map((variant) => ({
       variantId: variant.id,
       productName: variant.product.name,
       name: variant.name,
@@ -130,6 +146,8 @@ export class CatalogServerService {
       price: variant.price.toString(),
       labelPrintedAt: variant.labelPrintedAt?.toISOString() ?? null,
     }));
+
+    return buildPaginatedResult(items, total, query.page, query.pageSize);
   }
 
   /** Stamp the label-printed time for the given variants (re-printing is allowed). */
