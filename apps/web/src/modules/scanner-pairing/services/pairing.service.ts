@@ -1,7 +1,7 @@
 /** Server-side only (API routes + socket-server). Do not import from client components. */
 import { timingSafeEqual } from 'crypto';
 
-import type { PairingSession } from '@prisma/client';
+import type { PairingPurpose, PairingSession } from '@prisma/client';
 
 import { createLogger } from '@olshop/logger/server';
 import type { AuthUser } from '@/modules/auth/types';
@@ -54,9 +54,14 @@ export class PairingService {
     }
   }
 
-  async createSession(userId: string): Promise<CreatePairingSessionResult> {
+  async createSession(
+    userId: string,
+    purpose: PairingPurpose,
+  ): Promise<CreatePairingSessionResult> {
     await this.invalidateExpiredSessions();
 
+    // One active session per user: a new pairing (any purpose) supersedes the
+    // previous one, so a phone is only ever driving one station at a time.
     const existing = await pairingRepository.findActiveByUserId(userId);
     if (existing) {
       await pairingRepository.expireSessionsForUser(userId);
@@ -74,6 +79,7 @@ export class PairingService {
       id,
       userId,
       pairingCode,
+      purpose,
       expiresAt,
     });
 
@@ -82,6 +88,7 @@ export class PairingService {
     pairingLogger.info('pairing.created', {
       userId,
       pairingSessionId: id,
+      purpose,
       expiresAt: expiresAt.toISOString(),
     });
 

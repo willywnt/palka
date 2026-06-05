@@ -307,7 +307,7 @@ export function PosTerminal() {
         </CardContent>
       </Card>
 
-      <ConnectScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} />
+      <ConnectScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} purpose="POS" />
     </div>
   );
 }

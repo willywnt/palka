@@ -17,6 +17,7 @@ export function toPairingSessionSummary(session: PairingSession): PairingSession
   return {
     id: session.id,
     status: session.status,
+    purpose: session.purpose,
     connectedAt: session.connectedAt?.toISOString() ?? null,
     lastSeenAt: session.lastSeenAt?.toISOString() ?? null,
     expiresAt: session.expiresAt.toISOString(),

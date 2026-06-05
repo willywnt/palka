@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { PairingPurpose } from '@prisma/client';
+
 import { apiFetch } from '@/lib/api/fetch-client';
 import { apiRoutes } from '@/lib/api/routes';
 
@@ -37,13 +39,14 @@ export function useActivePairingQuery(enabled = true) {
   });
 }
 
-export function useCreatePairingMutation() {
+export function useCreatePairingMutation(purpose: PairingPurpose = 'RECORDING') {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
       const result = await apiFetch<CreatePairingSessionResult>(apiRoutes.scannerPairing, {
         method: 'POST',
+        body: { purpose },
       });
       if (!result.success) {
         const error = new Error(result.error.message) as Error & { code?: string };

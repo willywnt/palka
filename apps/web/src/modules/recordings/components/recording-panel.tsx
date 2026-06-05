@@ -76,7 +76,11 @@ export function RecordingPanel() {
   // Hidden in production until the realtime socket host is deployed.
   const scannerEnabled = isMobileScannerEnabled();
   const { data: activePairing } = useActivePairingQuery(scannerEnabled);
-  const pairingSession = scannerEnabled ? (activePairing?.session ?? null) : null;
+  // Only act on a phone paired for RECORDING — a POS pairing must not auto-record.
+  const pairingSession =
+    scannerEnabled && activePairing?.session?.purpose === 'RECORDING'
+      ? activePairing.session
+      : null;
 
   const {
     handleBarcodeScanned,

@@ -1,4 +1,10 @@
-import type { PairingSession, PairingSessionStatus, Prisma, UserRole } from '@prisma/client';
+import type {
+  PairingPurpose,
+  PairingSession,
+  PairingSessionStatus,
+  Prisma,
+  UserRole,
+} from '@prisma/client';
 import { prisma } from '@olshop/db';
 
 export type PairingSessionUser = {
@@ -12,6 +18,7 @@ export type CreatePairingSessionData = {
   id: string;
   userId: string;
   pairingCode: string;
+  purpose: PairingPurpose;
   expiresAt: Date;
 };
 

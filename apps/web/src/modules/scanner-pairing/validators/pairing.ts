@@ -10,6 +10,13 @@ export const pairingCodeSchema = z.preprocess(
   z.string().min(16, 'Invalid pairing code').max(64, 'Invalid pairing code'),
 );
 
+/** Which station a new pairing drives; defaults to recordings for back-compat. */
+export const pairingPurposeSchema = z.enum(['RECORDING', 'POS']);
+
+export const createPairingSchema = z.object({
+  purpose: pairingPurposeSchema.default('RECORDING'),
+});
+
 export const connectPairingSchema = z.object({
   pairingId: pairingIdSchema,
   deviceInfo: z
@@ -40,6 +47,7 @@ export const reportStationStateSchema = z.object({
   barcode: noResiSchema.optional(),
 });
 
+export type CreatePairingInput = z.infer<typeof createPairingSchema>;
 export type ConnectPairingInput = z.infer<typeof connectPairingSchema>;
 export type SubmitBarcodeInput = z.infer<typeof submitBarcodeSchema>;
 export type JoinPairingSocketInput = z.infer<typeof joinPairingSocketSchema>;

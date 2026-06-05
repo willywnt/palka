@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import { Loader2, Smartphone } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
+import type { PairingPurpose } from '@prisma/client';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,9 +27,15 @@ import { useScannerPairingStore } from '../store/scanner-pairing.store';
 type ConnectScannerDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Which station this pairing drives — recordings (default) or POS scan-to-cart. */
+  purpose?: PairingPurpose;
 };
 
-export function ConnectScannerDialog({ open, onOpenChange }: ConnectScannerDialogProps) {
+export function ConnectScannerDialog({
+  open,
+  onOpenChange,
+  purpose = 'RECORDING',
+}: ConnectScannerDialogProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -41,7 +48,7 @@ export function ConnectScannerDialog({ open, onOpenChange }: ConnectScannerDialo
   const { data: activePairing, isFetched: isActivePairingFetched } = useActivePairingQuery(
     open && isAuthenticated,
   );
-  const createPairing = useCreatePairingMutation();
+  const createPairing = useCreatePairingMutation(purpose);
   const createPairingRef = useRef(createPairing.mutateAsync);
   createPairingRef.current = createPairing.mutateAsync;
   const createStartedRef = useRef(false);
@@ -50,10 +57,14 @@ export function ConnectScannerDialog({ open, onOpenChange }: ConnectScannerDialo
   const displaySession = activePairing?.session ?? null;
   const isConnected = connectionState === 'connected' || displaySession?.status === 'CONNECTED';
 
+  // Only reuse the active session when it drives the SAME station; a mismatch
+  // (e.g. a recordings session while opening the POS dialog) forces a fresh
+  // pairing of the right purpose, which supersedes the other.
   const isReusableSession =
-    displaySession?.status === 'PENDING' ||
-    displaySession?.status === 'CONNECTED' ||
-    displaySession?.status === 'DISCONNECTED';
+    (displaySession?.status === 'PENDING' ||
+      displaySession?.status === 'CONNECTED' ||
+      displaySession?.status === 'DISCONNECTED') &&
+    displaySession?.purpose === purpose;
 
   const runCreatePairing = () => {
     createStartedRef.current = true;

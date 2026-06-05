@@ -27,7 +27,9 @@ type UsePosScannerResult = {
 export function usePosScanner(onResolved: (variant: SellableVariant) => void): UsePosScannerResult {
   const scannerEnabled = isMobileScannerEnabled();
   const { data: activePairing } = useActivePairingQuery(scannerEnabled);
-  const pairingSession = scannerEnabled ? (activePairing?.session ?? null) : null;
+  // Only act on a phone paired for POS — a recordings pairing must not add to cart.
+  const pairingSession =
+    scannerEnabled && activePairing?.session?.purpose === 'POS' ? activePairing.session : null;
   const resolve = useResolveVariantMutation();
 
   // useDesktopScannerSocket stores this in a ref, so a fresh closure each render

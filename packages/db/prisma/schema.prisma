@@ -63,12 +63,19 @@ enum PairingSessionStatus {
   EXPIRED
 }
 
+/** What a paired phone drives: packing-video recordings or POS scan-to-cart. */
+enum PairingPurpose {
+  RECORDING
+  POS
+}
+
 model PairingSession {
   id          String               @id @default(uuid())
   userId      String
   user        User                 @relation(fields: [userId], references: [id])
   pairingCode String
   status      PairingSessionStatus @default(PENDING)
+  purpose     PairingPurpose       @default(RECORDING)
   connectedAt DateTime?
   lastSeenAt  DateTime?
   expiresAt   DateTime
