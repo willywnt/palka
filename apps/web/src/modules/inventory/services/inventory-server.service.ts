@@ -156,6 +156,7 @@ export class InventoryServerService {
         productId: variant.productId,
         productName: variant.product.name,
         sku: variant.sku,
+        barcode: variant.barcode,
         variantName: variant.name,
         availableStock,
         reservedStock: variant.inventory?.reservedStock ?? 0,

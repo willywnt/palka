@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, PackageSearch, ScrollText, SlidersHorizontal } from 'lucide-react';
+import { MoreHorizontal, PackageSearch, QrCode, ScrollText, SlidersHorizontal } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
 import { LowStockBadge } from '@/components/low-stock-badge';
+import { QrCodeDialog } from '@/components/qr-code-dialog';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ export function InventoryOverview() {
   const [searchInput, setSearchInput] = useState(filters.search);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
   const [adjustTarget, setAdjustTarget] = useState<StockOverviewItem | null>(null);
+  const [qrTarget, setQrTarget] = useState<StockOverviewItem | null>(null);
 
   useEffect(() => {
     if (debouncedSearch !== filters.search) setFilters({ search: debouncedSearch });
@@ -199,6 +201,10 @@ export function InventoryOverview() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setQrTarget(item)}>
+                            <QrCode className="size-4" />
+                            Show QR code
+                          </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <Link
                               href={`/dashboard/inventory/activity?search=${encodeURIComponent(item.sku)}`}
@@ -227,6 +233,18 @@ export function InventoryOverview() {
           onOpenChange={(open) => {
             if (!open) setAdjustTarget(null);
           }}
+        />
+      ) : null}
+
+      {qrTarget ? (
+        <QrCodeDialog
+          open={Boolean(qrTarget)}
+          onOpenChange={(open) => {
+            if (!open) setQrTarget(null);
+          }}
+          value={qrTarget.barcode?.trim() || qrTarget.sku}
+          title={`${qrTarget.productName} · ${qrTarget.variantName}`}
+          subtitle={qrTarget.sku}
         />
       ) : null}
     </div>

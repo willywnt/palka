@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LowStockBadge } from '@/components/low-stock-badge';
+import { QrCodeDialog } from '@/components/qr-code-dialog';
+import { QrImage } from '@/components/qr-image';
 import {
   Table,
   TableBody,
@@ -47,6 +49,7 @@ export function ProductDetail({
   const { data, isLoading, error } = useProductQuery(productId);
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductVariantItem | null>(null);
+  const [qrTarget, setQrTarget] = useState<ProductVariantItem | null>(null);
 
   if (isLoading) {
     return (
@@ -116,8 +119,25 @@ export function ProductDetail({
                 {data.variants.map((variant) => (
                   <TableRow key={variant.id}>
                     <TableCell>
-                      <div className="font-medium">{variant.name}</div>
-                      <div className="text-muted-foreground text-xs">{variant.sku}</div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setQrTarget(variant)}
+                          className="hover:ring-primary/40 shrink-0 rounded transition hover:ring-2"
+                          title="View QR label"
+                        >
+                          <QrImage
+                            value={variant.barcode?.trim() || variant.sku}
+                            size={40}
+                            className="rounded"
+                          />
+                          <span className="sr-only">View QR label for {variant.sku}</span>
+                        </button>
+                        <div>
+                          <div className="font-medium">{variant.name}</div>
+                          <div className="text-muted-foreground text-xs">{variant.sku}</div>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(variant.price)}
@@ -202,6 +222,18 @@ export function ProductDetail({
           </Card>
         </aside>
       </div>
+
+      {qrTarget ? (
+        <QrCodeDialog
+          open={Boolean(qrTarget)}
+          onOpenChange={(open) => {
+            if (!open) setQrTarget(null);
+          }}
+          value={qrTarget.barcode?.trim() || qrTarget.sku}
+          title={`${data.name} · ${qrTarget.name}`}
+          subtitle={`${qrTarget.sku} · ${formatCurrency(qrTarget.price)}`}
+        />
+      ) : null}
 
       <AddVariantDialog productId={productId} open={addOpen} onOpenChange={setAddOpen} />
 

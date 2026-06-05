@@ -40,6 +40,8 @@ export type StockOverviewItem = {
   productId: string;
   productName: string;
   sku: string;
+  /** Optional scan code; the QR action encodes `barcode ?? sku`. */
+  barcode: string | null;
   variantName: string;
   availableStock: number;
   /** Units committed to paid-not-shipped orders. on-hand = available + reserved. */
