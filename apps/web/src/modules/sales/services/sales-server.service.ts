@@ -87,6 +87,44 @@ export class SalesServerService {
     }));
   }
 
+  /**
+   * Resolve a scanned code to a single sellable variant for the POS cart (mobile
+   * scan-to-cart). A printed label encodes `barcode ?? sku`, and the scan arrives
+   * already normalized (uppercased, spaces stripped) — so match case-insensitively
+   * and prefer a barcode hit over a SKU hit. Returns null when nothing matches.
+   */
+  async resolveSellableVariant(userId: string, code: string): Promise<SellableVariant | null> {
+    const term = code.trim();
+    if (!term) return null;
+
+    const base = { userId, deletedAt: null, isActive: true } as const;
+    const include = {
+      inventory: { select: { availableStock: true } },
+      product: { select: { name: true } },
+    } satisfies Prisma.ProductVariantInclude;
+
+    const variant =
+      (await prisma.productVariant.findFirst({
+        where: { ...base, barcode: { equals: term, mode: 'insensitive' } },
+        include,
+      })) ??
+      (await prisma.productVariant.findFirst({
+        where: { ...base, sku: { equals: term, mode: 'insensitive' } },
+        include,
+      }));
+
+    if (!variant) return null;
+
+    return {
+      variantId: variant.id,
+      sku: variant.sku,
+      name: variant.name,
+      productName: variant.product.name,
+      price: variant.price.toString(),
+      availableStock: variant.inventory?.availableStock ?? 0,
+    };
+  }
+
   async listSales(userId: string): Promise<SaleListItem[]> {
     const rows = await prisma.sale.findMany({
       where: { userId },

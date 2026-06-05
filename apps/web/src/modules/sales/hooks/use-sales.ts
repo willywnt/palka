@@ -50,6 +50,19 @@ export function useSellableVariantsQuery(q: string, enabled = true) {
   });
 }
 
+/** Resolve a scanned code (barcode/SKU) to a sellable variant for the POS cart. */
+export function useResolveVariantMutation() {
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const result = await apiFetch<SellableVariant | null>(`${apiRoutes.sales}/variants/resolve`, {
+        params: { code },
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+  });
+}
+
 export function useCreateSaleMutation() {
   const queryClient = useQueryClient();
 
