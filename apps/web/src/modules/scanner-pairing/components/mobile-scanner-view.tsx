@@ -7,7 +7,6 @@ import { Loader2, ScanLine, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
-import { useSoundUnlock } from '@/hooks/use-sound-unlock';
 import { BarcodeDetectionOverlay } from './barcode-detection-overlay';
 import { MobileScanHistory } from './mobile-scan-history';
 import { MobileStationBusyOverlay } from './mobile-station-busy-overlay';
@@ -84,8 +83,6 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
   }, []);
 
   useMobileHeartbeat(pairingId, isSessionConnected);
-  // First touch unlocks audio so the scan beep can play.
-  useSoundUnlock();
 
   const {
     videoRef,
@@ -215,17 +212,16 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
           <BarcodeDetectionOverlay bounds={detectionBounds} detected={barcodeDetected} />
         ) : null}
 
-        {/* Aim frame — a landscape window that fits a wide 1D barcode and a QR
-            alike (POS product labels or recording resi). The center line hints
-            at lining up a 1D barcode; a QR just needs to sit inside the frame. */}
+        {/* Square aim frame with a sweeping scan line — works for a QR or a 1D
+            barcode (POS product labels or recording resi). */}
         {canScan && !stationBusy ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="relative aspect-[7/4] w-[82vw] max-w-sm">
+            <div className="relative aspect-square w-[68vw] max-w-[17rem] overflow-hidden">
               <span className="absolute top-0 left-0 size-8 rounded-tl-2xl border-t-2 border-l-2 border-white/85" />
               <span className="absolute top-0 right-0 size-8 rounded-tr-2xl border-t-2 border-r-2 border-white/85" />
               <span className="absolute bottom-0 left-0 size-8 rounded-bl-2xl border-b-2 border-l-2 border-white/85" />
               <span className="absolute right-0 bottom-0 size-8 rounded-br-2xl border-r-2 border-b-2 border-white/85" />
-              <span className="absolute inset-x-5 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-white/45" />
+              <span className="scan-line bg-primary/80 shadow-primary/50 absolute inset-x-0 h-0.5 shadow-[0_0_10px_2px]" />
             </div>
           </div>
         ) : null}

@@ -221,3 +221,31 @@
     width: 100%;
   }
 }
+
+/* Mobile scanner aim frame — a scan line sweeping top↓bottom inside the reticle. */
+@keyframes scan-line-sweep {
+  0% {
+    top: 6%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 94%;
+    opacity: 0;
+  }
+}
+.scan-line {
+  top: 6%;
+  animation: scan-line-sweep 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan-line {
+    top: 50%;
+    animation: none;
+  }
+}

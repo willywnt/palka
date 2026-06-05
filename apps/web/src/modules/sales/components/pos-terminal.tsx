@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   PackageSearch,
   Plus,
@@ -23,6 +23,7 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { useScanSoundPref } from '@/hooks/use-scan-sound-pref';
 import { useSoundUnlock } from '@/hooks/use-sound-unlock';
 import { formatCurrency } from '@/lib/formatters';
 import { unlockScanSound } from '@/lib/scan-sound';
@@ -86,32 +87,10 @@ export function PosTerminal() {
   const [paymentMethod, setPaymentMethod] = useState<SalePaymentMethod>('CASH');
   const [customerName, setCustomerName] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
+  const { soundOn, toggleSound } = useScanSoundPref(SCAN_SOUND_STORAGE_KEY);
 
   // Unlock Web Audio on the first interaction so scan beeps can play.
   useSoundUnlock();
-
-  // Restore the cashier's sound preference (defaults to on).
-  useEffect(() => {
-    try {
-      if (window.localStorage.getItem(SCAN_SOUND_STORAGE_KEY) === 'off') setSoundOn(false);
-    } catch {
-      // localStorage may be unavailable (private mode) — keep the default.
-    }
-  }, []);
-
-  function toggleSound() {
-    unlockScanSound();
-    setSoundOn((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(SCAN_SOUND_STORAGE_KEY, next ? 'on' : 'off');
-      } catch {
-        // ignore storage write errors
-      }
-      return next;
-    });
-  }
 
   function openScanner() {
     // Opening from a click unlocks audio so later socket-driven beeps can play.

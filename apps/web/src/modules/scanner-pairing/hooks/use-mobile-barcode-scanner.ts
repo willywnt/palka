@@ -5,8 +5,6 @@ import { BarcodeFormat, BrowserMultiFormatReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import type { Result } from '@zxing/library';
 
-import { playScanSuccess } from '@/lib/scan-sound';
-
 import { PAIRING_ERROR_MESSAGES, PAIRING_ERROR_CODES } from '../errors/pairing-errors';
 import { emitBarcodeScanned, getScannerSocket } from '../services/socket-client.service';
 import { boundsFromResultPoints, type BarcodeOverlayBounds } from '../utils/barcode-overlay-bounds';
@@ -183,7 +181,6 @@ export function useMobileBarcodeScanner({
           if (ack.ok) {
             pushScanHistory(code);
             onScanSuccess?.(code);
-            playScanSuccess();
           }
         },
       );

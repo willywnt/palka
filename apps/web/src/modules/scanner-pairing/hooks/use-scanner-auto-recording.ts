@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
-import { playCountdownGo, playCountdownTick } from '@/lib/scan-sound';
+import { playCountdownGo, playCountdownTick, playScanSuccess } from '@/lib/scan-sound';
 import { useAnotherTabRecording } from '@/modules/recordings/recovery/hooks/use-another-tab-recording';
 import { recoverDefaultCameraPreview } from '@/modules/recordings/recovery/utils/camera-stream';
 import { useRecordingReliabilityStore } from '@/modules/recordings/recovery/store/recording-reliability.store';
@@ -22,16 +22,21 @@ type UseScannerAutoRecordingOptions = {
   setNoResi: (value: string) => void;
   startRecording: (noResiOverride?: string) => Promise<void>;
   canStart: boolean;
+  /** When false, the scan/countdown beeps are muted (toasts still show). */
+  soundEnabled: boolean;
 };
 
 export function useScannerAutoRecording({
   setNoResi,
   startRecording,
   canStart,
+  soundEnabled,
 }: UseScannerAutoRecordingOptions) {
   const countdownTimerRef = useRef<number | null>(null);
   const pendingStartRef = useRef(false);
   const pendingCountdownBarcodeRef = useRef<string | null>(null);
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
 
   const openCountdown = useScannerPairingStore((s) => s.openCountdown);
   const closeCountdown = useScannerPairingStore((s) => s.closeCountdown);
@@ -92,14 +97,14 @@ export function useScannerAutoRecording({
       let remaining = RECORDING_COUNTDOWN_SECONDS;
       setCountdownSeconds(remaining);
       setBlockReason(null);
-      playCountdownTick();
+      if (soundEnabledRef.current) playCountdownTick();
 
       countdownTimerRef.current = window.setInterval(() => {
         remaining -= 1;
         if (remaining <= 0) {
           clearCountdownTimer();
           closeCountdown();
-          playCountdownGo();
+          if (soundEnabledRef.current) playCountdownGo();
           if (pendingStartRef.current) {
             pendingStartRef.current = false;
             const resi = useScannerPairingStore.getState().countdownBarcode;
@@ -108,7 +113,7 @@ export function useScannerAutoRecording({
           return;
         }
         setCountdownSeconds(remaining);
-        playCountdownTick();
+        if (soundEnabledRef.current) playCountdownTick();
       }, 1000);
     },
     [
@@ -140,6 +145,11 @@ export function useScannerAutoRecording({
     async (payload: BarcodeScannedServerPayload) => {
       const barcode = payload.barcode.trim();
       setNoResi(barcode);
+
+      // Confirm the scan on the desktop regardless of what happens next
+      // (duplicate prompt or countdown) — sound is mute-gated, the toast isn't.
+      toast.success('Resi scanned', { description: barcode });
+      if (soundEnabledRef.current) playScanSuccess();
 
       await recoverDefaultCameraPreview();
 

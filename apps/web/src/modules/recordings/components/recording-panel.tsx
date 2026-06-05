@@ -8,7 +8,9 @@ import { RecordingReliabilityShell } from '@/modules/recordings/recovery/compone
 import { recoverDefaultCameraPreview } from '@/modules/recordings/recovery/utils/camera-stream';
 import { useAnotherTabRecording } from '@/modules/recordings/recovery/hooks/use-another-tab-recording';
 import { useCameraDevices } from '@/modules/recordings/recovery/hooks/use-camera-devices';
+import { useScanSoundPref } from '@/hooks/use-scan-sound-pref';
 import { useSoundUnlock } from '@/hooks/use-sound-unlock';
+import { unlockScanSound } from '@/lib/scan-sound';
 
 import { useRecording } from '../hooks/use-recording';
 import { useDuplicateResiWarning } from '../hooks/use-duplicate-resi-warning';
@@ -76,14 +78,20 @@ export function RecordingPanel() {
 
   // Hidden in production until the realtime socket host is deployed.
   const scannerEnabled = isMobileScannerEnabled();
-  // First interaction unlocks audio so the countdown ticks can play.
+  // First interaction unlocks audio so the scan beep + countdown ticks can play.
   useSoundUnlock(scannerEnabled);
+  const { soundOn, toggleSound } = useScanSoundPref('olshop-recording-scan-sound');
   const { data: activePairing } = useActivePairingQuery(scannerEnabled);
   // Only act on a phone paired for RECORDING — a POS pairing must not auto-record.
   const pairingSession =
     scannerEnabled && activePairing?.session?.purpose === 'RECORDING'
       ? activePairing.session
       : null;
+
+  const openScanner = () => {
+    unlockScanSound();
+    setPairingDialogOpen(true);
+  };
 
   const {
     handleBarcodeScanned,
@@ -96,6 +104,7 @@ export function RecordingPanel() {
     setNoResi,
     startRecording,
     canStart: canStart && !anotherTabRecording,
+    soundEnabled: soundOn,
   });
 
   useDesktopScannerSocket(pairingSession?.id ?? null, handleBarcodeScanned);
@@ -131,10 +140,6 @@ export function RecordingPanel() {
         <StorageQuotaIndicator variant="warning-only" />
         <LocalStorageUsageIndicator />
 
-        {scannerEnabled ? (
-          <ScannerStatusWidget onConnectClick={() => setPairingDialogOpen(true)} />
-        ) : null}
-
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
             <div>
@@ -143,7 +148,16 @@ export function RecordingPanel() {
                 Enter a tracking number (resi), then record and upload to storage.
               </CardDescription>
             </div>
-            <RecordingLifecycleStatusBadge status={status} />
+            <div className="flex shrink-0 items-center gap-2">
+              {scannerEnabled ? (
+                <ScannerStatusWidget
+                  onConnectClick={openScanner}
+                  soundOn={soundOn}
+                  onToggleSound={toggleSound}
+                />
+              ) : null}
+              <RecordingLifecycleStatusBadge status={status} />
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <CameraHealthIndicator />
