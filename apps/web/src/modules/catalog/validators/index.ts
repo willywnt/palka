@@ -1,16 +1,17 @@
+export { createVariantSchema, type CreateVariantInput } from './variant';
 export {
   createProductSchema,
   createProductFormSchema,
-  createVariantSchema,
   type CreateProductInput,
   type CreateProductFormInput,
-  type CreateVariantInput,
 } from './create-product';
 export {
   addVariantsSchema,
   addVariantFormSchema,
+  variantBlockSchema,
   type AddVariantsInput,
   type AddVariantFormInput,
+  type VariantBlockForm,
 } from './add-variant';
 export { updateProductSchema, type UpdateProductInput } from './update-product';
 export {

@@ -1,4 +1,5 @@
-import type { CreateVariantInput } from '../validators/create-product';
+import type { VariantBlockForm } from '../validators/add-variant';
+import type { CreateVariantInput } from '../validators/variant';
 
 /** The minimal shape variant grouping needs: its parent group, or null if standalone. */
 type GroupableVariant = { variantGroup: string | null };
@@ -76,20 +77,20 @@ function toLeaf(
 }
 
 /**
- * Flatten the add-variant form into the leaf variants to create. A variant with
+ * Flatten one variant block into the leaf variants to create. A block with
  * options becomes one leaf per subvariant (sharing `variantGroup` = the variant
  * name); without options it is a single standalone leaf named after the variant.
  */
-export function buildAddVariantsPayload(input: {
-  variantName: string;
-  hasOptions: boolean;
-  single: VariantLeafFields;
-  subvariants: Array<VariantLeafFields & { name: string }>;
-}): CreateVariantInput[] {
-  if (!input.hasOptions) {
-    return [toLeaf(input.variantName, null, input.single)];
+export function variantBlockToLeaves(block: VariantBlockForm): CreateVariantInput[] {
+  if (!block.hasOptions) {
+    return [toLeaf(block.variantName, null, block.single)];
   }
-  return input.subvariants.map((subvariant) =>
-    toLeaf(subvariant.name, input.variantName, subvariant),
+  return block.subvariants.map((subvariant) =>
+    toLeaf(subvariant.name, block.variantName, subvariant),
   );
+}
+
+/** Flatten every variant block in a builder into the leaf variants to create. */
+export function variantBlocksToLeaves(blocks: VariantBlockForm[]): CreateVariantInput[] {
+  return blocks.flatMap(variantBlockToLeaves);
 }

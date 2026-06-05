@@ -10,7 +10,8 @@ import { inventoryKeys } from '@/modules/inventory/hooks/inventory-keys';
 
 import { catalogKeys } from './catalog-keys';
 import type { LabelVariant, ProductDetail, ProductListItem, ProductVariantItem } from '../types';
-import type { CreateProductInput, CreateVariantInput } from '../validators/create-product';
+import type { CreateProductInput } from '../validators/create-product';
+import type { CreateVariantInput } from '../validators/variant';
 import type { ListProductsQuery } from '../validators/list-products';
 import type { UpdateVariantInput } from '../validators/update-variant';
 

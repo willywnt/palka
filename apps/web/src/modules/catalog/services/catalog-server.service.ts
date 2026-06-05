@@ -8,11 +8,12 @@ import { inventoryServerService } from '@/modules/inventory/services/inventory-s
 
 import { CatalogError } from '../errors/catalog-errors';
 import type { LabelVariant, ProductDetail, ProductListItem, ProductVariantItem } from '../types';
-import type { CreateProductInput, CreateVariantInput } from '../validators/create-product';
+import type { CreateProductInput } from '../validators/create-product';
 import type { LabelVariantsQuery } from '../validators/label-variants';
 import type { ListProductsQuery } from '../validators/list-products';
 import type { UpdateProductInput } from '../validators/update-product';
 import type { UpdateVariantInput } from '../validators/update-variant';
+import type { CreateVariantInput } from '../validators/variant';
 
 type VariantWithInventory = ProductVariant & { inventory: Inventory | null };
 type ProductWithVariants = Product & { variants: VariantWithInventory[] };
@@ -230,12 +231,13 @@ export class CatalogServerService {
   }
 
   async createProduct(userId: string, input: CreateProductInput): Promise<ProductDetail> {
-    const variantInput = input.variant;
-    if (variantInput) await this.assertSkuAvailable(userId, variantInput.sku);
+    await this.assertSkusAvailable(
+      userId,
+      input.variants.map((variant) => variant.sku),
+    );
 
     let productId: string;
-    let variantId: string | null = null;
-
+    let variantIds: string[];
     try {
       const created = await prisma.$transaction(async (tx) => {
         const product = await tx.product.create({
@@ -246,30 +248,20 @@ export class CatalogServerService {
             category: input.category ?? null,
           },
         });
-
-        if (!variantInput) return { productId: product.id, variantId: null };
-
-        const variant = await tx.productVariant.create({
-          data: buildVariantData(userId, product.id, variantInput),
-        });
-
-        return { productId: product.id, variantId: variant.id };
+        const ids = await this.createVariantLeaves(tx, userId, product.id, input.variants);
+        return { productId: product.id, variantIds: ids };
       });
-
       productId = created.productId;
-      variantId = created.variantId;
+      variantIds = created.variantIds;
     } catch (error) {
-      if (variantInput && isUniqueConstraintError(error)) {
-        throw CatalogError.duplicateSku(variantInput.sku);
-      }
+      if (isUniqueConstraintError(error))
+        throw CatalogError.duplicateSku(input.variants[0]?.sku ?? '');
       throw error;
     }
 
-    if (variantInput && variantId) {
-      await this.initializeVariantStock(userId, variantId, variantInput.initialStock);
-    }
+    await this.initVariantStocks(userId, variantIds, input.variants);
 
-    appLogger.info('catalog.product.created', { userId, productId, variantId });
+    appLogger.info('catalog.product.created', { userId, productId, variants: variantIds.length });
 
     return this.getProductById(userId, productId);
   }
@@ -286,36 +278,22 @@ export class CatalogServerService {
     inputs: CreateVariantInput[],
   ): Promise<ProductVariantItem[]> {
     await this.assertProductOwned(userId, productId);
-
-    const skus = inputs.map((input) => input.sku);
-    const duplicate = skus.find((sku, index) => skus.indexOf(sku) !== index);
-    if (duplicate) throw CatalogError.validation(`Duplicate SKU "${duplicate}" in this variant.`);
-    for (const sku of skus) await this.assertSkuAvailable(userId, sku);
+    await this.assertSkusAvailable(
+      userId,
+      inputs.map((input) => input.sku),
+    );
 
     let variantIds: string[];
     try {
-      variantIds = await prisma.$transaction(async (tx) => {
-        const ids: string[] = [];
-        for (const input of inputs) {
-          const variant = await tx.productVariant.create({
-            data: buildVariantData(userId, productId, input),
-            select: { id: true },
-          });
-          ids.push(variant.id);
-        }
-        return ids;
-      });
+      variantIds = await prisma.$transaction((tx) =>
+        this.createVariantLeaves(tx, userId, productId, inputs),
+      );
     } catch (error) {
-      if (isUniqueConstraintError(error)) throw CatalogError.duplicateSku(skus[0] ?? '');
+      if (isUniqueConstraintError(error)) throw CatalogError.duplicateSku(inputs[0]?.sku ?? '');
       throw error;
     }
 
-    for (let index = 0; index < variantIds.length; index += 1) {
-      const variantId = variantIds[index];
-      const input = inputs[index];
-      if (variantId && input)
-        await this.initializeVariantStock(userId, variantId, input.initialStock);
-    }
+    await this.initVariantStocks(userId, variantIds, inputs);
 
     appLogger.info('catalog.variants.created', { userId, productId, count: variantIds.length });
 
@@ -442,6 +420,45 @@ export class CatalogServerService {
       select: { id: true },
     });
     if (existing) throw CatalogError.duplicateSku(sku);
+  }
+
+  /** Reject duplicate SKUs within the batch, then any already used by the account. */
+  private async assertSkusAvailable(userId: string, skus: string[]): Promise<void> {
+    const duplicate = skus.find((sku, index) => skus.indexOf(sku) !== index);
+    if (duplicate) throw CatalogError.validation(`Duplicate SKU "${duplicate}".`);
+    for (const sku of skus) await this.assertSkuAvailable(userId, sku);
+  }
+
+  /** Create the given leaf variants inside a transaction, returning their ids in order. */
+  private async createVariantLeaves(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    productId: string,
+    inputs: CreateVariantInput[],
+  ): Promise<string[]> {
+    const ids: string[] = [];
+    for (const input of inputs) {
+      const variant = await tx.productVariant.create({
+        data: buildVariantData(userId, productId, input),
+        select: { id: true },
+      });
+      ids.push(variant.id);
+    }
+    return ids;
+  }
+
+  /** Ensure inventory + apply the initial stock for each freshly created leaf. */
+  private async initVariantStocks(
+    userId: string,
+    variantIds: string[],
+    inputs: CreateVariantInput[],
+  ): Promise<void> {
+    for (let index = 0; index < variantIds.length; index += 1) {
+      const variantId = variantIds[index];
+      const input = inputs[index];
+      if (variantId && input)
+        await this.initializeVariantStock(userId, variantId, input.initialStock);
+    }
   }
 }
 

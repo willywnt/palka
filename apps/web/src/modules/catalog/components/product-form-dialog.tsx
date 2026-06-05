@@ -16,33 +16,24 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { NumberInput } from '@/components/ui/number-input';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 
 import { useCreateProductMutation } from '../hooks/use-products';
+import { variantBlocksToLeaves } from '../utils/variants';
 import { createProductFormSchema, type CreateProductFormInput } from '../validators/create-product';
+import { EMPTY_VARIANT_BLOCK, VariantBlocksField } from './variant-blocks-field';
 
 const DEFAULT_VALUES: CreateProductFormInput = {
   name: '',
   category: '',
   description: '',
-  addVariant: true,
-  variant: {
-    sku: '',
-    name: '',
-    price: 0,
-    cost: 0,
-    lowStockThreshold: 0,
-    initialStock: 0,
-  },
+  variants: [{ ...EMPTY_VARIANT_BLOCK }],
 };
 
 export function ProductFormDialog({
@@ -58,7 +49,6 @@ export function ProductFormDialog({
     resolver: zodResolver(createProductFormSchema),
     defaultValues: DEFAULT_VALUES,
   });
-  const addVariant = form.watch('addVariant');
 
   async function onSubmit(values: CreateProductFormInput) {
     try {
@@ -66,17 +56,7 @@ export function ProductFormDialog({
         name: values.name,
         description: values.description.trim() || undefined,
         category: values.category.trim() || undefined,
-        variant: values.addVariant
-          ? {
-              sku: values.variant.sku,
-              name: values.variant.name,
-              price: values.variant.price,
-              cost: values.variant.cost || undefined,
-              lowStockThreshold: values.variant.lowStockThreshold,
-              initialStock: values.variant.initialStock,
-              alertEnabled: true,
-            }
-          : undefined,
+        variants: variantBlocksToLeaves(values.variants),
       });
       toast.success('Product created', { description: `${values.name} is now in your catalog.` });
       form.reset(DEFAULT_VALUES);
@@ -96,11 +76,11 @@ export function ProductFormDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New product</DialogTitle>
           <DialogDescription>
-            Create a product. You can add its first variant now or later from the product page.
+            Add one or more variants now, or remove them all to create the product on its own.
           </DialogDescription>
         </DialogHeader>
 
@@ -150,123 +130,14 @@ export function ProductFormDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="addVariant"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between gap-4 rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel>Add a first variant now</FormLabel>
-                    <FormDescription>
-                      Turn off to create the product on its own and add variants later.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            <div>
+              <p className="text-sm font-medium">Variants</p>
+              <p className="text-muted-foreground text-xs">
+                Each variant is a standalone SKU, or a group of subvariants (e.g. colors).
+              </p>
+            </div>
 
-            {addVariant ? (
-              <div className="space-y-4 rounded-lg border p-4">
-                <p className="text-sm font-medium">First variant</p>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="variant.sku"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>SKU</FormLabel>
-                        <FormControl>
-                          <Input placeholder="KAOS-BLK-M" autoComplete="off" {...field} />
-                        </FormControl>
-                        <FormDescription>Unique per account.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="variant.name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>Variant name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Black / M" autoComplete="off" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="variant.price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel required>Price (IDR)</FormLabel>
-                        <FormControl>
-                          <NumberInput min={0} step={1} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="variant.cost"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cost (IDR)</FormLabel>
-                        <FormControl>
-                          <NumberInput min={0} step={1} {...field} />
-                        </FormControl>
-                        <FormDescription>Modal price — drives stock value.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="variant.initialStock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Initial stock</FormLabel>
-                        <FormControl>
-                          <NumberInput min={0} step={1} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="variant.lowStockThreshold"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Low-stock at</FormLabel>
-                        <FormControl>
-                          <NumberInput min={0} step={1} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <p className="text-muted-foreground text-xs">
-                  Lead time and reorder settings can be set later by editing the variant.
-                </p>
-              </div>
-            ) : null}
+            <VariantBlocksField minBlocks={0} addLabel="Add variant" />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
