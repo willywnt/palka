@@ -27,13 +27,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCreateProductMutation } from '../hooks/use-products';
 import { variantBlocksToLeaves } from '../utils/variants';
 import { createProductFormSchema, type CreateProductFormInput } from '../validators/create-product';
-import { EMPTY_VARIANT_BLOCK, VariantBlocksField } from './variant-blocks-field';
+import { VariantBlocksField } from './variant-blocks-field';
 
+// Start with no variant so the user consciously adds one (or creates the product on its own).
 const DEFAULT_VALUES: CreateProductFormInput = {
   name: '',
   category: '',
   description: '',
-  variants: [{ ...EMPTY_VARIANT_BLOCK }],
+  variants: [],
 };
 
 export function ProductFormDialog({

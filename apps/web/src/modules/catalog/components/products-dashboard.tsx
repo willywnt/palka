@@ -134,7 +134,18 @@ export function ProductsDashboard() {
                       <div className="text-muted-foreground text-xs">{product.category}</div>
                     ) : null}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{product.variantCount}</TableCell>
+                  <TableCell className="text-right">
+                    {product.variantCount === 0 ? (
+                      <Badge
+                        variant="outline"
+                        className="border-amber-300 bg-amber-50 font-normal text-amber-700"
+                      >
+                        No variants
+                      </Badge>
+                    ) : (
+                      <span className="tabular-nums">{product.variantCount}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {product.totalAvailableStock}
                   </TableCell>
