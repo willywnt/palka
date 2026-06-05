@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, PackagePlus, Plus, Trash2 } from 'lucide-react';
+import { ClipboardList, PackagePlus, Plus, ScanLine, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,12 @@ import { EmptyState } from '@/components/empty-state';
 import { TablePagination } from '@/components/table-pagination';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePagination } from '@/hooks/use-pagination';
+import { useScanSoundPref } from '@/hooks/use-scan-sound-pref';
+import { useSoundUnlock } from '@/hooks/use-sound-unlock';
 import { formatCurrency } from '@/lib/formatters';
+import { unlockScanSound } from '@/lib/scan-sound';
+import { cn } from '@/lib/utils';
+import { ConnectScannerDialog } from '@/modules/scanner-pairing/components/connect-scanner-dialog';
 import { REORDER_DEFAULTS } from '@/modules/inventory/config';
 import { useReorderReportQuery } from '@/modules/inventory/hooks/use-inventory';
 
@@ -23,7 +28,26 @@ import {
   useCreatePurchaseOrderMutation,
   usePurchaseVariantsQuery,
 } from '../hooks/use-purchase-orders';
+import { usePurchaseScanner, type PoScannerStatus } from '../hooks/use-purchase-scanner';
 import type { PurchasableVariant } from '../types';
+
+/** Per-state copy + accent for the PO phone-scanner indicator. */
+const SCAN_STATUS_META: Record<PoScannerStatus, { dot: string; cta: string; hint: string | null }> =
+  {
+    off: { dot: '', cta: '', hint: null },
+    idle: { dot: 'bg-muted-foreground/40', cta: 'Scan with phone', hint: null },
+    waiting: { dot: 'bg-amber-500', cta: 'Show QR', hint: 'Waiting for your phone to connect…' },
+    connected: {
+      dot: 'bg-emerald-500',
+      cta: 'Phone connected',
+      hint: 'Phone connected — scan a product label to add it to the order.',
+    },
+    disconnected: {
+      dot: 'bg-destructive',
+      cta: 'Reconnect',
+      hint: 'Phone disconnected. Tap Reconnect to show a fresh QR.',
+    },
+  };
 
 type PoLine = {
   variantId: string;
@@ -61,6 +85,21 @@ export function PoForm() {
   });
   const createPo = useCreatePurchaseOrderMutation();
 
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const { soundOn, toggleSound } = useScanSoundPref('olshop-purchasing-scan-sound');
+  useSoundUnlock();
+  // Mobile scan-to-order: a paired phone scans a product label → add/bump the line.
+  const { scannerEnabled, status: scannerStatus } = usePurchaseScanner({
+    onResolved: addOrBumpVariant,
+    soundEnabled: soundOn,
+  });
+  const scanMeta = SCAN_STATUS_META[scannerStatus];
+
+  function openScanner() {
+    unlockScanSound();
+    setScannerOpen(true);
+  }
+
   const totalCost = useMemo(
     () => lines.reduce((sum, line) => sum + line.unitCost * line.quantity, 0),
     [lines],
@@ -83,6 +122,31 @@ export function PoForm() {
       unitCost: Number(variant.cost ?? 0),
       availableStock: variant.availableStock,
       incomingStock: variant.incomingStock,
+    });
+  }
+
+  /** Scanner add: append the line, or bump its qty if the variant is already on the order. */
+  function addOrBumpVariant(variant: PurchasableVariant) {
+    setLines((prev) => {
+      const existing = prev.find((line) => line.variantId === variant.variantId);
+      if (existing) {
+        return prev.map((line) =>
+          line.variantId === variant.variantId ? { ...line, quantity: line.quantity + 1 } : line,
+        );
+      }
+      return [
+        ...prev,
+        {
+          variantId: variant.variantId,
+          sku: variant.sku,
+          name: variant.name,
+          productName: variant.productName,
+          quantity: 1,
+          unitCost: Number(variant.cost ?? 0),
+          availableStock: variant.availableStock,
+          incomingStock: variant.incomingStock,
+        },
+      ];
     });
   }
 
@@ -150,7 +214,32 @@ export function PoForm() {
       {/* Product picker */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Find product</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">Find product</CardTitle>
+            {scannerEnabled ? (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  onClick={toggleSound}
+                  aria-label={soundOn ? 'Mute scan sound' : 'Unmute scan sound'}
+                  title={soundOn ? 'Mute scan sound' : 'Unmute scan sound'}
+                >
+                  {soundOn ? (
+                    <Volume2 className="size-4" />
+                  ) : (
+                    <VolumeX className="text-muted-foreground size-4" />
+                  )}
+                </Button>
+                <Button variant="outline" size="sm" onClick={openScanner}>
+                  <span className={cn('size-2 rounded-full', scanMeta.dot)} aria-hidden />
+                  <ScanLine className="size-4" />
+                  {scanMeta.cta}
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
@@ -171,6 +260,16 @@ export function PoForm() {
               Reorder
             </Button>
           </div>
+          {scannerEnabled && scanMeta.hint ? (
+            <p
+              className={cn(
+                'text-xs',
+                scannerStatus === 'disconnected' ? 'text-destructive' : 'text-muted-foreground',
+              )}
+            >
+              {scanMeta.hint}
+            </p>
+          ) : null}
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 4 }).map((_, index) => (
@@ -316,6 +415,8 @@ export function PoForm() {
           </div>
         </CardContent>
       </Card>
+
+      <ConnectScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} purpose="PURCHASING" />
     </div>
   );
 }

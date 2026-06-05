@@ -63,10 +63,11 @@ enum PairingSessionStatus {
   EXPIRED
 }
 
-/** What a paired phone drives: packing-video recordings or POS scan-to-cart. */
+/** What a paired phone drives: packing-video recordings, POS, or purchase-order restock. */
 enum PairingPurpose {
   RECORDING
   POS
+  PURCHASING
 }
 
 model PairingSession {

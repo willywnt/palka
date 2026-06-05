@@ -106,6 +106,47 @@ export class PurchasingServerService {
     return buildPaginatedResult(items, total, query.page, query.pageSize);
   }
 
+  /**
+   * Resolve a scanned code to a single variant for a PO line (mobile scan-to-order).
+   * Matches an (already-normalized) code against barcode then SKU, case-insensitive.
+   * Returns null when nothing matches.
+   */
+  async resolvePurchasableVariant(
+    userId: string,
+    code: string,
+  ): Promise<PurchasableVariant | null> {
+    const term = code.trim();
+    if (!term) return null;
+
+    const base = { userId, deletedAt: null, isActive: true } as const;
+    const include = {
+      inventory: { select: { availableStock: true, incomingStock: true } },
+      product: { select: { name: true } },
+    } satisfies Prisma.ProductVariantInclude;
+
+    const variant =
+      (await prisma.productVariant.findFirst({
+        where: { ...base, barcode: { equals: term, mode: 'insensitive' } },
+        include,
+      })) ??
+      (await prisma.productVariant.findFirst({
+        where: { ...base, sku: { equals: term, mode: 'insensitive' } },
+        include,
+      }));
+
+    if (!variant) return null;
+
+    return {
+      variantId: variant.id,
+      sku: variant.sku,
+      name: variant.name,
+      productName: variant.product.name,
+      cost: variant.cost?.toString() ?? null,
+      availableStock: variant.inventory?.availableStock ?? 0,
+      incomingStock: variant.inventory?.incomingStock ?? 0,
+    };
+  }
+
   async listPurchaseOrders(userId: string): Promise<PurchaseOrderListItem[]> {
     const rows = await prisma.purchaseOrder.findMany({
       where: { userId },

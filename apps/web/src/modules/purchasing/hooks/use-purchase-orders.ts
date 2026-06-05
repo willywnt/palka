@@ -65,6 +65,20 @@ export function usePurchaseVariantsQuery(
   });
 }
 
+/** Resolve a scanned code (barcode/SKU) to a variant for a PO line. */
+export function useResolvePurchaseVariantMutation() {
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const result = await apiFetch<PurchasableVariant | null>(
+        `${apiRoutes.purchaseOrders}/variants/resolve`,
+        { params: { code } },
+      );
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+  });
+}
+
 export function useCreatePurchaseOrderMutation() {
   const queryClient = useQueryClient();
 

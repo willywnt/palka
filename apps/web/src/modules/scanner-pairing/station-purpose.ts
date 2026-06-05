@@ -46,6 +46,16 @@ export const STATION_PURPOSE_META: Record<PairingPurpose, StationPurposeMeta> = 
     unreachableLabel: 'Could not reach the POS terminal.',
     mobileScanSuccess: (barcode) => `${barcode} — added to the cart`,
   },
+  PURCHASING: {
+    label: 'Purchase order',
+    shortLabel: 'Purchasing',
+    description: 'Scan a product QR or barcode label to add it to the purchase order.',
+    mobileTitle: 'Restock scanner',
+    scanHint: 'Point at a product QR or barcode label',
+    connectingLabel: 'Linking to the purchase order…',
+    unreachableLabel: 'Could not reach the purchase order.',
+    mobileScanSuccess: (barcode) => `${barcode} — added to the order`,
+  },
 };
 
 /** Meta for a purpose, defaulting to recordings (the legacy/back-compat station). */
