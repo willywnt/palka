@@ -1,6 +1,7 @@
 import type { RecordingStatus as PrismaRecordingStatus } from '@prisma/client';
 
 import type { RecordingStatusFilter } from '../validators/list-recordings';
+import type { ShareLinkStatus } from '../utils/share-link';
 
 export type RecordingLifecycleStatus =
   | 'IDLE'
@@ -106,6 +107,32 @@ export type SaveRecordingMetadataResponse = {
   storageKey: string;
   fileSizeBytes: number;
   durationSeconds: number;
+};
+
+/** A share link as shown to the owner (the raw token is never returned here). */
+export type ShareLinkItem = {
+  id: string;
+  status: ShareLinkStatus;
+  expiresAt: string;
+  revokedAt: string | null;
+  viewCount: number;
+  lastViewedAt: string | null;
+  createdAt: string;
+};
+
+/** Returned once, at creation — the only time the full share URL is exposed. */
+export type CreateShareLinkResponse = {
+  shareUrl: string;
+  link: ShareLinkItem;
+};
+
+/** Public (unauthenticated) viewer payload for a valid share token. */
+export type PublicShareView = {
+  noResi: string;
+  durationSeconds: number;
+  mimeType: string;
+  playbackUrl: string;
+  expiresAt: string;
 };
 
 export const RECORDING_MODULE_CONFIG = {
