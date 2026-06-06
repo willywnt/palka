@@ -9,6 +9,8 @@ export type ReturnItemDetail = {
   sku: string | null;
   variantName: string | null;
   productName: string | null;
+  /** Variant photo public URL; null = none / unresolved. */
+  imageUrl: string | null;
   externalName: string;
   quantity: number;
   disposition: ReturnDisposition | null;

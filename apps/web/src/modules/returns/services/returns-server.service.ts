@@ -24,7 +24,12 @@ const DETAIL_INCLUDE = {
           id: true,
           externalName: true,
           productVariant: {
-            select: { sku: true, name: true, product: { select: { name: true } } },
+            select: {
+              sku: true,
+              name: true,
+              imageUrl: true,
+              product: { select: { name: true } },
+            },
           },
         },
       },
@@ -46,6 +51,7 @@ function mapDetail(row: ReturnRow): ReturnDetail {
       sku: orderItem?.productVariant?.sku ?? null,
       variantName: orderItem?.productVariant?.name ?? null,
       productName: orderItem?.productVariant?.product.name ?? null,
+      imageUrl: orderItem?.productVariant?.imageUrl ?? null,
       externalName: orderItem?.externalName ?? '(removed line)',
       quantity: item.quantity,
       disposition: item.disposition,

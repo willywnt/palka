@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ImageThumb } from '@/components/image-thumb';
 import { formatDateTime } from '@/lib/formatters';
 
 import { useRecordingsByResiQuery } from '@/modules/recordings/hooks/use-recordings-management';
@@ -134,10 +135,15 @@ export function ReturnDetail({ returnId }: { returnId: string }) {
                 {data.items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
-                      <div className="font-medium">{item.externalName}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {item.sku ? `${item.sku}` : 'unmapped'}
-                        {item.productName ? ` · ${item.productName}` : ''}
+                      <div className="flex items-center gap-3">
+                        <ImageThumb src={item.imageUrl} alt={item.externalName} />
+                        <div className="min-w-0">
+                          <div className="font-medium">{item.externalName}</div>
+                          <div className="text-muted-foreground text-xs">
+                            {item.sku ? `${item.sku}` : 'unmapped'}
+                            {item.productName ? ` · ${item.productName}` : ''}
+                          </div>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
