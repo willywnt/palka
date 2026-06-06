@@ -17,6 +17,7 @@ import { DeletionImpact } from './deletion-impact';
 export function DeleteVariantDialog({
   productId,
   variantIds,
+  kind,
   label,
   open,
   onOpenChange,
@@ -26,7 +27,9 @@ export function DeleteVariantDialog({
   productId: string;
   /** Leaf ids to archive — one row, or every leaf of a group. */
   variantIds: string[];
-  /** Reads inside "This archives …", e.g. `“Hitam”` or `the “iPhone 16” group`. */
+  /** Drives the title: a standalone/grouped variant, or a single subvariant. */
+  kind: 'variant' | 'subvariant';
+  /** Display name, e.g. "iPhone 16" or "iPhone 16 · Hitam". */
   label: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,12 +49,11 @@ export function DeleteVariantDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            Delete {count === 1 ? 'variant' : `${count} subvariants`}?
-          </AlertDialogTitle>
+          <AlertDialogTitle>Delete {kind}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This archives {label}. Stock history is kept; the SKU{count === 1 ? '' : 's'} free up
-            for reuse.
+            This archives <span className="font-medium">{label}</span>
+            {count > 1 ? ` and its ${count} subvariants` : ''}. Stock history is kept; the{' '}
+            {count === 1 ? 'SKU frees' : 'SKUs free'} up for reuse.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

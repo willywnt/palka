@@ -46,7 +46,7 @@ import {
 } from '../hooks/use-products';
 import type { ProductVariantItem } from '../types';
 import { formatCurrency } from '../utils/format';
-import { buildVariantBlocks } from '../utils/variants';
+import { buildVariantBlocks, formatVariantLabel } from '../utils/variants';
 import { AddSubvariantsDialog } from './add-subvariants-dialog';
 import { AddVariantDialog } from './add-variant-dialog';
 import { DeleteVariantDialog } from './delete-variant-dialog';
@@ -65,6 +65,7 @@ export function ProductDetail({
   const [qrTarget, setQrTarget] = useState<ProductVariantItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     variantIds: string[];
+    kind: 'variant' | 'subvariant';
     label: string;
   } | null>(null);
   const [addSubGroup, setAddSubGroup] = useState<string | null>(null);
@@ -164,7 +165,7 @@ export function ProductDetail({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setEditTarget(variant)}>
                   <Pencil className="size-4" />
-                  Edit variant
+                  {grouped ? 'Edit subvariant' : 'Edit variant'}
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link
@@ -177,7 +178,11 @@ export function ProductDetail({
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() =>
-                    setDeleteTarget({ variantIds: [variant.id], label: `“${variant.name}”` })
+                    setDeleteTarget({
+                      variantIds: [variant.id],
+                      kind: grouped ? 'subvariant' : 'variant',
+                      label: formatVariantLabel(variant),
+                    })
                   }
                 >
                   <Trash2 className="size-4" />
@@ -281,12 +286,13 @@ export function ProductDetail({
                                       onClick={() =>
                                         setDeleteTarget({
                                           variantIds: block.variants.map((variant) => variant.id),
-                                          label: `the “${block.name}” group`,
+                                          kind: 'variant',
+                                          label: block.name,
                                         })
                                       }
                                     >
                                       <Trash2 className="size-4" />
-                                      Delete group
+                                      Delete variant
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -345,10 +351,7 @@ export function ProductDetail({
             if (!open) setQrTarget(null);
           }}
           value={qrTarget.barcode?.trim() || qrTarget.sku}
-          title={`${data.name} · ${qrTarget.name}`}
-          subtitle={
-            qrTarget.variantGroup ? `${qrTarget.variantGroup} - ${qrTarget.name}` : qrTarget.name
-          }
+          title={formatVariantLabel(qrTarget)}
           lastPrintedAt={qrTarget.labelPrintedAt}
           onPrint={() => markPrinted.mutate([qrTarget.id])}
         />
@@ -370,6 +373,7 @@ export function ProductDetail({
       <DeleteVariantDialog
         productId={productId}
         variantIds={deleteTarget?.variantIds ?? []}
+        kind={deleteTarget?.kind ?? 'variant'}
         label={deleteTarget?.label ?? ''}
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => {

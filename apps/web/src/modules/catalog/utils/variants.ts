@@ -37,6 +37,11 @@ export function buildVariantBlocks<T extends GroupableVariant>(variants: T[]): V
   return blocks;
 }
 
+/** Display label for a variant: "<group> · <name>" for a subvariant, else just the name. */
+export function formatVariantLabel(variant: { variantGroup: string | null; name: string }): string {
+  return variant.variantGroup ? `${variant.variantGroup} · ${variant.name}` : variant.name;
+}
+
 function slugifyPart(value: string): string {
   return value
     .trim()

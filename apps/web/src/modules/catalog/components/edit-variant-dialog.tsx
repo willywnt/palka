@@ -26,6 +26,7 @@ import { NumberInput } from '@/components/ui/number-input';
 
 import { useUpdateVariantMutation } from '../hooks/use-products';
 import type { ProductVariantItem } from '../types';
+import { formatVariantLabel } from '../utils/variants';
 import { editVariantFormSchema, type EditVariantFormInput } from '../validators/update-variant';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -81,10 +82,8 @@ export function EditVariantDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit variant</DialogTitle>
-          <DialogDescription>
-            {variant.name} · {variant.sku}
-          </DialogDescription>
+          <DialogTitle>Edit {variant.variantGroup ? 'subvariant' : 'variant'}</DialogTitle>
+          <DialogDescription>{formatVariantLabel(variant)}</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
