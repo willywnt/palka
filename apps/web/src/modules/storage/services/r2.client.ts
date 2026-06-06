@@ -1,6 +1,11 @@
 import 'server-only';
 
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getServerEnv } from '@olshop/config/env.server';
 import {
@@ -32,6 +37,28 @@ function getStorageConfig(): StorageProviderConfig {
     secretAccessKey: env.R2_SECRET_ACCESS_KEY,
     bucketName: env.R2_BUCKET_NAME,
     publicBaseUrl: env.R2_PUBLIC_URL,
+    uploadExpirySeconds: PRESIGNED_UPLOAD_EXPIRY_SECONDS,
+    accessExpirySeconds: PRESIGNED_ACCESS_EXPIRY_SECONDS,
+  };
+}
+
+/** Config for the separate, public product-image bucket (same R2 account/credentials). */
+function getProductImageConfig(): StorageProviderConfig {
+  const env = getServerEnv();
+
+  if (!env.R2_PRODUCTS_BUCKET_NAME) {
+    throw StorageError.unavailable('R2_PRODUCTS_BUCKET_NAME is not configured');
+  }
+  if (!env.R2_PRODUCTS_PUBLIC_URL) {
+    throw StorageError.unavailable('R2_PRODUCTS_PUBLIC_URL is not configured');
+  }
+
+  return {
+    accountId: env.R2_ACCOUNT_ID,
+    accessKeyId: env.R2_ACCESS_KEY_ID,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    bucketName: env.R2_PRODUCTS_BUCKET_NAME,
+    publicBaseUrl: env.R2_PRODUCTS_PUBLIC_URL,
     uploadExpirySeconds: PRESIGNED_UPLOAD_EXPIRY_SECONDS,
     accessExpirySeconds: PRESIGNED_ACCESS_EXPIRY_SECONDS,
   };
@@ -139,4 +166,15 @@ export function getR2StorageProvider(): R2StorageProvider {
   }
 
   return cachedProvider;
+}
+
+let cachedProductImageProvider: R2StorageProvider | undefined;
+
+/** Lazily-built provider for the public product-image bucket (configured separately). */
+export function getR2ProductImageProvider(): R2StorageProvider {
+  if (!cachedProductImageProvider) {
+    cachedProductImageProvider = new R2StorageProvider(getProductImageConfig());
+  }
+
+  return cachedProductImageProvider;
 }

@@ -23,6 +23,9 @@ const serverEnvSchema = z
     R2_SECRET_ACCESS_KEY: z.string().min(1),
     R2_BUCKET_NAME: z.string().min(1),
     R2_PUBLIC_URL: optionalUrl,
+    // Separate public bucket for product/variant images (same R2 account/credentials).
+    R2_PRODUCTS_BUCKET_NAME: z.preprocess(emptyToUndefined, z.string().optional()),
+    R2_PRODUCTS_PUBLIC_URL: optionalUrl,
 
     REDIS_URL: optionalUrl,
 

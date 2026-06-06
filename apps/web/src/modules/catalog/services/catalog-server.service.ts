@@ -469,12 +469,12 @@ export class CatalogServerService {
     return this.getProductById(userId, productId);
   }
 
-  /** Best-effort R2 delete — a failed cleanup must not fail the request. */
+  /** Best-effort image delete — a failed cleanup must not fail the request. */
   private async deleteStorageObject(storageKey: string): Promise<void> {
     try {
-      await storageService.deleteObject(storageKey);
+      await storageService.deleteImageObject(storageKey);
     } catch {
-      appLogger.warn('catalog.product.image.delete_failed', { storageKey });
+      appLogger.warn('catalog.variant.image.delete_failed', { storageKey });
     }
   }
 

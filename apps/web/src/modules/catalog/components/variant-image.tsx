@@ -79,7 +79,13 @@ export function VariantImage({
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 space-y-2">
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={onFile}
+        />
 
         <p className="truncate text-sm font-medium" title={label}>
           {label}

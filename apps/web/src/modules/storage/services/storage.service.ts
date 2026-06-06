@@ -20,11 +20,12 @@ import {
 import { isAllowedMimeType, hasAllowedExtension } from '../utils/mime';
 import {
   generateImageFilename,
+  generateProductImageKey,
   generateRecordingFilename,
   generateStorageKey,
   isUserStorageKey,
 } from '../utils/storage-key';
-import { getR2StorageProvider } from './r2.client';
+import { getR2ProductImageProvider, getR2StorageProvider } from './r2.client';
 
 export class StorageService {
   constructor(private readonly provider: StorageProvider = getR2StorageProvider()) {}
@@ -71,11 +72,12 @@ export class StorageService {
       throw StorageError.invalidFile('Image exceeds the 5 MB limit.');
     }
 
+    const provider = getR2ProductImageProvider();
     const filename = generateImageFilename(imageExtensionForMime(input.mimeType));
-    const storageKey = generateStorageKey(input.userId, filename);
-    const publicUrl = this.getPublicUrl(storageKey);
+    const storageKey = generateProductImageKey(input.userId, filename);
+    const publicUrl = provider.getPublicUrl(storageKey);
 
-    const presigned = await this.provider.generateUploadUrl({
+    const presigned = await provider.generateUploadUrl({
       storageKey,
       mimeType: input.mimeType,
       fileSizeBytes: input.fileSizeBytes,
@@ -87,6 +89,13 @@ export class StorageService {
       publicUrl,
       expiresAt: presigned.expiresAt,
     };
+  }
+
+  /** Delete a product image from the separate product-image bucket. */
+  async deleteImageObject(storageKey: string): Promise<void> {
+    appLogger.info('storage.image.delete.started', { storageKey });
+    await getR2ProductImageProvider().deleteObject(storageKey);
+    appLogger.info('storage.image.delete.completed', { storageKey });
   }
 
   /** Whether a storage key is a final object owned by the given user. */

@@ -111,7 +111,7 @@ describe('completeRecording', () => {
   const baseInput = {
     recordingId: 'rec-1',
     noResi: 'RESI123',
-    storageKey: `recordings/${USER}/2026/06/rec_x.webm`,
+    storageKey: `${USER}/2026/06/rec_x.webm`,
     publicUrl: 'https://cdn.example/rec_x.webm',
     mimeType: 'video/webm',
     fileSizeBytes: 1_000,
@@ -120,7 +120,7 @@ describe('completeRecording', () => {
 
   it('rejects a storage key that does not belong to the caller', async () => {
     await expect(
-      service.completeRecording(USER, { ...baseInput, storageKey: 'recordings/other/rec.webm' }),
+      service.completeRecording(USER, { ...baseInput, storageKey: 'other-user/rec.webm' }),
     ).rejects.toMatchObject({ code: RECORDING_ERROR_CODES.VALIDATION_ERROR });
   });
 
