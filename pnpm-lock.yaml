@@ -59,6 +59,9 @@ importers:
       '@olshop/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@olshop/marketplace-providers':
+        specifier: workspace:*
+        version: link:../../packages/marketplace-providers
       '@olshop/metrics':
         specifier: workspace:*
         version: link:../../packages/metrics
@@ -407,6 +410,24 @@ importers:
       pino-pretty:
         specifier: ^13.0.0
         version: 13.1.3
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/marketplace-providers:
+    devDependencies:
+      '@olshop/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@olshop/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.19.19
+      eslint:
+        specifier: ^9.24.0
+        version: 9.39.4(jiti@2.7.0)
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

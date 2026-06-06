@@ -23,6 +23,7 @@
     "@olshop/db": "workspace:*",
     "@olshop/health": "workspace:*",
     "@olshop/logger": "workspace:*",
+    "@olshop/marketplace-providers": "workspace:*",
     "@olshop/metrics": "workspace:*",
     "@olshop/queue": "workspace:*",
     "@olshop/rate-limit": "workspace:*",
