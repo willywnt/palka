@@ -13,6 +13,7 @@ import { CatalogError } from '../errors/catalog-errors';
 import type {
   BundleComponentItem,
   BundleDetail,
+  BundleResolution,
   DeletionBlockers,
   LabelVariant,
   ProductDetail,
@@ -538,6 +539,65 @@ export class CatalogServerService {
     });
 
     return this.buildBundleDetail(userId, variantId);
+  }
+
+  /**
+   * Resolves which of the given variants are bundles, returning each bundle's
+   * buildable count + the component lines to decrement on sale. Variants that are
+   * not bundles are simply absent from the map. Used by POS/order stock flows so
+   * they can explode a bundle into its components without reaching into catalog tables.
+   */
+  async resolveBundles(
+    userId: string,
+    variantIds: string[],
+  ): Promise<Map<string, BundleResolution>> {
+    const resolved = new Map<string, BundleResolution>();
+    if (variantIds.length === 0) return resolved;
+
+    const rows = await prisma.bundleComponent.findMany({
+      where: { bundleVariantId: { in: variantIds }, userId },
+      select: {
+        bundleVariantId: true,
+        componentVariantId: true,
+        quantity: true,
+        componentVariant: {
+          select: { deletedAt: true, inventory: { select: { availableStock: true } } },
+        },
+      },
+    });
+
+    const grouped = new Map<
+      string,
+      { componentVariantId: string; quantity: number; availableStock: number }[]
+    >();
+    for (const row of rows) {
+      const list = grouped.get(row.bundleVariantId) ?? [];
+      list.push({
+        componentVariantId: row.componentVariantId,
+        quantity: row.quantity,
+        availableStock: row.componentVariant.deletedAt
+          ? 0
+          : (row.componentVariant.inventory?.availableStock ?? 0),
+      });
+      grouped.set(row.bundleVariantId, list);
+    }
+
+    for (const [bundleVariantId, list] of grouped) {
+      resolved.set(bundleVariantId, {
+        buildable: computeBuildableQty(
+          list.map((component) => ({
+            quantity: component.quantity,
+            availableStock: component.availableStock,
+          })),
+        ),
+        components: list.map((component) => ({
+          componentVariantId: component.componentVariantId,
+          quantity: component.quantity,
+        })),
+      });
+    }
+
+    return resolved;
   }
 
   private async buildBundleDetail(userId: string, variantId: string): Promise<BundleDetail> {

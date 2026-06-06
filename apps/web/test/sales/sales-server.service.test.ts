@@ -15,11 +15,12 @@ type TxClient = {
   };
 };
 
-const { prismaMock, txMock, enqueueMock, inventoryMock } = vi.hoisted(() => {
+const { prismaMock, txMock, enqueueMock, inventoryMock, catalogMock } = vi.hoisted(() => {
   const txMock: TxClient = { sale: { count: vi.fn(), create: vi.fn(), update: vi.fn() } };
   return {
     txMock,
     enqueueMock: vi.fn(),
+    catalogMock: { resolveBundles: vi.fn() },
     inventoryMock: {
       applyOfflineSaleTx: vi.fn().mockResolvedValue(0),
       applyOfflineSaleReversalTx: vi.fn().mockResolvedValue(0),
@@ -42,6 +43,9 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('@/modules/inventory/services/inventory-server.service', () => ({
   inventoryServerService: inventoryMock,
 }));
+vi.mock('@/modules/catalog/services/catalog-server.service', () => ({
+  catalogServerService: catalogMock,
+}));
 
 const { SalesServerService } = await import('@/modules/sales/services/sales-server.service');
 
@@ -57,6 +61,7 @@ beforeEach(() => {
   txMock.sale.count.mockResolvedValue(0);
   txMock.sale.create.mockResolvedValue({ id: 's1', code: 'S00001' });
   txMock.sale.update.mockResolvedValue({});
+  catalogMock.resolveBundles.mockResolvedValue(new Map());
 });
 
 describe('createSale', () => {
@@ -87,6 +92,28 @@ describe('createSale', () => {
     expect(enqueueMock).toHaveBeenCalledTimes(1);
     expect(enqueueMock.mock.calls[0]?.[0]).toMatchObject({ variantId: 'v1' });
     expect(getSaleSpy).toHaveBeenCalledWith(USER, 's1');
+  });
+
+  it('explodes a bundle into component decrements instead of its own stock', async () => {
+    prismaMock.productVariant.findMany.mockResolvedValue([
+      { id: 'v1', sku: 'GIFTSET', name: 'Gift set', cost: null },
+    ]);
+    catalogMock.resolveBundles.mockResolvedValue(
+      new Map([['v1', { buildable: 5, components: [{ componentVariantId: 'c1', quantity: 2 }] }]]),
+    );
+
+    await service.createSale(USER, input); // sells 2 of the bundle
+
+    expect(inventoryMock.applyOfflineSaleTx).toHaveBeenCalledWith(
+      txMock,
+      expect.objectContaining({ variantId: 'c1', quantity: 4, saleId: 's1' }),
+    );
+    expect(inventoryMock.applyOfflineSaleTx).not.toHaveBeenCalledWith(
+      txMock,
+      expect.objectContaining({ variantId: 'v1' }),
+    );
+    // Propagation targets the component, not the bundle.
+    expect(enqueueMock.mock.calls[0]?.[0]).toMatchObject({ variantId: 'c1' });
   });
 
   it('rejects a sale referencing a variant the user does not own', async () => {

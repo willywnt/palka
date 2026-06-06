@@ -104,3 +104,9 @@ export type BundleDetail = {
   components: BundleComponentItem[];
   buildable: number;
 };
+
+/** Resolved bundle for stock math: buildable count + the component lines to decrement. */
+export type BundleResolution = {
+  buildable: number;
+  components: { componentVariantId: string; quantity: number }[];
+};

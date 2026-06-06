@@ -5,6 +5,7 @@ import { enqueuePropagateInventoryStock } from '@olshop/queue';
 import type { Prisma } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
+import { catalogServerService } from '@/modules/catalog/services/catalog-server.service';
 import { inventoryServerService } from '@/modules/inventory/services/inventory-server.service';
 
 import { SaleError } from '../errors/sale-errors';
@@ -81,13 +82,19 @@ export class SalesServerService {
       take: SEARCH_LIMIT,
     });
 
+    const bundles = await catalogServerService.resolveBundles(
+      userId,
+      variants.map((variant) => variant.id),
+    );
+
     return variants.map((variant) => ({
       variantId: variant.id,
       sku: variant.sku,
       name: variant.name,
       productName: variant.product.name,
       price: variant.price.toString(),
-      availableStock: variant.inventory?.availableStock ?? 0,
+      // A bundle shows how many it can build from components, not its own stock.
+      availableStock: bundles.get(variant.id)?.buildable ?? variant.inventory?.availableStock ?? 0,
       imageUrl: variant.imageUrl,
     }));
   }
@@ -120,13 +127,17 @@ export class SalesServerService {
 
     if (!variant) return null;
 
+    const bundle = (await catalogServerService.resolveBundles(userId, [variant.id])).get(
+      variant.id,
+    );
+
     return {
       variantId: variant.id,
       sku: variant.sku,
       name: variant.name,
       productName: variant.product.name,
       price: variant.price.toString(),
-      availableStock: variant.inventory?.availableStock ?? 0,
+      availableStock: bundle?.buildable ?? variant.inventory?.availableStock ?? 0,
       imageUrl: variant.imageUrl,
     };
   }
@@ -214,6 +225,9 @@ export class SalesServerService {
 
     const totalAmount = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
+    // Bundles decrement their component variants (not their own stock) on sale.
+    const bundles = await catalogServerService.resolveBundles(userId, variantIds);
+
     const created = await prisma.$transaction(async (tx) => {
       const count = await tx.sale.count({ where: { userId } });
       const code = `S${(count + 1).toString().padStart(5, '0')}`;
@@ -244,12 +258,24 @@ export class SalesServerService {
       });
 
       for (const item of input.items) {
-        await inventoryServerService.applyOfflineSaleTx(tx, {
-          userId,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          saleId: sale.id,
-        });
+        const bundle = bundles.get(item.variantId);
+        if (bundle) {
+          for (const component of bundle.components) {
+            await inventoryServerService.applyOfflineSaleTx(tx, {
+              userId,
+              variantId: component.componentVariantId,
+              quantity: item.quantity * component.quantity,
+              saleId: sale.id,
+            });
+          }
+        } else {
+          await inventoryServerService.applyOfflineSaleTx(tx, {
+            userId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            saleId: sale.id,
+          });
+        }
       }
 
       return sale;
@@ -262,7 +288,20 @@ export class SalesServerService {
       items: input.items.length,
     });
 
-    await this.propagateAffected(userId, variantIds);
+    // Propagate the variants whose available actually changed — a bundle's components,
+    // not the bundle itself.
+    const affectedVariantIds = new Set<string>();
+    for (const item of input.items) {
+      const bundle = bundles.get(item.variantId);
+      if (bundle) {
+        bundle.components.forEach((component) =>
+          affectedVariantIds.add(component.componentVariantId),
+        );
+      } else {
+        affectedVariantIds.add(item.variantId);
+      }
+    }
+    await this.propagateAffected(userId, [...affectedVariantIds]);
     return this.getSale(userId, created.id);
   }
 
