@@ -37,14 +37,14 @@ export function parseRecordingsLibrarySearchParams(searchParams: URLSearchParams
   const parsed = listRecordingsQuerySchema.safeParse(raw);
 
   if (!parsed.success) {
-    const search = appParams.get('search')?.trim().toUpperCase() ?? '';
+    const search = appParams.get('search')?.trim() ?? '';
     return { query: DEFAULT_RECORDINGS_LIBRARY_QUERY, search };
   }
 
   const { search, ...query } = parsed.data;
   return {
     query,
-    search: search?.toUpperCase() ?? '',
+    search: search ?? '',
   };
 }
 export function serializeRecordingsLibrarySearchParams(
@@ -54,7 +54,7 @@ export function serializeRecordingsLibrarySearchParams(
   const params = new URLSearchParams();
   const trimmedSearch = search.trim();
 
-  if (trimmedSearch) params.set('search', trimmedSearch.toUpperCase());
+  if (trimmedSearch) params.set('search', trimmedSearch);
   if (query.status !== 'ALL') params.set('status', query.status);
   if (query.page > 1) params.set('page', String(query.page));
   if (query.pageSize !== DEFAULT_PAGE_SIZE) {
