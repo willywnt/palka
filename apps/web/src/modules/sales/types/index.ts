@@ -22,6 +22,8 @@ export type SaleItemDetail = {
   quantity: number;
   unitPrice: string;
   lineTotal: string;
+  /** Variant photo public URL; null = none. */
+  imageUrl: string | null;
 };
 
 export type SaleListItem = {

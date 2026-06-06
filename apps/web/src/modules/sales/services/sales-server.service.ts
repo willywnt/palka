@@ -15,7 +15,10 @@ const SEARCH_LIMIT = 20;
 const LIST_LIMIT = 100;
 
 const DETAIL_INCLUDE = {
-  items: { orderBy: { id: 'asc' } },
+  items: {
+    orderBy: { id: 'asc' },
+    include: { productVariant: { select: { imageUrl: true } } },
+  },
 } satisfies Prisma.SaleInclude;
 
 type SaleRow = Prisma.SaleGetPayload<{ include: typeof DETAIL_INCLUDE }>;
@@ -29,6 +32,7 @@ function mapDetail(row: SaleRow): SaleDetail {
     quantity: item.quantity,
     unitPrice: item.unitPrice.toString(),
     lineTotal: (Number(item.unitPrice) * item.quantity).toString(),
+    imageUrl: item.productVariant?.imageUrl ?? null,
   }));
 
   return {

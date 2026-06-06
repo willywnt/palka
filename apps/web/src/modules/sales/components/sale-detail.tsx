@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ImageThumb } from '@/components/image-thumb';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 
 import { useSaleQuery } from '../hooks/use-sales';
@@ -80,8 +81,13 @@ export function SaleDetail({ saleId }: { saleId: string }) {
                 {data.items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-muted-foreground text-xs">{item.sku}</div>
+                      <div className="flex items-center gap-3">
+                        <ImageThumb src={item.imageUrl} alt={item.name} />
+                        <div className="min-w-0">
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-muted-foreground text-xs">{item.sku}</div>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
                     <TableCell className="text-right tabular-nums">
