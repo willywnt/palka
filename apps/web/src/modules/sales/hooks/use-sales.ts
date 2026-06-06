@@ -78,3 +78,21 @@ export function useCreateSaleMutation() {
     },
   });
 }
+
+export function useVoidSaleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (saleId: string) => {
+      const result = await apiFetch<SaleDetail>(`${apiRoutes.sales}/${saleId}/void`, {
+        method: 'POST',
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: saleKeys.all });
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+    },
+  });
+}
