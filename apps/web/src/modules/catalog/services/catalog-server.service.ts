@@ -544,27 +544,6 @@ export class CatalogServerService {
     return buildPaginatedResult(items, total, query.page, query.pageSize);
   }
 
-  /** A variant's bundle composition + current buildable count. */
-  async getBundle(userId: string, productId: string, variantId: string): Promise<BundleDetail> {
-    await this.assertVariantInProduct(userId, productId, variantId);
-    return this.buildBundleDetail(userId, variantId);
-  }
-
-  /**
-   * Replaces a variant's bundle components (empty array clears the bundle). Guards:
-   * components must be owned, distinct, not the bundle itself, and not bundles
-   * themselves (no nested bundles in v1).
-   */
-  async setBundleComponents(
-    userId: string,
-    productId: string,
-    variantId: string,
-    input: SetBundleInput,
-  ): Promise<BundleDetail> {
-    await this.assertVariantInProduct(userId, productId, variantId);
-    return this.replaceBundleComponents(userId, variantId, input);
-  }
-
   /** Variant-id-keyed bundle read for the dedicated Bundles UI (no productId needed). */
   async getBundleByVariant(userId: string, variantId: string): Promise<BundleDetail> {
     await this.assertVariantOwned(userId, variantId);
@@ -776,18 +755,6 @@ export class CatalogServerService {
   private async assertVariantOwned(userId: string, variantId: string): Promise<void> {
     const variant = await prisma.productVariant.findFirst({
       where: { id: variantId, userId, deletedAt: null },
-      select: { id: true },
-    });
-    if (!variant) throw CatalogError.notFound('Variant not found.');
-  }
-
-  private async assertVariantInProduct(
-    userId: string,
-    productId: string,
-    variantId: string,
-  ): Promise<void> {
-    const variant = await prisma.productVariant.findFirst({
-      where: { id: variantId, productId, userId, deletedAt: null },
       select: { id: true },
     });
     if (!variant) throw CatalogError.notFound('Variant not found.');

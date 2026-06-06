@@ -128,40 +128,6 @@ export function useCreateBundleMutation() {
   });
 }
 
-export function useBundleQuery(productId: string, variantId: string | null, enabled = true) {
-  return useQuery({
-    queryKey: catalogKeys.bundle(variantId ?? 'unknown'),
-    queryFn: async () => {
-      const result = await apiFetch<BundleDetail>(
-        `${apiRoutes.products}/${productId}/variants/${variantId}/bundle`,
-      );
-      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
-      return result.data;
-    },
-    enabled: Boolean(variantId) && enabled,
-  });
-}
-
-export function useSetBundleMutation(productId: string, variantId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (input: SetBundleInput) => {
-      const result = await apiFetch<BundleDetail>(
-        `${apiRoutes.products}/${productId}/variants/${variantId}/bundle`,
-        { method: 'PUT', body: input },
-      );
-      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
-      return result.data;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: catalogKeys.bundle(variantId) });
-      void queryClient.invalidateQueries({ queryKey: catalogKeys.detail(productId) });
-      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
-    },
-  });
-}
-
 /** A paginated page of label-studio variants (debounced search by SKU/barcode/name). */
 export function useLabelVariantsQuery(q: string, page: number, pageSize: number) {
   const trimmed = q.trim();

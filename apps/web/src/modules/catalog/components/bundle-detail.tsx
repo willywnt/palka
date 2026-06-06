@@ -67,6 +67,9 @@ export function BundleDetailEditor({ variantId }: { variantId: string }) {
 
   const hasUnknownStock = components.some((component) => component.availableStock === undefined);
   const dirty = data ? normalize(components) !== normalize(data.components) : false;
+  // The page doubles as "make this variant a bundle" — a variant with no saved
+  // components isn't a bundle yet, so we hide the bundle-only framing.
+  const isBundle = (data?.components.length ?? 0) > 0;
 
   async function persist(next: BundleComponentDraft[]) {
     return setBundle.mutateAsync({
@@ -139,9 +142,15 @@ export function BundleDetailEditor({ variantId }: { variantId: string }) {
         </Button>
         <div className="mt-2 flex items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1>
-          <Badge className="border-transparent bg-violet-500/10 text-violet-600 dark:text-violet-400">
-            Bundle
-          </Badge>
+          {isBundle ? (
+            <Badge className="border-transparent bg-violet-500/10 text-violet-600 dark:text-violet-400">
+              Bundle
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground">
+              Not a bundle yet
+            </Badge>
+          )}
         </div>
         <p className="text-muted-foreground mt-1 text-sm">
           {data.sku} · {formatCurrency(data.price)}
@@ -165,7 +174,7 @@ export function BundleDetailEditor({ variantId }: { variantId: string }) {
                 disabled={!dirty || components.length === 0 || setBundle.isPending}
               >
                 <Save className="size-4" />
-                {setBundle.isPending ? 'Saving…' : 'Save changes'}
+                {setBundle.isPending ? 'Saving…' : isBundle ? 'Save changes' : 'Make bundle'}
               </Button>
             </div>
           </CardContent>
@@ -184,39 +193,43 @@ export function BundleDetailEditor({ variantId }: { variantId: string }) {
             }
           />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Convert to normal product</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-muted-foreground text-sm">
-                Remove all components so this variant tracks its own stock again.
-              </p>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" className="w-full" disabled={setBundle.isPending}>
-                    <PackageOpen className="size-4" />
-                    Convert to normal product
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Convert “{data.name}” to a normal product?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Its components will be removed. The variant will track its own stock instead
-                      of being built from other variants. You can make it a bundle again later.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => void handleConvert()}>
-                      Convert
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </CardContent>
-          </Card>
+          {isBundle ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Convert to normal product</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-muted-foreground text-sm">
+                  Remove all components so this variant tracks its own stock again.
+                </p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="w-full" disabled={setBundle.isPending}>
+                      <PackageOpen className="size-4" />
+                      Convert to normal product
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Convert “{data.name}” to a normal product?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Its components will be removed. The variant will track its own stock instead
+                        of being built from other variants. You can make it a bundle again later.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => void handleConvert()}>
+                        Convert
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </div>
     </div>

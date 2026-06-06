@@ -49,7 +49,6 @@ import { formatCurrency } from '../utils/format';
 import { buildVariantBlocks, formatVariantLabel } from '../utils/variants';
 import { AddSubvariantsDialog } from './add-subvariants-dialog';
 import { AddVariantDialog } from './add-variant-dialog';
-import { BundleDialog } from './bundle-dialog';
 import { ConnectionBadges } from './connection-badges';
 import { DeleteVariantDialog } from './delete-variant-dialog';
 import { EditVariantDialog } from './edit-variant-dialog';
@@ -66,7 +65,6 @@ export function ProductDetail({
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductVariantItem | null>(null);
   const [qrTarget, setQrTarget] = useState<ProductVariantItem | null>(null);
-  const [bundleTarget, setBundleTarget] = useState<ProductVariantItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     variantIds: string[];
     kind: 'variant' | 'subvariant';
@@ -172,9 +170,11 @@ export function ProductDetail({
                   <QrCode className="size-4" />
                   Show QR code
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBundleTarget(variant)}>
-                  <Layers className="size-4" />
-                  Bundle components
+                <DropdownMenuItem asChild>
+                  <Link href={`/dashboard/bundles/${variant.id}`}>
+                    <Layers className="size-4" />
+                    Manage as bundle
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setEditTarget(variant)}>
                   <Pencil className="size-4" />
@@ -408,15 +408,6 @@ export function ProductDetail({
           }}
         />
       ) : null}
-
-      <BundleDialog
-        productId={productId}
-        variant={bundleTarget}
-        open={Boolean(bundleTarget)}
-        onOpenChange={(open) => {
-          if (!open) setBundleTarget(null);
-        }}
-      />
     </div>
   );
 }
