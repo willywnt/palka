@@ -21,13 +21,16 @@ export const MARKETPLACE_PROVIDER_REGISTRY: Record<
     supportsRefresh: true,
     supportsWebhooks: true,
   },
+  LAZADA: {
+    supportsOAuth: true,
+    supportsRefresh: true,
+    supportsWebhooks: true,
+  },
 };
 
 export { SUPPORTED_MARKETPLACE_PROVIDERS } from '../utils/providers';
 
-export function isSupportedMarketplaceProvider(
-  provider: string,
-): provider is MarketplaceProvider {
+export function isSupportedMarketplaceProvider(provider: string): provider is MarketplaceProvider {
   return provider in MARKETPLACE_PROVIDER_REGISTRY;
 }
 

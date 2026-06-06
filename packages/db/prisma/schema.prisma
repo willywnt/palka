@@ -24,6 +24,7 @@ enum RecordingStatus {
 enum MarketplaceProvider {
   SHOPEE
   TOKOPEDIA
+  LAZADA
 }
 
 model User {

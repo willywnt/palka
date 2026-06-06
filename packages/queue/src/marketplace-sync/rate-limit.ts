@@ -8,6 +8,7 @@ export type ProviderRateLimitConfig = {
 const PROVIDER_RATE_LIMITS: Record<MarketplaceProvider, ProviderRateLimitConfig> = {
   SHOPEE: { requestsPerMinute: 600, burstSize: 20 },
   TOKOPEDIA: { requestsPerMinute: 600, burstSize: 20 },
+  LAZADA: { requestsPerMinute: 500, burstSize: 20 },
 };
 
 export function getProviderRateLimitConfig(provider: MarketplaceProvider): ProviderRateLimitConfig {
