@@ -121,6 +121,10 @@ export function ProductDetail({
   const variantBlocks = buildVariantBlocks(data.variants);
 
   function renderVariantRow(variant: ProductVariantItem, grouped: boolean) {
+    // A variant can map to several listings in the same shop — show each connection once.
+    const connections = Array.from(
+      new Map(variant.mappings.map((mapping) => [mapping.connectionId, mapping])).values(),
+    );
     return (
       <TableRow key={variant.id}>
         <TableCell className={grouped ? 'max-w-[220px] pl-10' : 'max-w-[220px]'}>
@@ -150,22 +154,22 @@ export function ProductDetail({
             <LowStockBadge threshold={variant.lowStockThreshold} className="ml-2" />
           ) : null}
         </TableCell>
-        <TableCell>
-          {variant.mappings.length === 0 ? (
+        <TableCell className="max-w-[200px]">
+          {connections.length === 0 ? (
             <span className="text-muted-foreground text-xs">—</span>
           ) : (
             <div className="flex flex-wrap gap-1">
-              {variant.mappings.map((mapping) => (
+              {connections.map((connection) => (
                 <Link
-                  key={mapping.connectionId}
-                  href={`/dashboard/marketplace/${mapping.connectionId}`}
+                  key={connection.connectionId}
+                  href={`/dashboard/marketplace/${connection.connectionId}`}
                 >
                   <Badge
                     variant="outline"
-                    className="hover:bg-muted max-w-[140px] gap-1 font-normal"
-                    title={`${mapping.shopName} — open to unmap`}
+                    className="hover:bg-muted max-w-[160px] gap-1 font-normal"
+                    title={`${connection.shopName} — open to unmap`}
                   >
-                    <span className="truncate">{mapping.shopName}</span>
+                    <span className="truncate">{connection.shopName}</span>
                     <ExternalLink className="size-3 shrink-0" />
                   </Badge>
                 </Link>
@@ -271,7 +275,7 @@ export function ProductDetail({
                     <TableHead>Variant</TableHead>
                     <TableHead className="text-right">Price</TableHead>
                     <TableHead className="text-right">In stock</TableHead>
-                    <TableHead>Mapping</TableHead>
+                    <TableHead>Connections</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
