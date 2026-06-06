@@ -35,7 +35,7 @@ const FormField = <
   ...props
 }: ControllerProps<TFieldValues, TName>) => {
   return (
-    <div>
+    <div className="w-full">
       <FormFieldContext.Provider value={{ name: props.name }}>
         <Controller {...props} />
       </FormFieldContext.Provider>

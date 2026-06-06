@@ -77,7 +77,7 @@ export function ProductFormDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] !max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New product</DialogTitle>
           <DialogDescription>

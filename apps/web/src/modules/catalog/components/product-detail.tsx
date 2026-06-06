@@ -4,7 +4,6 @@ import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  ExternalLink,
   Image as ImageIcon,
   Layers,
   MoreHorizontal,
@@ -28,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EllipsisTooltip } from '@/components/ui/action-tooltip';
 import { EmptyState } from '@/components/empty-state';
 import { LowStockBadge } from '@/components/low-stock-badge';
 import { QrCodeDialog } from '@/components/qr-code-dialog';
@@ -50,6 +50,7 @@ import { formatCurrency } from '../utils/format';
 import { buildVariantBlocks, formatVariantLabel } from '../utils/variants';
 import { AddSubvariantsDialog } from './add-subvariants-dialog';
 import { AddVariantDialog } from './add-variant-dialog';
+import { ConnectionBadges } from './connection-badges';
 import { DeleteVariantDialog } from './delete-variant-dialog';
 import { EditVariantDialog } from './edit-variant-dialog';
 
@@ -138,12 +139,8 @@ export function ProductDetail({
               <ImageIcon className="size-4" />
             </div>
             <div className="min-w-0">
-              <div className="truncate font-medium" title={variant.name}>
-                {variant.name}
-              </div>
-              <div className="text-muted-foreground truncate text-xs" title={variant.sku}>
-                {variant.sku}
-              </div>
+              <EllipsisTooltip text={variant.name} className="font-medium" />
+              <EllipsisTooltip text={variant.sku} className="text-muted-foreground text-xs" />
             </div>
           </div>
         </TableCell>
@@ -154,28 +151,8 @@ export function ProductDetail({
             <LowStockBadge threshold={variant.lowStockThreshold} className="ml-2" />
           ) : null}
         </TableCell>
-        <TableCell className="max-w-[200px]">
-          {connections.length === 0 ? (
-            <span className="text-muted-foreground text-xs">—</span>
-          ) : (
-            <div className="flex flex-wrap gap-1">
-              {connections.map((connection) => (
-                <Link
-                  key={connection.connectionId}
-                  href={`/dashboard/marketplace/${connection.connectionId}`}
-                >
-                  <Badge
-                    variant="outline"
-                    className="hover:bg-muted max-w-[160px] gap-1 font-normal"
-                    title={`${connection.shopName} — open to unmap`}
-                  >
-                    <span className="truncate">{connection.shopName}</span>
-                    <ExternalLink className="size-3 shrink-0" />
-                  </Badge>
-                </Link>
-              ))}
-            </div>
-          )}
+        <TableCell className="max-w-[220px]">
+          <ConnectionBadges connections={connections} />
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-2">
@@ -290,9 +267,7 @@ export function ProductDetail({
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex min-w-0 items-center gap-2">
                                 <Layers className="text-muted-foreground size-3.5 shrink-0" />
-                                <span className="truncate font-semibold" title={block.name}>
-                                  {block.name}
-                                </span>
+                                <EllipsisTooltip text={block.name} className="font-semibold" />
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-muted-foreground text-xs tabular-nums">
