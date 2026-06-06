@@ -1,3 +1,5 @@
+import { getServerEnv } from '@olshop/config/env.server';
+import { decrypt } from '@olshop/utils/crypto';
 import { logger } from '@olshop/utils/logger';
 
 import { getProviderRateLimiter } from './rate-limit.js';
@@ -10,7 +12,7 @@ import {
   loadSyncJobContext,
   markSyncJobProcessing,
 } from './sync-repository.js';
-import { MarketplaceSyncError } from './sync-errors.js';
+import { MarketplaceSyncError, SYNC_ERROR_CODES } from './sync-errors.js';
 
 export type ExecuteStockSyncResult = {
   success: boolean;
@@ -56,13 +58,23 @@ export async function executeStockSync(
       availableStock: context.availableStock,
     });
 
-    // NOTE: stub adapters ignore the token. A real provider adapter needs the
-    // DECRYPTED token, which requires lifting marketplace token-crypto into a
-    // shared @olshop package (the encryption service currently lives in apps/web).
-    const response = await adapter.updateStock({
-      ...request,
-      accessToken: context.encryptedAccessToken,
-    });
+    // Real provider adapters need the DECRYPTED token; stub adapters ignore it.
+    // Token-crypto is shared via @olshop/utils so the worker can open it here.
+    let accessToken: string;
+    try {
+      accessToken = decrypt(
+        context.encryptedAccessToken,
+        getServerEnv().MARKETPLACE_ENCRYPTION_SECRET,
+      );
+    } catch {
+      throw new MarketplaceSyncError(
+        SYNC_ERROR_CODES.INVALID_TOKEN,
+        'Failed to decrypt the marketplace access token.',
+        { retryable: false },
+      );
+    }
+
+    const response = await adapter.updateStock({ ...request, accessToken });
 
     if (!response.success) {
       throw MarketplaceSyncError.syncFailed('Provider rejected the stock update.');

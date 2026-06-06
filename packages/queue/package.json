@@ -19,6 +19,7 @@
     "@olshop/config": "workspace:*",
     "@olshop/db": "workspace:*",
     "@olshop/logger": "workspace:*",
+    "@olshop/marketplace-providers": "workspace:*",
     "@olshop/metrics": "workspace:*",
     "@olshop/storage": "workspace:*",
     "@olshop/utils": "workspace:*",

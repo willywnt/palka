@@ -462,6 +462,9 @@ importers:
       '@olshop/logger':
         specifier: workspace:*
         version: link:../logger
+      '@olshop/marketplace-providers':
+        specifier: workspace:*
+        version: link:../marketplace-providers
       '@olshop/metrics':
         specifier: workspace:*
         version: link:../metrics
