@@ -190,6 +190,9 @@ model Product {
   name        String
   description String?
   category    String?
+  // Product photo (one per product): R2 object key + its public URL. null = none.
+  imageKey    String?
+  imageUrl    String?
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

@@ -7,6 +7,7 @@ import { appLogger } from '@/lib/logger';
 import { inventoryServerService } from '@/modules/inventory/services/inventory-server.service';
 import { marketplaceMappingService } from '@/modules/marketplace/services/marketplace-mapping.service';
 import { returnsServerService } from '@/modules/returns/services/returns-server.service';
+import { storageService } from '@/modules/storage/services/storage.service';
 
 import { CatalogError } from '../errors/catalog-errors';
 import type {
@@ -21,6 +22,7 @@ import { archivedSku } from '../utils/variants';
 import type { CreateProductInput } from '../validators/create-product';
 import type { LabelVariantsQuery } from '../validators/label-variants';
 import type { ListProductsQuery } from '../validators/list-products';
+import type { SetProductImageInput } from '../validators/product-image';
 import type { UpdateProductInput } from '../validators/update-product';
 import type { UpdateVariantInput } from '../validators/update-variant';
 import type { CreateVariantInput } from '../validators/variant';
@@ -95,6 +97,7 @@ function mapProductDetail(
     name: product.name,
     description: product.description,
     category: product.category,
+    imageUrl: product.imageUrl,
     isActive: product.isActive,
     variants: product.variants.map((variant) =>
       mapVariant(variant, mappingsByVariant.get(variant.id) ?? []),
@@ -412,6 +415,62 @@ export class CatalogServerService {
     appLogger.info('catalog.product.updated', { userId, productId });
 
     return this.getProductById(userId, productId);
+  }
+
+  /** Set/replace a product's photo from a just-uploaded R2 object; drops the old one. */
+  async setProductImage(
+    userId: string,
+    productId: string,
+    input: SetProductImageInput,
+  ): Promise<ProductDetail> {
+    const product = await prisma.product.findFirst({
+      where: { id: productId, userId, deletedAt: null },
+      select: { id: true, imageKey: true },
+    });
+    if (!product) throw CatalogError.notFound();
+    if (!storageService.ownsKey(input.imageKey, userId)) {
+      throw CatalogError.validation('Invalid image reference.');
+    }
+
+    await prisma.product.update({
+      where: { id: productId },
+      data: { imageKey: input.imageKey, imageUrl: input.imageUrl },
+    });
+
+    if (product.imageKey && product.imageKey !== input.imageKey) {
+      await this.deleteStorageObject(product.imageKey);
+    }
+
+    appLogger.info('catalog.product.image.set', { userId, productId });
+    return this.getProductById(userId, productId);
+  }
+
+  /** Remove a product's photo (clears the fields + deletes the R2 object). */
+  async removeProductImage(userId: string, productId: string): Promise<ProductDetail> {
+    const product = await prisma.product.findFirst({
+      where: { id: productId, userId, deletedAt: null },
+      select: { id: true, imageKey: true },
+    });
+    if (!product) throw CatalogError.notFound();
+
+    await prisma.product.update({
+      where: { id: productId },
+      data: { imageKey: null, imageUrl: null },
+    });
+
+    if (product.imageKey) await this.deleteStorageObject(product.imageKey);
+
+    appLogger.info('catalog.product.image.removed', { userId, productId });
+    return this.getProductById(userId, productId);
+  }
+
+  /** Best-effort R2 delete — a failed cleanup must not fail the request. */
+  private async deleteStorageObject(storageKey: string): Promise<void> {
+    try {
+      await storageService.deleteObject(storageKey);
+    } catch {
+      appLogger.warn('catalog.product.image.delete_failed', { storageKey });
+    }
   }
 
   async deleteProduct(userId: string, productId: string): Promise<void> {

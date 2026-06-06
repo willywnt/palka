@@ -13,6 +13,19 @@ export function generateRecordingFilename(date = new Date()): string {
   return `rec_${year}${month}${day}_${uniqueId}.webm`;
 }
 
+/**
+ * Generates a unique product-image filename.
+ * Example: img_20260606_a1b2c3d4.webp
+ */
+export function generateImageFilename(extension: string, date = new Date()): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const uniqueId = generateId(8);
+
+  return `img_${year}${month}${day}_${uniqueId}${extension}`;
+}
+
 /** Top-level object prefix for the current runtime environment. */
 export function storageEnvPrefix(): 'production' | 'dev' {
   return process.env.NODE_ENV === 'production' ? 'production' : 'dev';

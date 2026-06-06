@@ -12,8 +12,18 @@ import type {
   GenerateUploadUrlResult,
   StorageProvider,
 } from '../types';
+import {
+  imageExtensionForMime,
+  isAllowedImageMimeType,
+  MAX_PRODUCT_IMAGE_BYTES,
+} from '../utils/image';
 import { isAllowedMimeType, hasAllowedExtension } from '../utils/mime';
-import { generateRecordingFilename, generateStorageKey } from '../utils/storage-key';
+import {
+  generateImageFilename,
+  generateRecordingFilename,
+  generateStorageKey,
+  isUserStorageKey,
+} from '../utils/storage-key';
 import { getR2StorageProvider } from './r2.client';
 
 export class StorageService {
@@ -46,6 +56,42 @@ export class StorageService {
       publicUrl,
       expiresAt: presigned.expiresAt,
     };
+  }
+
+  /** Presign a product-image upload (image MIME + small cap; its own key/filename). */
+  async generateImageUploadUrl(input: {
+    userId: string;
+    mimeType: string;
+    fileSizeBytes: number;
+  }): Promise<GenerateUploadUrlResult> {
+    if (!isAllowedImageMimeType(input.mimeType)) {
+      throw StorageError.invalidMimeType();
+    }
+    if (input.fileSizeBytes <= 0 || input.fileSizeBytes > MAX_PRODUCT_IMAGE_BYTES) {
+      throw StorageError.invalidFile('Image exceeds the 5 MB limit.');
+    }
+
+    const filename = generateImageFilename(imageExtensionForMime(input.mimeType));
+    const storageKey = generateStorageKey(input.userId, filename);
+    const publicUrl = this.getPublicUrl(storageKey);
+
+    const presigned = await this.provider.generateUploadUrl({
+      storageKey,
+      mimeType: input.mimeType,
+      fileSizeBytes: input.fileSizeBytes,
+    });
+
+    return {
+      uploadUrl: presigned.uploadUrl,
+      storageKey,
+      publicUrl,
+      expiresAt: presigned.expiresAt,
+    };
+  }
+
+  /** Whether a storage key is a final object owned by the given user. */
+  ownsKey(storageKey: string, userId: string): boolean {
+    return isUserStorageKey(storageKey, userId);
   }
 
   getPublicUrl(storageKey: string): string {

@@ -53,6 +53,7 @@ import { AddVariantDialog } from './add-variant-dialog';
 import { ConnectionBadges } from './connection-badges';
 import { DeleteVariantDialog } from './delete-variant-dialog';
 import { EditVariantDialog } from './edit-variant-dialog';
+import { ProductImage } from './product-image';
 
 export function ProductDetail({
   productId,
@@ -120,6 +121,7 @@ export function ProductDetail({
   // Standalone variants render flat; subvariants sharing a variantGroup collapse
   // under one group header (placed where the group first appears).
   const variantBlocks = buildVariantBlocks(data.variants);
+  const productImageUrl = data.imageUrl;
 
   function renderVariantRow(variant: ProductVariantItem, grouped: boolean) {
     // A variant can map to several listings in the same shop — show each connection once.
@@ -130,14 +132,18 @@ export function ProductDetail({
       <TableRow key={variant.id}>
         <TableCell className={grouped ? 'max-w-[220px] pl-10' : 'max-w-[220px]'}>
           <div className="flex items-center gap-3">
-            {/* Product photo slot (upload lands later); QR moved to the ⋯ menu. */}
-            <div
-              className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded"
-              aria-hidden="true"
-              title="Product photo (coming soon)"
-            >
-              <ImageIcon className="size-4" />
-            </div>
+            {/* The product photo (managed in the aside); QR lives in the ⋯ menu. */}
+            {productImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- user-uploaded R2 image on a dynamic host
+              <img src={productImageUrl} alt="" className="size-10 shrink-0 rounded object-cover" />
+            ) : (
+              <div
+                className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded"
+                aria-hidden="true"
+              >
+                <ImageIcon className="size-4" />
+              </div>
+            )}
             <div className="min-w-0">
               <EllipsisTooltip text={variant.name} className="font-medium" />
               <EllipsisTooltip text={variant.sku} className="text-muted-foreground text-xs" />
@@ -321,6 +327,8 @@ export function ProductDetail({
         </div>
 
         <aside className="space-y-4">
+          <ProductImage productId={productId} imageUrl={data.imageUrl} productName={data.name} />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Product</CardTitle>

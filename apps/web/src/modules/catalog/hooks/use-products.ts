@@ -8,6 +8,7 @@ import { apiRoutes } from '@/lib/api/routes';
 import type { PageMeta } from '@/hooks/use-pagination';
 import { inventoryKeys } from '@/modules/inventory/hooks/inventory-keys';
 
+import { compressImage } from '../utils/compress-image';
 import { catalogKeys } from './catalog-keys';
 import type {
   DeletionBlockers,
@@ -228,6 +229,65 @@ export function useDeleteVariantsMutation(productId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
       void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+    },
+  });
+}
+
+/** Compress an image, presign + PUT it to R2, then save it as the product's photo. */
+export function useUploadProductImageMutation(productId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const blob = await compressImage(file);
+
+      const presign = await apiFetch<{
+        uploadUrl: string;
+        storageKey: string;
+        publicUrl: string;
+        expiresAt: string;
+      }>(apiRoutes.uploadsPresignImage, {
+        method: 'POST',
+        body: { mimeType: blob.type, fileSizeBytes: blob.size },
+      });
+      if (!presign.success) throw new Error(formatApiErrorMessage(presign.error));
+
+      const put = await fetch(presign.data.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': blob.type },
+        body: blob,
+      });
+      if (!put.ok) {
+        throw new Error('Upload to storage failed. Check the R2 bucket CORS allows PUT.');
+      }
+
+      const result = await apiFetch<ProductDetail>(`${apiRoutes.products}/${productId}/image`, {
+        method: 'PATCH',
+        body: { imageKey: presign.data.storageKey, imageUrl: presign.data.publicUrl },
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+    },
+  });
+}
+
+/** Remove the product's photo (clears the fields + deletes the R2 object). */
+export function useRemoveProductImageMutation(productId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const result = await apiFetch<ProductDetail>(`${apiRoutes.products}/${productId}/image`, {
+        method: 'DELETE',
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
     },
   });
 }

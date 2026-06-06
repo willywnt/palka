@@ -3,6 +3,7 @@ import { API_BASE_PATH } from '@olshop/config/constants';
 export const apiRoutes = {
   health: `${API_BASE_PATH}/health`,
   uploadsPresign: `${API_BASE_PATH}/uploads/presign`,
+  uploadsPresignImage: `${API_BASE_PATH}/uploads/presign-image`,
   recordings: `${API_BASE_PATH}/recordings`,
   products: `${API_BASE_PATH}/products`,
   inventory: `${API_BASE_PATH}/inventory`,

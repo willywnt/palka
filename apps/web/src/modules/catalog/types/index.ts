@@ -79,6 +79,8 @@ export type ProductDetail = {
   name: string;
   description: string | null;
   category: string | null;
+  /** Product photo public URL; null = none. */
+  imageUrl: string | null;
   isActive: boolean;
   variants: ProductVariantItem[];
   createdAt: string;
