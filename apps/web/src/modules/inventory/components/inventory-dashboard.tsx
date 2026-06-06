@@ -13,6 +13,7 @@ import {
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ImageThumb } from '@/components/image-thumb';
 import { StatCard, type StatTone } from '@/components/stat-card';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
@@ -162,12 +163,15 @@ export function InventoryDashboard() {
                   <Link
                     key={item.variantId}
                     href={`/dashboard/products/${item.productId}`}
-                    className="hover:bg-muted/50 flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                    className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
                   >
-                    <div>
-                      <div className="font-medium">{item.productName}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {item.variantName} · {item.sku}
+                    <div className="flex min-w-0 items-center gap-3">
+                      <ImageThumb src={item.imageUrl} alt={item.variantName} />
+                      <div className="min-w-0">
+                        <div className="font-medium">{item.productName}</div>
+                        <div className="text-muted-foreground text-xs">
+                          {item.variantName} · {item.sku}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">

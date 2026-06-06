@@ -19,6 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
+import { ImageThumb } from '@/components/image-thumb';
 import { StatCard } from '@/components/stat-card';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/formatters';
@@ -214,14 +215,19 @@ function ReorderRow({ item }: { item: ReorderItem }) {
   return (
     <TableRow>
       <TableCell>
-        <Link
-          href={`/dashboard/products/${item.productId}`}
-          className="font-medium hover:underline"
-        >
-          {item.productName}
-        </Link>
-        <div className="text-muted-foreground text-xs">
-          {item.variantName} · {item.sku}
+        <div className="flex items-center gap-3">
+          <ImageThumb src={item.imageUrl} alt={item.variantName} />
+          <div className="min-w-0">
+            <Link
+              href={`/dashboard/products/${item.productId}`}
+              className="font-medium hover:underline"
+            >
+              {item.productName}
+            </Link>
+            <div className="text-muted-foreground text-xs">
+              {item.variantName} · {item.sku}
+            </div>
+          </div>
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground text-right text-sm tabular-nums">

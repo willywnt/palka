@@ -80,6 +80,8 @@ export type InventoryLowStockItem = {
   productName: string;
   variantName: string;
   sku: string;
+  /** Variant photo public URL; null = none. */
+  imageUrl: string | null;
   availableStock: number;
   lowStockThreshold: number;
 };
@@ -102,6 +104,8 @@ export type StockActivityItem = {
   productName: string;
   variantName: string;
   sku: string;
+  /** Variant photo public URL; null = none. */
+  imageUrl: string | null;
   delta: number;
   balanceAfter: number;
   reason: StockLedgerReason;
@@ -123,6 +127,8 @@ export type ReorderItem = {
   productName: string;
   variantName: string;
   sku: string;
+  /** Variant photo public URL; null = none. */
+  imageUrl: string | null;
   availableStock: number;
   incomingStock: number;
   /** Net units sold inside the window (returns netted out). */

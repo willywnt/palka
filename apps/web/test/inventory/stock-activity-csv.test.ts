@@ -11,6 +11,7 @@ function item(overrides: Partial<StockActivityItem> = {}): StockActivityItem {
     productName: 'Kaos Polos',
     variantName: 'Black / M',
     sku: 'KAOS-BLK-M',
+    imageUrl: null,
     delta: 5,
     balanceAfter: 15,
     reason: 'RESTOCK',

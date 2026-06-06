@@ -23,6 +23,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { EmptyState } from '@/components/empty-state';
+import { ImageThumb } from '@/components/image-thumb';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { apiRoutes } from '@/lib/api/routes';
@@ -229,14 +230,19 @@ export function StockActivity() {
                         <span suppressHydrationWarning>{formatDateTime(entry.createdAt)}</span>
                       </TableCell>
                       <TableCell>
-                        <Link
-                          href={`/dashboard/products/${entry.productId}`}
-                          className="font-medium hover:underline"
-                        >
-                          {entry.productName}
-                        </Link>
-                        <div className="text-muted-foreground text-xs">
-                          {entry.variantName} · {entry.sku}
+                        <div className="flex items-center gap-3">
+                          <ImageThumb src={entry.imageUrl} alt={entry.variantName} />
+                          <div className="min-w-0">
+                            <Link
+                              href={`/dashboard/products/${entry.productId}`}
+                              className="font-medium hover:underline"
+                            >
+                              {entry.productName}
+                            </Link>
+                            <div className="text-muted-foreground text-xs">
+                              {entry.variantName} · {entry.sku}
+                            </div>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">{stockReasonLabel(entry.reason)}</TableCell>

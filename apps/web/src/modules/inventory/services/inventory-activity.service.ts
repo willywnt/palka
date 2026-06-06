@@ -23,7 +23,13 @@ const ACTIVITY_SELECT = {
   note: true,
   createdAt: true,
   variant: {
-    select: { sku: true, name: true, productId: true, product: { select: { name: true } } },
+    select: {
+      sku: true,
+      name: true,
+      productId: true,
+      imageUrl: true,
+      product: { select: { name: true } },
+    },
   },
 } satisfies Prisma.StockLedgerSelect;
 
@@ -37,6 +43,7 @@ function mapActivity(row: ActivityRow): StockActivityItem {
     productName: row.variant.product.name,
     variantName: row.variant.name,
     sku: row.variant.sku,
+    imageUrl: row.variant.imageUrl,
     delta: row.delta,
     balanceAfter: row.balanceAfter,
     reason: row.reason,

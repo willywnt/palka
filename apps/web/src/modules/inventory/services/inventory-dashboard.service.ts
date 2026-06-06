@@ -19,6 +19,7 @@ export class InventoryDashboardService {
         lowStockThreshold: true,
         alertEnabled: true,
         productId: true,
+        imageUrl: true,
         product: { select: { name: true } },
         inventory: { select: { availableStock: true, reservedStock: true, damagedStock: true } },
       },
@@ -52,6 +53,7 @@ export class InventoryDashboardService {
           productName: variant.product.name,
           variantName: variant.name,
           sku: variant.sku,
+          imageUrl: variant.imageUrl,
           availableStock: available,
           lowStockThreshold: variant.lowStockThreshold,
         });
