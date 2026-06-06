@@ -12,6 +12,7 @@ import { compressImage } from '../utils/compress-image';
 import { catalogKeys } from './catalog-keys';
 import type {
   BundleDetail,
+  BundleListItem,
   DeletionBlockers,
   LabelVariant,
   ProductDetail,
@@ -29,6 +30,12 @@ const LIST_PAGE_SIZE = 50;
 /** A page of label-studio variants (mirror of the server's PaginatedResult). */
 export type LabelVariantsPage = {
   items: LabelVariant[];
+  meta: PageMeta;
+};
+
+/** A page of bundles for the dedicated Bundles list. */
+export type BundlesPage = {
+  items: BundleListItem[];
   meta: PageMeta;
 };
 
@@ -50,6 +57,22 @@ export function useProductsQuery(search?: string) {
 
       return result.data;
     },
+  });
+}
+
+/** Paginated list of bundles (debounced search by SKU / name / product name). */
+export function useBundlesQuery(q: string, page: number, pageSize: number) {
+  const trimmed = q.trim();
+  return useQuery({
+    queryKey: catalogKeys.bundles(trimmed, page, pageSize),
+    queryFn: async () => {
+      const result = await apiFetch<BundlesPage>(apiRoutes.bundles, {
+        params: { page, pageSize, ...(trimmed ? { q: trimmed } : {}) },
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    placeholderData: keepPreviousData,
   });
 }
 

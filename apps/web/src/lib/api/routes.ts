@@ -6,6 +6,7 @@ export const apiRoutes = {
   uploadsPresignImage: `${API_BASE_PATH}/uploads/presign-image`,
   recordings: `${API_BASE_PATH}/recordings`,
   products: `${API_BASE_PATH}/products`,
+  bundles: `${API_BASE_PATH}/products/bundles`,
   inventory: `${API_BASE_PATH}/inventory`,
   orders: `${API_BASE_PATH}/orders`,
   returns: `${API_BASE_PATH}/returns`,

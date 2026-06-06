@@ -13,6 +13,7 @@ import { CatalogError } from '../errors/catalog-errors';
 import type {
   BundleComponentItem,
   BundleDetail,
+  BundleListItem,
   BundleResolution,
   DeletionBlockers,
   LabelVariant,
@@ -23,7 +24,7 @@ import type {
 } from '../types';
 import { computeBuildableQty } from '../utils/bundle';
 import { archivedSku } from '../utils/variants';
-import type { SetBundleInput } from '../validators/bundle';
+import type { ListBundlesQuery, SetBundleInput } from '../validators/bundle';
 import type { CreateProductInput } from '../validators/create-product';
 import type { LabelVariantsQuery } from '../validators/label-variants';
 import type { ListProductsQuery } from '../validators/list-products';
@@ -473,6 +474,74 @@ export class CatalogServerService {
 
     appLogger.info('catalog.variant.image.removed', { userId, productId, variantId });
     return this.getProductById(userId, productId);
+  }
+
+  /**
+   * Paginated list of bundles — variants that have >=1 component — with each
+   * bundle's live buildable count. Searches the bundle's own sku/name + its
+   * product name. Active (non-deleted) bundles only.
+   */
+  async listBundles(
+    userId: string,
+    query: ListBundlesQuery,
+  ): Promise<PaginatedResult<BundleListItem>> {
+    const term = query.q.trim();
+    const where: Prisma.ProductVariantWhereInput = {
+      userId,
+      deletedAt: null,
+      bundleComponents: { some: {} },
+      ...(term
+        ? {
+            OR: [
+              { sku: { contains: term, mode: 'insensitive' } },
+              { name: { contains: term, mode: 'insensitive' } },
+              { product: { name: { contains: term, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [variants, total] = await Promise.all([
+      prisma.productVariant.findMany({
+        where,
+        include: {
+          product: { select: { name: true } },
+          bundleComponents: {
+            select: {
+              quantity: true,
+              componentVariant: {
+                select: { deletedAt: true, inventory: { select: { availableStock: true } } },
+              },
+            },
+          },
+        },
+        orderBy: [{ product: { name: 'asc' } }, { name: 'asc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      prisma.productVariant.count({ where }),
+    ]);
+
+    const items: BundleListItem[] = variants.map((variant) => ({
+      bundleVariantId: variant.id,
+      productId: variant.productId,
+      productName: variant.product.name,
+      name: variant.name,
+      sku: variant.sku,
+      price: variant.price.toString(),
+      imageUrl: variant.imageUrl,
+      componentCount: variant.bundleComponents.length,
+      buildable: computeBuildableQty(
+        variant.bundleComponents.map((component) => ({
+          quantity: component.quantity,
+          availableStock: component.componentVariant.deletedAt
+            ? 0
+            : (component.componentVariant.inventory?.availableStock ?? 0),
+        })),
+      ),
+    }));
+
+    return buildPaginatedResult(items, total, query.page, query.pageSize);
   }
 
   /** A variant's bundle composition + current buildable count. */

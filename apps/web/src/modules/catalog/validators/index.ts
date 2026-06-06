@@ -30,4 +30,9 @@ export { labelVariantsQuerySchema, type LabelVariantsQuery } from './label-varia
 export { markLabelsPrintedSchema, type MarkLabelsPrintedInput } from './mark-labels-printed';
 export { productIdParamSchema, type ProductIdParam } from './product-id';
 export { setVariantImageSchema, type SetVariantImageInput } from './variant-image';
-export { setBundleSchema, type SetBundleInput } from './bundle';
+export {
+  setBundleSchema,
+  listBundlesQuerySchema,
+  type SetBundleInput,
+  type ListBundlesQuery,
+} from './bundle';

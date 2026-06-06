@@ -110,3 +110,16 @@ export type BundleResolution = {
   buildable: number;
   components: { componentVariantId: string; quantity: number }[];
 };
+
+/** A bundle row in the dedicated Bundles list. */
+export type BundleListItem = {
+  bundleVariantId: string;
+  productId: string;
+  productName: string;
+  name: string;
+  sku: string;
+  price: string;
+  imageUrl: string | null;
+  componentCount: number;
+  buildable: number;
+};
