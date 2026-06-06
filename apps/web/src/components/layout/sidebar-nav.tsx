@@ -8,6 +8,7 @@ import {
   ChevronRight,
   LayoutDashboard,
   Library,
+  LineChart,
   QrCode,
   Settings,
   ShoppingBag,
@@ -62,6 +63,10 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
       { title: 'Library', href: '/dashboard/recordings', icon: Library },
       { title: 'Returns', href: '/dashboard/returns', icon: Undo2 },
     ],
+  },
+  {
+    label: 'Insights',
+    items: [{ title: 'Profit', href: '/dashboard/reports/profit', icon: LineChart }],
   },
   {
     label: 'System',
