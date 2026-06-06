@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/empty-state';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
 
 import { useSalesQuery } from '../hooks/use-sales';
 
@@ -77,18 +78,30 @@ export function SalesDashboard() {
               {sales.map((sale) => (
                 <TableRow key={sale.id}>
                   <TableCell>
-                    <Link
-                      href={`/dashboard/sales/${sale.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {sale.code}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/dashboard/sales/${sale.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {sale.code}
+                      </Link>
+                      {sale.status === 'VOID' ? (
+                        <Badge variant="destructive" className="px-1.5 py-0 text-[10px]">
+                          Voided
+                        </Badge>
+                      ) : null}
+                    </div>
                     <div className="text-muted-foreground text-xs">
                       {sale.customerName ?? 'Walk-in'}
                     </div>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{sale.itemCount}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
+                  <TableCell
+                    className={cn(
+                      'text-right font-medium tabular-nums',
+                      sale.status === 'VOID' && 'text-muted-foreground line-through',
+                    )}
+                  >
                     {formatCurrency(sale.totalAmount)}
                   </TableCell>
                   <TableCell>
