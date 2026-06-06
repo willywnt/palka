@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm } from 'react-hook-form';
-import { Plus, X } from 'lucide-react';
+import { Plus, Wand2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -130,9 +130,30 @@ export function AddSubvariantsDialog({
                     render={({ field }) => (
                       <FormItem className="flex-1">
                         <FormLabel required>SKU</FormLabel>
-                        <FormControl>
-                          <Input placeholder="IPHONE-16-MERAH" autoComplete="off" {...field} />
-                        </FormControl>
+                        <div className="flex gap-1">
+                          <FormControl>
+                            <Input placeholder="IPHONE-16-MERAH" autoComplete="off" {...field} />
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="shrink-0"
+                            title="Generate SKU"
+                            onClick={() =>
+                              form.setValue(
+                                `subvariants.${index}.sku`,
+                                suggestVariantSku(
+                                  groupName,
+                                  form.getValues(`subvariants.${index}.name`),
+                                ),
+                              )
+                            }
+                          >
+                            <Wand2 className="size-4" />
+                            <span className="sr-only">Generate SKU</span>
+                          </Button>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}

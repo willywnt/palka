@@ -1,7 +1,7 @@
 'use client';
 
 import { useFieldArray, useFormContext } from 'react-hook-form';
-import { Plus, X } from 'lucide-react';
+import { Plus, Wand2, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -219,9 +219,30 @@ function VariantBlockFields({
                   render={({ field }) => (
                     <FormItem className="flex-1">
                       <FormLabel required>SKU</FormLabel>
-                      <FormControl>
-                        <Input placeholder="IPHONE-16-HITAM" autoComplete="off" {...field} />
-                      </FormControl>
+                      <div className="flex gap-1">
+                        <FormControl>
+                          <Input placeholder="IPHONE-16-HITAM" autoComplete="off" {...field} />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0"
+                          title="Generate SKU"
+                          onClick={() =>
+                            form.setValue(
+                              `variants.${index}.subvariants.${subIndex}.sku`,
+                              suggestVariantSku(
+                                form.getValues(`variants.${index}.variantName`),
+                                form.getValues(`variants.${index}.subvariants.${subIndex}.name`),
+                              ),
+                            )
+                          }
+                        >
+                          <Wand2 className="size-4" />
+                          <span className="sr-only">Generate SKU</span>
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -315,9 +336,27 @@ function VariantBlockFields({
             render={({ field }) => (
               <FormItem>
                 <FormLabel required>SKU</FormLabel>
-                <FormControl>
-                  <Input placeholder="IPHONE-16" autoComplete="off" {...field} />
-                </FormControl>
+                <div className="flex gap-1">
+                  <FormControl>
+                    <Input placeholder="IPHONE-16" autoComplete="off" {...field} />
+                  </FormControl>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    title="Generate SKU"
+                    onClick={() =>
+                      form.setValue(
+                        `variants.${index}.single.sku`,
+                        suggestVariantSku(form.getValues(`variants.${index}.variantName`)),
+                      )
+                    }
+                  >
+                    <Wand2 className="size-4" />
+                    <span className="sr-only">Generate SKU</span>
+                  </Button>
+                </div>
                 <FormDescription>Unique per account.</FormDescription>
                 <FormMessage />
               </FormItem>
