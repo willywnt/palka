@@ -1,9 +1,9 @@
 # Inventory & Multi-Marketplace Stock Sync — MVP Roadmap
 
 > Status: **Phases 0–5 shipped (stub-backed)** + **POS (offline sales), Purchasing/POs, and QR-scan
-> (labels + mobile scan-to-cart/order) shipped** as counter/restock verticals · Started 2026-06-03 ·
-> Owner: @willywnt · current work on branch `feat/pos-qr-labels`. Next: **Phase 6 (automation/reporting)**
-> still open.
+> (labels + mobile scan-to-cart/order) shipped** as counter/restock verticals + **catalog
+> variants/subvariants & per-variant photos shipped** (branch `feat/variant-options`, unpushed — §11) ·
+> Started 2026-06-03 · Owner: @willywnt · Next: **Phase 6 (automation/reporting)** still open.
 >
 > This is the working reference for the next big MVP: an **internal inventory system
 > that is the source of truth**, integrating stock across marketplaces (Shopee,
@@ -94,6 +94,17 @@ per change, all gates green (`typecheck`/`lint`/`build`/`test`).
     entity yet). The reorder report's **"Create PO"** prefills from URGENT/SOON suggestions.
   - **QR-scan (POS phase 2)** — printable QR labels (label studio + `labelPrintedAt`) and mobile
     scan-to-cart (POS) / scan-to-order (New PO) via `scanner-pairing`. Full detail in §10.
+  - **Catalog variants / subvariants + photos** (`catalog`, branch `feat/variant-options`) — the
+    variant stays the **SKU/stock leaf**; **`ProductVariant.variantGroup`** is an optional grouping
+    label so a variant is either a **standalone SKU** or a **named group of subvariant SKUs** (a product
+    may also have **0 variants**). Shared variant builder (`VariantBlocksField`) across create / add-variant
+    / add-subvariant, SKU auto-generation, `EllipsisTooltip` + collapsible "Connections" (marketplace)
+    column. **Soft-delete** frees the SKU (`archivedSku`) and is gated by a cross-module **delete-guardrail
+    preflight** (marketplace-mapped / reserved / incoming / open-return = block; on-hand + damaged = warn).
+    **Per-variant photo** (`imageKey`/`imageUrl`) in a **separate PUBLIC R2 bucket** (recordings bucket
+    stays private), client-compressed to WebP, shown in a `VariantImage` popover by the variant name.
+    Grouping is **display-only** — inventory/ledger/orders/sales/PO/marketplace are untouched (no deeper
+    stock-bearing level). Full detail in §11.
 - **Then** — full visual UI/UX redesign, once the domain is stable.
 
 ## 5. Phase 1 schema draft — **APPLIED (+ evolved since)**
@@ -202,3 +213,41 @@ Scan a SKU at the counter instead of typing the search box. Both halves shipped.
   Indonesia VPS, see the deploy plan), so it's dev/VPS-only; Phase A labels work anywhere.
 - **Deferred (still open):** a dedicated 1D/Code128 print format + per-variant override; bulk label
   reprints; copies-per-label; hardware USB/Bluetooth (HID keyboard-wedge) scanner at the POS search box.
+
+## 11. Catalog variants / subvariants + per-variant photos — ✅ shipped
+
+Branch `feat/variant-options` (off `main`, **unpushed**). Lets a product describe options without
+adding a deeper stock level. The full detail lives in `.cursor/rules/40-inventory-marketplace.mdc`
+(catalog section + Gotchas) and `CLAUDE.md §12`; the model in short:
+
+- **Model.** The **variant is the SKU/stock leaf** — unchanged. **`ProductVariant.variantGroup String?`**
+  is an optional grouping **label**: a variant is either a **standalone SKU** (`variantGroup = null`) or a
+  **named group of subvariant SKUs** (siblings share one `variantGroup`, e.g. group "iPhone 16" →
+  subvariants "Hitam" / "Putih"). A product may have **0..N** variants (create-without-variant, add later
+  from the detail page). Grouping is **display-only** — inventory / `StockLedger` / orders / sales / POs /
+  marketplace mappings all stay at the leaf; there is **no deeper stock-bearing level**. (A first attempt
+  using a dimension model — `Product.optionTypes` + `ProductVariant.options` JSON — was found confusing
+  and **reverted** in favour of this simpler named-group flow.)
+- **UI.** A shared builder `components/variant-blocks-field.tsx` (`VariantBlocksField`, reads the host form
+  via `useFormContext`) powers the create + add-variant + add-subvariant dialogs; each block = variant name
+  - has-options toggle + single SKU | subvariant rows with per-row **SKU auto-generation** (vowel-strip
+    compaction, e.g. "iPhone 16" + "Hitam" → `IPHN16-HTM`). The product-detail variant table groups by
+    `variantGroup`, uses `EllipsisTooltip` for truncated name/SKU/group, and a collapsible **"Connections"**
+    column showing each variant's marketplace mappings (1 SKU may map to many listings).
+- **Delete.** Soft-delete (`deletedAt`) of a product / variant / whole group **frees the SKU** for reuse
+  (`archivedSku` mangling, since the unique index spans archived rows — safe because Sale/Order items
+  snapshot the sku). It is gated by a **cross-module preflight** `getDeletionBlockers`
+  (`GET /products/:id/deletion-blockers?variantIds=`): **BLOCKED** when any active variant is
+  marketplace-mapped, has reserved or incoming stock, or has an open (PENDING) return; **WARNS** (still
+  allowed) on available on-hand + damaged stock. No restore UI yet.
+- **Per-variant photo.** `ProductVariant.imageKey?`/`imageUrl?`, stored in a **separate PUBLIC R2 bucket**
+  (the recordings bucket stays private — its public URL 403'd). The browser **compresses to WebP** (≤1600px,
+  `utils/compress-image.ts`) → `POST /uploads/presign-image` → PUT to R2 →
+  `PATCH /products/:id/variants/:variantId/image`. Shown in a `VariantImage` popover next to the name
+  (upload / replace / delete / preview). **Per-bucket public URLs**: each bucket has its own base and the
+  object URL is `<base>/<key>` with **no bucket name in the path** (r2.dev serves one bucket per domain at
+  the root). Env: `R2_RECORDINGS_BUCKET_NAME` + `R2_PUBLIC_URL`, `R2_PRODUCTS_BUCKET_NAME` +
+  `R2_PRODUCTS_PUBLIC_URL`. `scripts/apply-r2-cors.mjs` applies PUT-upload CORS to both buckets.
+- **Deferred (still open):** cross-module display of the "group · subvariant" label in POS / PO / inventory
+  pickers; an Archived view + restore; an inline "Unmap" action in the Connections column (currently links
+  to the marketplace connection page).

@@ -13,11 +13,27 @@ Per-user scoped (internal-first, multi-tenant-ready). Roadmap + locked decisions
 
 ## Modules & domains
 - **catalog** — Product / ProductVariant (master). Server service owns Prisma (no repository).
-  Every product has ≥1 variant; SKU `@@unique([userId, sku])`. Variant carries `cost`/`weight`,
-  `lowStockThreshold`/`alertEnabled`, and reorder planning `leadTimeDays?`/`minOrderQty?` (0 in the
-  UI = unset → null). Variants are editable: `PATCH /products/:id/variants/:variantId` →
+  A product has **0..N** variants (create-without-variant is allowed; add them later from the detail
+  page). The **variant is the SKU/stock leaf** (`@@unique([userId, sku])`); **`variantGroup String?`**
+  is an optional grouping **label** above it — a variant is EITHER a **standalone SKU** OR a **named
+  group of subvariant SKUs** (siblings share one `variantGroup`, e.g. group "iPhone 16" → "Hitam"/
+  "Putih"). Grouping is **display-only**: stock/ledger/orders/sales/PO/marketplace all stay at the leaf
+  — there is NO deeper stock-bearing level. Builders share `components/variant-blocks-field.tsx`
+  (`VariantBlocksField` via `useFormContext`) in the create + add-variant + add-subvariant dialogs;
+  `utils/variants.ts` owns `buildVariantBlocks` (group/standalone layout), `suggestVariantSku`
+  (vowel-strip compaction, wand button), `formatVariantLabel` ("group · name"). Variant carries
+  `cost`/`weight`, `lowStockThreshold`/`alertEnabled`, reorder planning `leadTimeDays?`/`minOrderQty?`
+  (0 in the UI = unset → null), and a **per-variant photo** `imageKey?`/`imageUrl?` (separate PUBLIC R2
+  bucket — see Gotchas). Variants are editable: `PATCH /products/:id/variants/:variantId` →
   `updateVariant` (create/add-variant forms stay short; advanced planning is set later via Edit).
+  Bulk add: `POST /products/:id/variants` `{ variants:[] }` → `addVariants` (all leaves in one tx).
   Stock changes go through the inventory service, NEVER by writing inventory tables from catalog.
+  **Delete** (soft, `deletedAt`) of a product / variant / whole group is **guarded by a cross-module
+  preflight** `getDeletionBlockers` (`GET /products/:id/deletion-blockers?variantIds=`): **BLOCKED** when
+  any active variant is marketplace-mapped, has `reserved>0` or `incoming>0`, or has an open (PENDING)
+  return; **WARNS** (still allowed) on available on-hand + damaged stock; pending unpaid orders ignored.
+  Soft-delete mangles the SKU (`archivedSku` → `<sku>::deleted::<id>`) so it **frees for reuse** (the
+  unique index spans archived rows; safe — Sale/Order items snapshot sku). No restore UI yet.
   **QR labels**: `/dashboard/labels` label studio — `listLabelVariants` (paginated; already-printed
   sort last via `labelPrintedAt nulls-first`), prints an A4 grid encoding `barcode ?? sku`.
   `ProductVariant.labelPrintedAt` + `markLabelsPrinted` (`POST /products/variants/printed`) stamp the
@@ -129,6 +145,18 @@ throw so BullMQ retries.
   purchasing). The variant picker reuses inventory `useStockOverviewQuery`.
 
 ## Gotchas (learned the hard way)
+- **Two R2 buckets, PER-BUCKET public URLs.** Recordings bucket is **PRIVATE** (playback via presigned
+  GET); variant images live in a **separate PUBLIC** bucket. Env: `R2_RECORDINGS_BUCKET_NAME` +
+  `R2_PUBLIC_URL` (recordings) · `R2_PRODUCTS_BUCKET_NAME` + `R2_PRODUCTS_PUBLIC_URL` (products). Each
+  bucket has its **own** public base; the object URL is `<base>/<key>` with **NO bucket name in the
+  path** — r2.dev binds one domain per bucket and serves at the root. Do NOT do `${base}/${bucket}/${key}`
+  (it returns 400 → `ERR_BLOCKED_BY_ORB`, image won't render — a reverted dead end). Keys: recordings
+  `{userId}/{y}/{m}/file`, products `{userId}/{file}` (`generateProductImageKey`); `isUserStorageKey` =
+  `startsWith('{userId}/')`. Image upload is `POST /uploads/presign-image` (client compresses to WebP
+  ≤1600px via `utils/compress-image.ts`) → PUT to R2 → `PATCH /products/:id/variants/:variantId/image`
+  (stores key + server-computed public URL). `apply-r2-cors` covers both buckets (PUT for upload only;
+  `<img>` GET needs no CORS). `imageUrl` is computed at upload time, so changing the URL scheme means
+  old rows keep stale URLs → re-upload.
 - **BullMQ custom jobId CANNOT contain `:`** → job-id builders use `-` (DB idempotency keys keep `:`).
 - A real provider adapter needs the **DECRYPTED token** → lift marketplace token-crypto into a
   shared `@olshop/*` package (the engine passes the encrypted token; stubs ignore it).
@@ -182,3 +210,10 @@ vitest (engine is gate-checked only).
 > `QrCodeDialog` on product-detail & inventory; POS scan-to-cart + New-PO scan-to-order via
 > `scanner-pairing` (`PairingPurpose` RECORDING/POS/PURCHASING, verbatim `scannedCodeSchema`, QR+1D,
 > browser-only sound); shared `usePagination`/`TablePagination` on inventory + label + PO pickers.
+>
+> **Catalog variants/subvariants + photos** (branch `feat/variant-options`): `variantGroup`-based
+> grouping (standalone SKU vs named subvariant group; product can have 0 variants), shared variant
+> builder, bulk add-variant/add-subvariant, SKU auto-gen, soft-delete that frees the SKU + a
+> cross-module delete-guardrail preflight (mapping/reserved/incoming/open-return = block), `EllipsisTooltip`
+> + collapsible "Connections" (marketplace) column, and a **per-variant photo** in a separate PUBLIC R2
+> bucket (client-compressed WebP, `VariantImage` popover by the name).

@@ -174,6 +174,18 @@ Detail: `.cursor/rules/40-inventory-marketplace.mdc` + `docs/roadmap/inventory-m
   (available/reserved/damaged/incoming) — every stock change = 1 ledger row + 1 Inventory update in
   one tx. The `inventory` module owns ALL stock writes; `catalog` (Product/Variant) reaches stock
   ONLY via the inventory service.
+- **Catalog variants / subvariants** (`catalog`): the **variant is the SKU/stock leaf** (unchanged);
+  **`ProductVariant.variantGroup String?`** is an optional grouping **label** — a variant is either a
+  **standalone SKU** or a **named group of subvariant SKUs** (siblings share one `variantGroup`). A product
+  may have **0..N** variants (create-without-variant, add later from detail). Grouping is **display-only** —
+  inventory/ledger/orders/sales/PO/marketplace stay at the leaf, **no deeper stock level**. Shared builder
+  `variant-blocks-field.tsx`; SKU auto-gen; **soft-delete frees the SKU** (`archivedSku`) and is gated by a
+  cross-module **delete preflight** `getDeletionBlockers` (marketplace-mapped / reserved / incoming /
+  open-PENDING-return = **block**; on-hand + damaged = **warn**). **Per-variant photo**
+  (`imageKey`/`imageUrl`) lives in a **separate PUBLIC R2 bucket** (recordings bucket stays private),
+  client-compressed to WebP, shown in a `VariantImage` popover by the name. R2 uses **per-bucket public
+  URLs** (`<base>/<key>`, NO bucket in the path): `R2_RECORDINGS_BUCKET_NAME`+`R2_PUBLIC_URL`,
+  `R2_PRODUCTS_BUCKET_NAME`+`R2_PRODUCTS_PUBLIC_URL`.
 - **Outbound sync** lives in `packages/queue/src/marketplace-sync` (worker): a SoT change enqueues
   `propagate-inventory-stock` → `sync-marketplace-stock` → provider adapter (Dev stub simulates).
 - **Inbound order stock lifecycle** (each stage once, idempotent via `Order.inventoryAppliedAt`/
@@ -242,6 +254,8 @@ shared primitives + patterns — see `.cursor/rules/50-ui-design-system.mdc`. Ke
 DropdownMenu + `Tooltip` for row actions; two-column detail pages; `StatCard` / `EmptyState` /
 `DateRangePicker` / `LowStockBadge`. Paginated tables: `usePagination` + `TablePagination`
 (rows-per-page 10/20/50/100, resets to page 1 on size change). QR: `QrImage` + `QrCodeDialog`.
-Scanner sound: `@/lib/scan-sound` + `useSoundUnlock` + `useScanSoundPref` (browser-only, mute toggle).
+Truncated cells: `EllipsisTooltip` (max-width, not width). Per-variant photo: `VariantImage` popover
+(client-compressed WebP via `utils/compress-image.ts`). Scanner sound: `@/lib/scan-sound` +
+`useSoundUnlock` + `useScanSoundPref` (browser-only, mute toggle).
 **Never run `next build` while the dev server is up** (shared
 `.next`). Auth is already enforced — don't touch config/middleware/cookies (HARD CONSTRAINT #2).
