@@ -1,8 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Ban } from 'lucide-react';
+import { toast } from 'sonner';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,10 +31,24 @@ import {
 import { ImageThumb } from '@/components/image-thumb';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 
-import { useSaleQuery } from '../hooks/use-sales';
+import { useSaleQuery, useVoidSaleMutation } from '../hooks/use-sales';
 
 export function SaleDetail({ saleId }: { saleId: string }) {
   const { data, isLoading, error } = useSaleQuery(saleId);
+  const voidMutation = useVoidSaleMutation();
+  const [voidOpen, setVoidOpen] = useState(false);
+
+  async function handleVoid() {
+    try {
+      await voidMutation.mutateAsync(saleId);
+      toast.success('Sale voided', { description: 'All items were restocked.' });
+      setVoidOpen(false);
+    } catch (caught) {
+      toast.error('Could not void sale', {
+        description: caught instanceof Error ? caught.message : 'Please try again.',
+      });
+    }
+  }
 
   if (isLoading) {
     return (
@@ -60,6 +87,7 @@ export function SaleDetail({ saleId }: { saleId: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xl font-semibold tracking-tight">Sale {data.code}</h2>
         <Badge variant="secondary">{data.paymentMethod}</Badge>
+        {data.status === 'VOID' ? <Badge variant="destructive">Voided</Badge> : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -137,6 +165,42 @@ export function SaleDetail({ saleId }: { saleId: string }) {
               ) : null}
             </CardContent>
           </Card>
+
+          {data.status === 'COMPLETED' ? (
+            <AlertDialog open={voidOpen} onOpenChange={setVoidOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive w-full"
+                >
+                  <Ban className="size-4" />
+                  Void sale
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Void sale {data.code}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Every item is restocked to available and the sale is removed from profit
+                    reports. This can&apos;t be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={voidMutation.isPending}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={voidMutation.isPending}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void handleVoid();
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {voidMutation.isPending ? 'Voiding…' : 'Void sale'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
         </aside>
       </div>
     </div>
