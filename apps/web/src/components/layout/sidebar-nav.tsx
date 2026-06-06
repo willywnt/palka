@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Boxes,
   ChevronRight,
+  Layers,
   LayoutDashboard,
   Library,
   LineChart,
@@ -43,6 +44,7 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
     label: 'Catalog',
     items: [
       { title: 'Products', href: '/dashboard/products', icon: Boxes },
+      { title: 'Bundles', href: '/dashboard/bundles', icon: Layers },
       { title: 'Inventory', href: '/dashboard/inventory', icon: Warehouse },
       { title: 'Purchasing', href: '/dashboard/purchasing', icon: Truck },
       { title: 'Labels', href: '/dashboard/labels', icon: QrCode },

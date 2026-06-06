@@ -101,6 +101,10 @@ export type BundleComponentItem = {
 /** A variant's bundle composition + how many whole bundles can currently be built. */
 export type BundleDetail = {
   bundleVariantId: string;
+  /** The host variant's identity (a bundle is presented as its own thing). */
+  name: string;
+  sku: string;
+  price: string;
   components: BundleComponentItem[];
   buildable: number;
 };

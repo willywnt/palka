@@ -727,6 +727,10 @@ export class CatalogServerService {
   }
 
   private async buildBundleDetail(userId: string, variantId: string): Promise<BundleDetail> {
+    const variant = await prisma.productVariant.findFirst({
+      where: { id: variantId, userId },
+      select: { name: true, sku: true, price: true },
+    });
     const rows = await prisma.bundleComponent.findMany({
       where: { bundleVariantId: variantId, userId },
       orderBy: { createdAt: 'asc' },
@@ -756,6 +760,9 @@ export class CatalogServerService {
 
     return {
       bundleVariantId: variantId,
+      name: variant?.name ?? '',
+      sku: variant?.sku ?? '',
+      price: variant?.price.toString() ?? '0',
       components,
       buildable: computeBuildableQty(
         components.map((component) => ({
