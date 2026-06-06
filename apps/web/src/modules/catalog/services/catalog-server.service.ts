@@ -15,6 +15,7 @@ import type {
   ProductDetail,
   ProductListItem,
   ProductVariantItem,
+  VariantMappingRef,
 } from '../types';
 import { archivedSku } from '../utils/variants';
 import type { CreateProductInput } from '../validators/create-product';
@@ -48,7 +49,10 @@ function isLowStock(variant: ProductVariant, availableStock: number): boolean {
   return variant.alertEnabled && availableStock <= variant.lowStockThreshold;
 }
 
-function mapVariant(variant: VariantWithInventory): ProductVariantItem {
+function mapVariant(
+  variant: VariantWithInventory,
+  mappings: VariantMappingRef[] = [],
+): ProductVariantItem {
   const availableStock = variant.inventory?.availableStock ?? 0;
 
   return {
@@ -71,6 +75,7 @@ function mapVariant(variant: VariantWithInventory): ProductVariantItem {
     incomingStock: variant.inventory?.incomingStock ?? 0,
     isLowStock: isLowStock(variant, availableStock),
     labelPrintedAt: variant.labelPrintedAt?.toISOString() ?? null,
+    mappings,
     createdAt: variant.createdAt.toISOString(),
     updatedAt: variant.updatedAt.toISOString(),
   };
@@ -81,14 +86,19 @@ function normalizePlanningValue(value: number | undefined): number | null {
   return value && value > 0 ? value : null;
 }
 
-function mapProductDetail(product: ProductWithVariants): ProductDetail {
+function mapProductDetail(
+  product: ProductWithVariants,
+  mappingsByVariant: Map<string, VariantMappingRef[]>,
+): ProductDetail {
   return {
     id: product.id,
     name: product.name,
     description: product.description,
     category: product.category,
     isActive: product.isActive,
-    variants: product.variants.map(mapVariant),
+    variants: product.variants.map((variant) =>
+      mapVariant(variant, mappingsByVariant.get(variant.id) ?? []),
+    ),
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };
@@ -251,7 +261,12 @@ export class CatalogServerService {
 
     if (!product) throw CatalogError.notFound();
 
-    return mapProductDetail(product);
+    const mappingsByVariant = await marketplaceMappingService.getVariantMappings(
+      userId,
+      product.variants.map((variant) => variant.id),
+    );
+
+    return mapProductDetail(product, mappingsByVariant);
   }
 
   async createProduct(userId: string, input: CreateProductInput): Promise<ProductDetail> {
@@ -330,7 +345,7 @@ export class CatalogServerService {
     return variantIds
       .map((id) => byId.get(id))
       .filter((variant): variant is VariantWithInventory => variant !== undefined)
-      .map(mapVariant);
+      .map((variant) => mapVariant(variant));
   }
 
   /**

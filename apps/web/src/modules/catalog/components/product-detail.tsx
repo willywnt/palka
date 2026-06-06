@@ -4,6 +4,7 @@ import { Fragment, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  ExternalLink,
   Image as ImageIcon,
   Layers,
   MoreHorizontal,
@@ -122,7 +123,7 @@ export function ProductDetail({
   function renderVariantRow(variant: ProductVariantItem, grouped: boolean) {
     return (
       <TableRow key={variant.id}>
-        <TableCell className={grouped ? 'pl-10' : undefined}>
+        <TableCell className={grouped ? 'max-w-[220px] pl-10' : 'max-w-[220px]'}>
           <div className="flex items-center gap-3">
             {/* Product photo slot (upload lands later); QR moved to the ⋯ menu. */}
             <div
@@ -132,9 +133,13 @@ export function ProductDetail({
             >
               <ImageIcon className="size-4" />
             </div>
-            <div>
-              <div className="font-medium">{variant.name}</div>
-              <div className="text-muted-foreground text-xs">{variant.sku}</div>
+            <div className="min-w-0">
+              <div className="truncate font-medium" title={variant.name}>
+                {variant.name}
+              </div>
+              <div className="text-muted-foreground truncate text-xs" title={variant.sku}>
+                {variant.sku}
+              </div>
             </div>
           </div>
         </TableCell>
@@ -144,6 +149,29 @@ export function ProductDetail({
           {variant.isLowStock ? (
             <LowStockBadge threshold={variant.lowStockThreshold} className="ml-2" />
           ) : null}
+        </TableCell>
+        <TableCell>
+          {variant.mappings.length === 0 ? (
+            <span className="text-muted-foreground text-xs">—</span>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {variant.mappings.map((mapping) => (
+                <Link
+                  key={mapping.connectionId}
+                  href={`/dashboard/marketplace/${mapping.connectionId}`}
+                >
+                  <Badge
+                    variant="outline"
+                    className="hover:bg-muted max-w-[140px] gap-1 font-normal"
+                    title={`${mapping.shopName} — open to unmap`}
+                  >
+                    <span className="truncate">{mapping.shopName}</span>
+                    <ExternalLink className="size-3 shrink-0" />
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          )}
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-2">
@@ -243,6 +271,7 @@ export function ProductDetail({
                     <TableHead>Variant</TableHead>
                     <TableHead className="text-right">Price</TableHead>
                     <TableHead className="text-right">In stock</TableHead>
+                    <TableHead>Mapping</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -253,11 +282,13 @@ export function ProductDetail({
                     ) : (
                       <Fragment key={`group-${block.name}`}>
                         <TableRow className="bg-muted/40 hover:bg-muted/40">
-                          <TableCell colSpan={4} className="py-2.5">
+                          <TableCell colSpan={5} className="py-2.5">
                             <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <Layers className="text-muted-foreground size-3.5" />
-                                <span className="font-semibold">{block.name}</span>
+                              <div className="flex min-w-0 items-center gap-2">
+                                <Layers className="text-muted-foreground size-3.5 shrink-0" />
+                                <span className="truncate font-semibold" title={block.name}>
+                                  {block.name}
+                                </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-muted-foreground text-xs tabular-nums">

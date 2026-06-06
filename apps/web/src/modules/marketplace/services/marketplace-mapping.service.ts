@@ -238,6 +238,40 @@ export class MarketplaceMappingService {
     return new Set(rows.map((row) => row.productVariantId));
   }
 
+  /**
+   * Marketplace mappings per variant (a variant may map to several listings/shops).
+   * Keyed by variant id; each entry links back to its connection for unmapping.
+   */
+  async getVariantMappings(
+    userId: string,
+    variantIds: string[],
+  ): Promise<Map<string, { connectionId: string; provider: string; shopName: string }[]>> {
+    const byVariant = new Map<
+      string,
+      { connectionId: string; provider: string; shopName: string }[]
+    >();
+    if (variantIds.length === 0) return byVariant;
+
+    const rows = await prisma.marketplaceProductMapping.findMany({
+      where: { userId, productVariantId: { in: variantIds } },
+      select: {
+        productVariantId: true,
+        connection: { select: { id: true, provider: true, shopName: true } },
+      },
+    });
+
+    for (const row of rows) {
+      const list = byVariant.get(row.productVariantId) ?? [];
+      list.push({
+        connectionId: row.connection.id,
+        provider: row.connection.provider,
+        shopName: row.connection.shopName ?? row.connection.provider,
+      });
+      byVariant.set(row.productVariantId, list);
+    }
+    return byVariant;
+  }
+
   async syncNow(
     userId: string,
     connectionId: string,

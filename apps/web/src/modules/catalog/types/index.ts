@@ -1,3 +1,10 @@
+/** A marketplace listing this variant is mapped to (links to the connection for unmapping). */
+export type VariantMappingRef = {
+  connectionId: string;
+  provider: string;
+  shopName: string;
+};
+
 export type ProductVariantItem = {
   id: string;
   productId: string;
@@ -25,6 +32,8 @@ export type ProductVariantItem = {
   isLowStock: boolean;
   /** When a QR/barcode label was last printed for this variant; null = never. */
   labelPrintedAt: string | null;
+  /** Marketplace listings mapped to this variant (empty = not mapped). */
+  mappings: VariantMappingRef[];
   createdAt: string;
   updatedAt: string;
 };
