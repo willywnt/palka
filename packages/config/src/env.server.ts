@@ -22,10 +22,11 @@ const serverEnvSchema = z
     R2_ACCESS_KEY_ID: z.string().min(1),
     R2_SECRET_ACCESS_KEY: z.string().min(1),
     R2_RECORDINGS_BUCKET_NAME: z.string().min(1),
-    // Separate bucket for product/variant images (same R2 account/credentials).
-    R2_PRODUCTS_BUCKET_NAME: z.preprocess(emptyToUndefined, z.string().optional()),
-    // Shared public base; each bucket's public URL is `${R2_PUBLIC_URL}/${bucketName}`.
+    // Recordings bucket public base (its own r2.dev / custom domain; objects served at root).
     R2_PUBLIC_URL: optionalUrl,
+    // Separate public bucket for product/variant images (same R2 account/credentials).
+    R2_PRODUCTS_BUCKET_NAME: z.preprocess(emptyToUndefined, z.string().optional()),
+    R2_PRODUCTS_PUBLIC_URL: optionalUrl,
 
     REDIS_URL: optionalUrl,
 

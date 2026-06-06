@@ -22,27 +22,28 @@ Olshop separates **public** (client) and **server-only** environment variables w
 
 ### Server-only (never expose to browser)
 
-| Variable                        | Required | Description                                                   |
-| ------------------------------- | -------- | ------------------------------------------------------------- |
-| `DATABASE_URL`                  | Yes      | PostgreSQL connection string                                  |
-| `AUTH_SECRET`                   | Yes      | Auth.js signing secret (min 32 chars)                         |
-| `AUTH_URL`                      | Prod     | Canonical app URL for Auth.js                                 |
-| `NEXTAUTH_URL`                  | Prod     | Same as `AUTH_URL` for NextAuth compat                        |
-| `R2_ACCOUNT_ID`                 | Yes      | Cloudflare account ID                                         |
-| `R2_ACCESS_KEY_ID`              | Yes      | R2 API token access key                                       |
-| `R2_SECRET_ACCESS_KEY`          | Yes      | R2 API token secret                                           |
-| `R2_RECORDINGS_BUCKET_NAME`     | Yes      | R2 bucket for recordings                                      |
-| `R2_PRODUCTS_BUCKET_NAME`       | No       | R2 bucket for product/variant images                          |
-| `R2_PUBLIC_URL`                 | No       | Shared public base; URL = `${R2_PUBLIC_URL}/${bucket}/${key}` |
-| `REDIS_URL`                     | Prod     | Redis URL for BullMQ, rate limits, metrics                    |
-| `SENTRY_DSN`                    | Prod     | Server/worker Sentry DSN                                      |
-| `NEXT_PUBLIC_SENTRY_DSN`        | Prod     | Client Sentry DSN                                             |
-| `WORKER_HEALTH_URL`             | No       | Worker health URL for web healthcheck                         |
-| `LOG_PRETTY`                    | No       | Pretty logs in dev (`true` / `false`)                         |
-| `APP_VERSION`                   | No       | Version shown in health responses                             |
-| `MARKETPLACE_ENCRYPTION_SECRET` | Yes      | AES-256-GCM key for marketplace tokens                        |
-| `LOG_LEVEL`                     | No       | `debug` \| `info` \| `warn` \| `error`                        |
-| `NODE_ENV`                      | Auto     | Set by runtime                                                |
+| Variable                        | Required | Description                                              |
+| ------------------------------- | -------- | -------------------------------------------------------- |
+| `DATABASE_URL`                  | Yes      | PostgreSQL connection string                             |
+| `AUTH_SECRET`                   | Yes      | Auth.js signing secret (min 32 chars)                    |
+| `AUTH_URL`                      | Prod     | Canonical app URL for Auth.js                            |
+| `NEXTAUTH_URL`                  | Prod     | Same as `AUTH_URL` for NextAuth compat                   |
+| `R2_ACCOUNT_ID`                 | Yes      | Cloudflare account ID                                    |
+| `R2_ACCESS_KEY_ID`              | Yes      | R2 API token access key                                  |
+| `R2_SECRET_ACCESS_KEY`          | Yes      | R2 API token secret                                      |
+| `R2_RECORDINGS_BUCKET_NAME`     | Yes      | R2 bucket for recordings                                 |
+| `R2_PUBLIC_URL`                 | No       | Recordings bucket public base (own r2.dev/custom domain) |
+| `R2_PRODUCTS_BUCKET_NAME`       | No       | R2 bucket for product/variant images                     |
+| `R2_PRODUCTS_PUBLIC_URL`        | No       | Products bucket public base (own r2.dev/custom domain)   |
+| `REDIS_URL`                     | Prod     | Redis URL for BullMQ, rate limits, metrics               |
+| `SENTRY_DSN`                    | Prod     | Server/worker Sentry DSN                                 |
+| `NEXT_PUBLIC_SENTRY_DSN`        | Prod     | Client Sentry DSN                                        |
+| `WORKER_HEALTH_URL`             | No       | Worker health URL for web healthcheck                    |
+| `LOG_PRETTY`                    | No       | Pretty logs in dev (`true` / `false`)                    |
+| `APP_VERSION`                   | No       | Version shown in health responses                        |
+| `MARKETPLACE_ENCRYPTION_SECRET` | Yes      | AES-256-GCM key for marketplace tokens                   |
+| `LOG_LEVEL`                     | No       | `debug` \| `info` \| `warn` \| `error`                   |
+| `NODE_ENV`                      | Auto     | Set by runtime                                           |
 
 ### Public (embedded in client bundle)
 
