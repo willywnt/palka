@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils';
 import {
   useBundlesQuery,
   useDeleteBundleMutation,
+  useMarkBundleLabelsPrintedMutation,
   type BundleStatusFilter,
 } from '../hooks/use-bundles';
 import type { BundleListItem } from '../types';
@@ -56,6 +57,7 @@ export function BundlesDashboard() {
   const { page, setPage, pageSize, setPageSize } = usePagination(10);
   const { data, isLoading, error } = useBundlesQuery(debouncedSearch, status, page, pageSize);
   const deleteBundle = useDeleteBundleMutation();
+  const markPrinted = useMarkBundleLabelsPrintedMutation();
   const [qrTarget, setQrTarget] = useState<BundleListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BundleListItem | null>(null);
 
@@ -271,6 +273,7 @@ export function BundlesDashboard() {
           value={qrTarget.sku}
           title={qrTarget.name}
           subtitle={qrTarget.sku}
+          onPrint={() => markPrinted.mutate([qrTarget.id])}
         />
       ) : null}
 
