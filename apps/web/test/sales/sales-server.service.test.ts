@@ -15,7 +15,7 @@ type TxClient = {
   };
 };
 
-const { prismaMock, txMock, enqueueMock, inventoryMock } = vi.hoisted(() => {
+const { prismaMock, txMock, enqueueMock, inventoryMock, catalogMock } = vi.hoisted(() => {
   const txMock: TxClient = { sale: { count: vi.fn(), create: vi.fn(), update: vi.fn() } };
   return {
     txMock,
@@ -24,6 +24,7 @@ const { prismaMock, txMock, enqueueMock, inventoryMock } = vi.hoisted(() => {
       applyOfflineSaleTx: vi.fn().mockResolvedValue(0),
       applyOfflineSaleReversalTx: vi.fn().mockResolvedValue(0),
     },
+    catalogMock: { resolveBundles: vi.fn().mockResolvedValue(new Map()) },
     prismaMock: {
       productVariant: { findMany: vi.fn() },
       sale: { findMany: vi.fn(), findFirst: vi.fn() },
@@ -42,6 +43,9 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('@/modules/inventory/services/inventory-server.service', () => ({
   inventoryServerService: inventoryMock,
 }));
+vi.mock('@/modules/catalog/services/catalog-server.service', () => ({
+  catalogServerService: catalogMock,
+}));
 
 const { SalesServerService } = await import('@/modules/sales/services/sales-server.service');
 
@@ -57,11 +61,12 @@ beforeEach(() => {
   txMock.sale.count.mockResolvedValue(0);
   txMock.sale.create.mockResolvedValue({ id: 's1', code: 'S00001' });
   txMock.sale.update.mockResolvedValue({});
+  catalogMock.resolveBundles.mockResolvedValue(new Map());
 });
 
 describe('createSale', () => {
   const input = {
-    items: [{ variantId: 'v1', quantity: 2, unitPrice: 100_000 }],
+    items: [{ kind: 'variant' as const, variantId: 'v1', quantity: 2, unitPrice: 100_000 }],
     paymentMethod: 'CASH' as const,
   };
 
@@ -96,6 +101,53 @@ describe('createSale', () => {
       code: 'VALIDATION_ERROR',
     });
     expect(inventoryMock.applyOfflineSaleTx).not.toHaveBeenCalled();
+  });
+
+  it('explodes a bundle line into its components (qty × componentQty, bundleName stamped)', async () => {
+    catalogMock.resolveBundles.mockResolvedValue(
+      new Map([
+        [
+          'b1',
+          {
+            id: 'b1',
+            name: 'Paket',
+            sku: 'PKT',
+            price: '150000',
+            available: 5,
+            components: [
+              {
+                productVariantId: 'c1',
+                sku: 'C1',
+                name: 'C1',
+                quantity: 2,
+                availableStock: 50,
+                price: '100000',
+                cost: null,
+              },
+            ],
+          },
+        ],
+      ]),
+    );
+
+    await service.createSale(USER, {
+      items: [{ kind: 'bundle' as const, bundleId: 'b1', quantity: 2, unitPrice: 150_000 }],
+      paymentMethod: 'CASH' as const,
+    });
+
+    // The component decrements by quantity × componentQty (2 × 2 = 4).
+    expect(inventoryMock.applyOfflineSaleTx).toHaveBeenCalledWith(
+      txMock,
+      expect.objectContaining({ variantId: 'c1', quantity: 4, saleId: 's1' }),
+    );
+    // The exploded line snapshots the bundle's name.
+    const createArgs = txMock.sale.create.mock.calls[0]?.[0] as {
+      data: { items: { create: Array<{ productVariantId: string; bundleName: string | null }> } };
+    };
+    expect(createArgs.data.items.create[0]).toMatchObject({
+      productVariantId: 'c1',
+      bundleName: 'Paket',
+    });
   });
 });
 

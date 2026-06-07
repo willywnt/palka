@@ -9,14 +9,14 @@ import { useDesktopScannerSocket } from '@/modules/scanner-pairing/hooks/use-des
 import { useActivePairingQuery } from '@/modules/scanner-pairing/hooks/use-pairing-api';
 import type { BarcodeScannedServerPayload } from '@/modules/scanner-pairing/socket/events';
 
-import { useResolveVariantMutation } from './use-sales';
-import type { SellableVariant } from '../types';
+import { useResolveScanMutation } from './use-sales';
+import type { ScannedSaleItem } from '../types';
 
 /** Coarse state of the POS phone scanner, for the till's status indicator. */
 export type PosScannerStatus = 'off' | 'idle' | 'waiting' | 'connected' | 'disconnected';
 
 type UsePosScannerOptions = {
-  onResolved: (variant: SellableVariant) => void;
+  onResolved: (scanned: ScannedSaleItem) => void;
   soundEnabled: boolean;
 };
 
@@ -42,7 +42,7 @@ export function usePosScanner({
   const { data: activePairing } = useActivePairingQuery(scannerEnabled);
   const session =
     scannerEnabled && activePairing?.session?.purpose === 'POS' ? activePairing.session : null;
-  const resolve = useResolveVariantMutation();
+  const resolve = useResolveScanMutation();
 
   const soundRef = useRef(soundEnabled);
   soundRef.current = soundEnabled;
@@ -51,19 +51,21 @@ export function usePosScanner({
   // (latest onResolved / sound flag) is fine — no need to memoize.
   async function handleBarcodeScanned(payload: BarcodeScannedServerPayload): Promise<void> {
     try {
-      const variant = await resolve.mutateAsync(payload.barcode);
-      if (!variant) {
+      const scanned = await resolve.mutateAsync(payload.barcode);
+      if (!scanned) {
         if (soundRef.current) playScanError();
         toast.warning('No matching product', {
           description: `Code ${payload.barcode} didn't match any SKU or barcode.`,
         });
         return;
       }
-      onResolved(variant);
+      onResolved(scanned);
       if (soundRef.current) playScanSuccess();
-      toast.success('Added to cart', {
-        description: `${variant.productName} · ${variant.name}`,
-      });
+      const description =
+        scanned.kind === 'variant'
+          ? `${scanned.variant.productName} · ${scanned.variant.name}`
+          : scanned.bundle.name;
+      toast.success('Added to cart', { description });
     } catch (error) {
       if (soundRef.current) playScanError();
       toast.error('Scan failed', {

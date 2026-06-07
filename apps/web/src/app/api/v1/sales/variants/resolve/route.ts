@@ -12,8 +12,8 @@ export const GET = withApiRoute(
     });
     if (!parsed.success) return apiValidationError(parsed.error);
 
-    const variant = await salesServerService.resolveSellableVariant(user.id, parsed.data.code);
-    return apiSuccess(variant);
+    const result = await salesServerService.resolveScannedItem(user.id, parsed.data.code);
+    return apiSuccess(result);
   },
   { requireAuth: true },
 );

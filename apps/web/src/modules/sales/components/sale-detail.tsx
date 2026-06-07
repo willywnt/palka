@@ -113,7 +113,14 @@ export function SaleDetail({ saleId }: { saleId: string }) {
                         <ImageThumb src={item.imageUrl} alt={item.name} />
                         <div className="min-w-0">
                           <div className="font-medium">{item.name}</div>
-                          <div className="text-muted-foreground text-xs">{item.sku}</div>
+                          <div className="text-muted-foreground text-xs">
+                            {item.sku}
+                            {item.bundleName ? (
+                              <span className="text-violet-600 dark:text-violet-400">
+                                {' · '}part of {item.bundleName}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     </TableCell>

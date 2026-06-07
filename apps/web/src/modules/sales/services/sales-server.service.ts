@@ -6,10 +6,20 @@ import type { Prisma } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
 import { inventoryServerService } from '@/modules/inventory/services/inventory-server.service';
+import { catalogServerService } from '@/modules/catalog/services/catalog-server.service';
+import { allocateBundleUnitAmounts } from '@/modules/catalog/utils/bundle-allocation';
+
+import type { BundleResolution } from '@/modules/catalog/types';
 
 import { SaleError } from '../errors/sale-errors';
 import type { CreateSaleInput } from '../validators/create-sale';
-import type { SaleDetail, SaleItemDetail, SaleListItem, SellableVariant } from '../types';
+import type {
+  SaleDetail,
+  SaleItemDetail,
+  SaleListItem,
+  ScannedSaleItem,
+  SellableVariant,
+} from '../types';
 
 const SEARCH_LIMIT = 20;
 const LIST_LIMIT = 100;
@@ -32,6 +42,7 @@ function mapDetail(row: SaleRow): SaleDetail {
     quantity: item.quantity,
     unitPrice: item.unitPrice.toString(),
     lineTotal: (Number(item.unitPrice) * item.quantity).toString(),
+    bundleName: item.bundleName,
     imageUrl: item.productVariant?.imageUrl ?? null,
   }));
 
@@ -131,6 +142,15 @@ export class SalesServerService {
     };
   }
 
+  /** Resolve a scanned code to a sellable variant OR a whole bundle (variant takes priority). */
+  async resolveScannedItem(userId: string, code: string): Promise<ScannedSaleItem | null> {
+    const variant = await this.resolveSellableVariant(userId, code);
+    if (variant) return { kind: 'variant', variant };
+    const bundle = await catalogServerService.resolveBundleByCode(userId, code);
+    if (bundle) return { kind: 'bundle', bundle };
+    return null;
+  }
+
   async listSales(userId: string): Promise<SaleListItem[]> {
     const rows = await prisma.sale.findMany({
       where: { userId },
@@ -200,19 +220,40 @@ export class SalesServerService {
    * the goods are in hand). Propagates the new available to marketplaces afterwards.
    */
   async createSale(userId: string, input: CreateSaleInput): Promise<SaleDetail> {
-    const variantIds = [...new Set(input.items.map((item) => item.variantId))];
-    const variants = await prisma.productVariant.findMany({
-      where: { id: { in: variantIds }, userId, deletedAt: null },
-      select: { id: true, sku: true, name: true, cost: true },
-    });
-    const byId = new Map(variants.map((variant) => [variant.id, variant]));
+    const variantItems = input.items.filter((item) => item.kind === 'variant');
+    const bundleItems = input.items.filter((item) => item.kind === 'bundle');
 
-    for (const item of input.items) {
-      if (!byId.has(item.variantId))
+    const variantIds = [...new Set(variantItems.map((item) => item.variantId))];
+    const variants = variantIds.length
+      ? await prisma.productVariant.findMany({
+          where: { id: { in: variantIds }, userId, deletedAt: null },
+          select: { id: true, sku: true, name: true, cost: true },
+        })
+      : [];
+    const variantById = new Map(variants.map((variant) => [variant.id, variant]));
+    const bundles = await catalogServerService.resolveBundles(
+      userId,
+      bundleItems.map((item) => item.bundleId),
+    );
+
+    for (const item of variantItems) {
+      if (!variantById.has(item.variantId))
         throw SaleError.validation('A selected product no longer exists.');
     }
+    for (const item of bundleItems) {
+      const bundle = bundles.get(item.bundleId);
+      if (!bundle) throw SaleError.validation('A selected bundle no longer exists.');
+      if (bundle.components.length === 0)
+        throw SaleError.validation('A bundle has no components to sell.');
+    }
 
-    const totalAmount = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    // A bundle explodes into one sale line per component (stock + accounting are per-variant);
+    // its single price is allocated across components so per-variant revenue stays correct.
+    const lines = this.buildSaleLines(variantItems, bundleItems, variantById, bundles);
+    const totalAmount = lines.reduce(
+      (sum, line) => sum + Number(line.unitPrice) * line.quantity,
+      0,
+    );
 
     const created = await prisma.$transaction(async (tx) => {
       const count = await tx.sale.count({ where: { userId } });
@@ -226,28 +267,15 @@ export class SalesServerService {
           paymentMethod: input.paymentMethod,
           totalAmount,
           note: input.note ?? null,
-          items: {
-            create: input.items.map((item) => {
-              const variant = byId.get(item.variantId)!;
-              return {
-                productVariantId: item.variantId,
-                sku: variant.sku,
-                name: variant.name,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                // COGS snapshot: the variant's cost at sale time (null = unknown).
-                unitCost: variant.cost,
-              };
-            }),
-          },
+          items: { create: lines },
         },
       });
 
-      for (const item of input.items) {
+      for (const line of lines) {
         await inventoryServerService.applyOfflineSaleTx(tx, {
           userId,
-          variantId: item.variantId,
-          quantity: item.quantity,
+          variantId: line.productVariantId,
+          quantity: line.quantity,
           saleId: sale.id,
         });
       }
@@ -259,11 +287,61 @@ export class SalesServerService {
       userId,
       saleId: created.id,
       code: created.code,
-      items: input.items.length,
+      items: lines.length,
     });
 
-    await this.propagateAffected(userId, [...new Set(input.items.map((item) => item.variantId))]);
+    await this.propagateAffected(userId, [...new Set(lines.map((line) => line.productVariantId))]);
     return this.getSale(userId, created.id);
+  }
+
+  /** Flatten variant + bundle cart items into per-variant SaleItem rows (bundle price allocated). */
+  private buildSaleLines(
+    variantItems: Extract<CreateSaleInput['items'][number], { kind: 'variant' }>[],
+    bundleItems: Extract<CreateSaleInput['items'][number], { kind: 'bundle' }>[],
+    variantById: Map<
+      string,
+      { id: string; sku: string; name: string; cost: Prisma.Decimal | null }
+    >,
+    bundles: Map<string, BundleResolution>,
+  ): Prisma.SaleItemUncheckedCreateWithoutSaleInput[] {
+    const lines: Prisma.SaleItemUncheckedCreateWithoutSaleInput[] = [];
+
+    for (const item of variantItems) {
+      const variant = variantById.get(item.variantId)!;
+      lines.push({
+        productVariantId: item.variantId,
+        sku: variant.sku,
+        name: variant.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        unitCost: variant.cost,
+        bundleName: null,
+      });
+    }
+
+    for (const item of bundleItems) {
+      const bundle = bundles.get(item.bundleId)!;
+      const allocated = allocateBundleUnitAmounts(
+        Math.round(item.unitPrice * 100),
+        bundle.components.map((component) => ({
+          weightMinor: Math.round(Number(component.price) * 100),
+          quantity: component.quantity,
+        })),
+      );
+      bundle.components.forEach((component, index) => {
+        lines.push({
+          productVariantId: component.productVariantId,
+          sku: component.sku,
+          name: component.name,
+          quantity: item.quantity * component.quantity,
+          unitPrice: (allocated[index] ?? 0) / 100,
+          unitCost: component.cost,
+          bundleName: bundle.name,
+        });
+      });
+    }
+
+    return lines;
   }
 
   /** Best-effort: push each sold variant's new available stock to all sync-ready channels. */

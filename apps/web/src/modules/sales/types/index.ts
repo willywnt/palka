@@ -1,5 +1,7 @@
 import type { SalePaymentMethod, SaleStatus } from '@prisma/client';
 
+import type { BundleResolution } from '@/modules/catalog/types';
+
 export type { SalePaymentMethod, SaleStatus };
 
 /** A variant offered in the POS picker (catalog price + current sellable stock). */
@@ -14,6 +16,11 @@ export type SellableVariant = {
   imageUrl: string | null;
 };
 
+/** What a scanned POS code resolves to — a standalone variant or a whole bundle. */
+export type ScannedSaleItem =
+  | { kind: 'variant'; variant: SellableVariant }
+  | { kind: 'bundle'; bundle: BundleResolution };
+
 export type SaleItemDetail = {
   id: string;
   productVariantId: string;
@@ -22,6 +29,8 @@ export type SaleItemDetail = {
   quantity: number;
   unitPrice: string;
   lineTotal: string;
+  /** Snapshot of the bundle this line came from (null = a standalone variant line). */
+  bundleName: string | null;
   /** Variant photo public URL; null = none. */
   imageUrl: string | null;
 };

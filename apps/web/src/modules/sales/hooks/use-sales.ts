@@ -9,7 +9,7 @@ import { inventoryKeys } from '@/modules/inventory/hooks/inventory-keys';
 
 import { saleKeys } from './sale-keys';
 import type { CreateSaleInput } from '../validators/create-sale';
-import type { SaleDetail, SaleListItem, SellableVariant } from '../types';
+import type { SaleDetail, SaleListItem, ScannedSaleItem, SellableVariant } from '../types';
 
 export function useSalesQuery() {
   return useQuery({
@@ -50,11 +50,11 @@ export function useSellableVariantsQuery(q: string, enabled = true) {
   });
 }
 
-/** Resolve a scanned code (barcode/SKU) to a sellable variant for the POS cart. */
-export function useResolveVariantMutation() {
+/** Resolve a scanned code (barcode/SKU) to a sellable variant OR a bundle for the POS cart. */
+export function useResolveScanMutation() {
   return useMutation({
     mutationFn: async (code: string) => {
-      const result = await apiFetch<SellableVariant | null>(`${apiRoutes.sales}/variants/resolve`, {
+      const result = await apiFetch<ScannedSaleItem | null>(`${apiRoutes.sales}/variants/resolve`, {
         params: { code },
       });
       if (!result.success) throw new Error(formatApiErrorMessage(result.error));

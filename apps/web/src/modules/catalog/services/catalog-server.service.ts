@@ -15,6 +15,7 @@ import type {
   BundleDetail,
   BundleListItem,
   BundleListSummary,
+  BundleResolution,
   DeletionBlockers,
   LabelVariant,
   ProductDetail,
@@ -133,6 +134,44 @@ function buildVariantData(
     leadTimeDays: normalizePlanningValue(input.leadTimeDays),
     minOrderQty: normalizePlanningValue(input.minOrderQty),
   };
+}
+
+/** Shared shape for reading a bundle with its component lines (+ each variant's stock/value). */
+const bundleDetailInclude = {
+  items: {
+    orderBy: { productVariant: { name: 'asc' } },
+    select: {
+      quantity: true,
+      productVariant: {
+        select: {
+          id: true,
+          sku: true,
+          name: true,
+          price: true,
+          cost: true,
+          deletedAt: true,
+          inventory: { select: { availableStock: true } },
+        },
+      },
+    },
+  },
+} satisfies Prisma.BundleInclude;
+
+type BundleWithItems = Prisma.BundleGetPayload<{ include: typeof bundleDetailInclude }>;
+
+/** Map a loaded bundle's items to component lines (a soft-deleted component reads as 0 stock). */
+function toBundleComponentLines(bundle: BundleWithItems): BundleComponentLine[] {
+  return bundle.items.map((item) => ({
+    productVariantId: item.productVariant.id,
+    sku: item.productVariant.sku,
+    name: item.productVariant.name,
+    quantity: item.quantity,
+    availableStock: item.productVariant.deletedAt
+      ? 0
+      : (item.productVariant.inventory?.availableStock ?? 0),
+    price: item.productVariant.price.toString(),
+    cost: item.productVariant.cost?.toString() ?? null,
+  }));
 }
 
 /**
@@ -678,42 +717,64 @@ export class CatalogServerService {
     return this.buildBundleDetail(userId, bundleId);
   }
 
+  /** Resolve bundles by id for stock/price math (sale/PO explosion). Unknown ids are absent. */
+  async resolveBundles(
+    userId: string,
+    bundleIds: string[],
+  ): Promise<Map<string, BundleResolution>> {
+    const resolved = new Map<string, BundleResolution>();
+    if (bundleIds.length === 0) return resolved;
+
+    const bundles = await prisma.bundle.findMany({
+      where: { id: { in: bundleIds }, userId },
+      include: bundleDetailInclude,
+    });
+    for (const bundle of bundles) {
+      const components = toBundleComponentLines(bundle);
+      resolved.set(bundle.id, {
+        id: bundle.id,
+        name: bundle.name,
+        sku: bundle.sku,
+        price: bundle.price.toString(),
+        components,
+        available: computeBuildableQty(
+          components.map((component) => ({
+            quantity: component.quantity,
+            availableStock: component.availableStock,
+          })),
+        ),
+      });
+    }
+    return resolved;
+  }
+
+  /** Resolve a scanned code (barcode then SKU, case-insensitive) to a bundle. */
+  async resolveBundleByCode(userId: string, code: string): Promise<BundleResolution | null> {
+    const term = code.trim();
+    if (!term) return null;
+
+    const bundle =
+      (await prisma.bundle.findFirst({
+        where: { userId, barcode: { equals: term, mode: 'insensitive' } },
+        select: { id: true },
+      })) ??
+      (await prisma.bundle.findFirst({
+        where: { userId, sku: { equals: term, mode: 'insensitive' } },
+        select: { id: true },
+      }));
+    if (!bundle) return null;
+
+    return (await this.resolveBundles(userId, [bundle.id])).get(bundle.id) ?? null;
+  }
+
   private async buildBundleDetail(userId: string, bundleId: string): Promise<BundleDetail> {
     const bundle = await prisma.bundle.findFirst({
       where: { id: bundleId, userId },
-      include: {
-        items: {
-          orderBy: { productVariant: { name: 'asc' } },
-          select: {
-            quantity: true,
-            productVariant: {
-              select: {
-                id: true,
-                sku: true,
-                name: true,
-                price: true,
-                cost: true,
-                deletedAt: true,
-                inventory: { select: { availableStock: true } },
-              },
-            },
-          },
-        },
-      },
+      include: bundleDetailInclude,
     });
     if (!bundle) throw CatalogError.notFound('Bundle not found.');
 
-    const components: BundleComponentLine[] = bundle.items.map((item) => ({
-      productVariantId: item.productVariant.id,
-      sku: item.productVariant.sku,
-      name: item.productVariant.name,
-      quantity: item.quantity,
-      availableStock: item.productVariant.deletedAt
-        ? 0
-        : (item.productVariant.inventory?.availableStock ?? 0),
-      price: item.productVariant.price.toString(),
-      cost: item.productVariant.cost?.toString() ?? null,
-    }));
+    const components = toBundleComponentLines(bundle);
 
     return {
       id: bundle.id,
