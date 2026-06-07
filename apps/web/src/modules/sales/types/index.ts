@@ -9,7 +9,10 @@ export type SellableVariant = {
   name: string;
   productName: string;
   price: string;
+  /** For a bundle this is the buildable count (from components), not own stock. */
   availableStock: number;
+  /** True when this variant is a bundle — availableStock above is its buildable count. */
+  isBundle: boolean;
   /** Variant photo public URL; null = none. */
   imageUrl: string | null;
 };

@@ -95,6 +95,7 @@ export class SalesServerService {
       price: variant.price.toString(),
       // A bundle shows how many it can build from components, not its own stock.
       availableStock: bundles.get(variant.id)?.buildable ?? variant.inventory?.availableStock ?? 0,
+      isBundle: bundles.has(variant.id),
       imageUrl: variant.imageUrl,
     }));
   }
@@ -138,6 +139,7 @@ export class SalesServerService {
       productName: variant.product.name,
       price: variant.price.toString(),
       availableStock: bundle?.buildable ?? variant.inventory?.availableStock ?? 0,
+      isBundle: Boolean(bundle),
       imageUrl: variant.imageUrl,
     };
   }
