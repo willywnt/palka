@@ -13,6 +13,7 @@ import { CatalogError } from '../errors/catalog-errors';
 import type {
   BundleComponentLine,
   BundleDetail,
+  BundleLabel,
   BundleListItem,
   BundleListSummary,
   BundleResolution,
@@ -594,6 +595,59 @@ export class CatalogServerService {
   /** A bundle's full composition for the edit screen. */
   async getBundle(userId: string, bundleId: string): Promise<BundleDetail> {
     return this.buildBundleDetail(userId, bundleId);
+  }
+
+  /** Bundles for the label studio — printable, paginated, not-yet-printed first. */
+  async listBundleLabels(
+    userId: string,
+    query: LabelVariantsQuery,
+  ): Promise<PaginatedResult<BundleLabel>> {
+    const term = query.q.trim();
+    const where: Prisma.BundleWhereInput = {
+      userId,
+      ...(term
+        ? {
+            OR: [
+              { sku: { contains: term, mode: 'insensitive' } },
+              { barcode: { contains: term, mode: 'insensitive' } },
+              { name: { contains: term, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [bundles, total] = await Promise.all([
+      prisma.bundle.findMany({
+        where,
+        orderBy: [{ labelPrintedAt: { sort: 'asc', nulls: 'first' } }, { name: 'asc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      prisma.bundle.count({ where }),
+    ]);
+
+    const items: BundleLabel[] = bundles.map((bundle) => ({
+      bundleId: bundle.id,
+      name: bundle.name,
+      sku: bundle.sku,
+      barcode: bundle.barcode,
+      price: bundle.price.toString(),
+      imageUrl: bundle.imageUrl,
+      labelPrintedAt: bundle.labelPrintedAt?.toISOString() ?? null,
+    }));
+
+    return buildPaginatedResult(items, total, query.page, query.pageSize);
+  }
+
+  /** Stamp the label-printed time for the given bundles (re-printing is allowed). */
+  async markBundleLabelsPrinted(userId: string, bundleIds: string[]): Promise<void> {
+    const ids = [...new Set(bundleIds)];
+    if (ids.length === 0) return;
+    await prisma.bundle.updateMany({
+      where: { id: { in: ids }, userId },
+      data: { labelPrintedAt: new Date() },
+    });
+    appLogger.info('catalog.bundle.labels.printed', { userId, count: ids.length });
   }
 
   /** Create a bundle: validate the SKU is free (across bundles + variants) and the components. */

@@ -36,7 +36,9 @@ export {
   updateBundleSchema,
   listBundlesQuerySchema,
   resolveBundleQuerySchema,
+  markBundleLabelsPrintedSchema,
   type CreateBundleInput,
   type UpdateBundleInput,
   type ListBundlesQuery,
+  type MarkBundleLabelsPrintedInput,
 } from './bundle';

@@ -9,7 +9,7 @@ import type { PageMeta } from '@/hooks/use-pagination';
 
 import { compressImage } from '../utils/compress-image';
 import { catalogKeys } from './catalog-keys';
-import type { BundleDetail, BundleListItem, BundleListSummary } from '../types';
+import type { BundleDetail, BundleLabel, BundleListItem, BundleListSummary } from '../types';
 import type { CreateBundleInput, UpdateBundleInput } from '../validators/bundle';
 
 export type BundleStatusFilter = 'all' | 'available' | 'unavailable';
@@ -146,6 +146,47 @@ export function useUploadBundleImageMutation(bundleId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: catalogKeys.bundleDetail(bundleId) });
       void queryClient.invalidateQueries({ queryKey: ['catalog', 'bundles'] });
+    },
+  });
+}
+
+/** A page of printable bundle labels (mirror of the server's PaginatedResult). */
+export type BundleLabelsPage = {
+  items: BundleLabel[];
+  meta: PageMeta;
+};
+
+/** Paginated printable bundles for the label studio (debounced search, not-yet-printed first). */
+export function useBundleLabelsQuery(q: string, page: number, pageSize: number) {
+  const trimmed = q.trim();
+  return useQuery({
+    queryKey: catalogKeys.bundleLabels(trimmed, page, pageSize),
+    queryFn: async () => {
+      const result = await apiFetch<BundleLabelsPage>(`${apiRoutes.bundles}/labels`, {
+        params: { page, pageSize, ...(trimmed ? { q: trimmed } : {}) },
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Stamp the print time for the given bundles (re-printing allowed). */
+export function useMarkBundleLabelsPrintedMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bundleIds: string[]) => {
+      const result = await apiFetch<{ ok: boolean }>(`${apiRoutes.bundles}/labels`, {
+        method: 'POST',
+        body: { bundleIds },
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['catalog', 'bundle-labels'] });
     },
   });
 }

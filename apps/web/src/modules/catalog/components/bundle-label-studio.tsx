@@ -15,61 +15,61 @@ import { usePagination } from '@/hooks/use-pagination';
 import { formatCurrency, formatRelativeTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
-import { useLabelVariantsQuery, useMarkLabelsPrintedMutation } from '../hooks/use-products';
+import { useBundleLabelsQuery, useMarkBundleLabelsPrintedMutation } from '../hooks/use-bundles';
 import { useQrCodes } from '../hooks/use-qr-codes';
-import type { LabelVariant } from '../types';
+import type { BundleLabel } from '../types';
 import { LabelSheet, labelCodeFor, type PrintableLabel } from './label-sheet';
 
 /**
- * Phase A of POS QR-scan: pick variants and print an A4 sheet of QR labels
- * (each encodes `barcode ?? sku`). Pure client render — no new tables. Selection
- * is held as a Map so picks survive search changes that filter a row out of view.
+ * Bundle counterpart of {@link LabelStudio}: pick bundles and print an A4 sheet
+ * of QR labels (each encodes `barcode ?? sku`, so the mobile scanner can add the
+ * whole bundle to a sale / PO). Selection is a Map keyed by bundle id so picks
+ * survive a search change that filters a row out of view.
  */
-export function LabelStudio() {
+export function BundleLabelStudio() {
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput.trim(), 300);
   const { page, setPage, pageSize, setPageSize } = usePagination(10);
-  const { data: results, isLoading } = useLabelVariantsQuery(debouncedSearch, page, pageSize);
+  const { data: results, isLoading } = useBundleLabelsQuery(debouncedSearch, page, pageSize);
 
   // A new search resets to the first page.
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, setPage]);
 
-  const [selected, setSelected] = useState<Map<string, LabelVariant>>(new Map());
+  const [selected, setSelected] = useState<Map<string, BundleLabel>>(new Map());
   const picked = useMemo(() => [...selected.values()], [selected]);
   const labels = useMemo<PrintableLabel[]>(
     () =>
-      picked.map((variant) => ({
-        id: variant.variantId,
-        name: variant.name,
-        sku: variant.sku,
-        barcode: variant.barcode,
-        price: variant.price,
-        productName: variant.productName,
+      picked.map((bundle) => ({
+        id: bundle.bundleId,
+        name: bundle.name,
+        sku: bundle.sku,
+        barcode: bundle.barcode,
+        price: bundle.price,
       })),
     [picked],
   );
   const codeValues = useMemo(() => labels.map(labelCodeFor), [labels]);
   const qrCodes = useQrCodes(codeValues);
   const qrReady = codeValues.every((value) => qrCodes.has(value));
-  const markPrinted = useMarkLabelsPrintedMutation();
+  const markPrinted = useMarkBundleLabelsPrintedMutation();
 
-  const variants = results?.items ?? [];
+  const bundles = results?.items ?? [];
   const meta = results?.meta;
 
   function handlePrint() {
     if (labels.length === 0 || !qrReady) return;
     // Stamp the printed time so the picker flags these as already printed.
-    markPrinted.mutate(picked.map((variant) => variant.variantId));
+    markPrinted.mutate(picked.map((bundle) => bundle.bundleId));
     window.print();
   }
 
-  function toggle(variant: LabelVariant) {
+  function toggle(bundle: BundleLabel) {
     setSelected((prev) => {
       const next = new Map(prev);
-      if (next.has(variant.variantId)) next.delete(variant.variantId);
-      else next.set(variant.variantId, variant);
+      if (next.has(bundle.bundleId)) next.delete(bundle.bundleId);
+      else next.set(bundle.bundleId, bundle);
       return next;
     });
   }
@@ -77,7 +77,7 @@ export function LabelStudio() {
   function selectPage() {
     setSelected((prev) => {
       const next = new Map(prev);
-      for (const variant of variants) next.set(variant.variantId, variant);
+      for (const bundle of bundles) next.set(bundle.bundleId, bundle);
       return next;
     });
   }
@@ -92,11 +92,11 @@ export function LabelStudio() {
         <Input
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Search SKU, barcode, or product name..."
+          placeholder="Search bundle SKU, barcode, or name..."
           className="sm:max-w-xs"
         />
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={selectPage} disabled={variants.length === 0}>
+          <Button variant="outline" onClick={selectPage} disabled={bundles.length === 0}>
             Select page
           </Button>
           <Button variant="outline" onClick={clearAll} disabled={selected.size === 0}>
@@ -113,7 +113,7 @@ export function LabelStudio() {
         <Card className="print:hidden">
           <CardHeader>
             <CardTitle className="text-base">
-              Variants
+              Bundles
               {meta ? (
                 <span className="text-muted-foreground font-normal"> · {meta.total}</span>
               ) : null}
@@ -126,19 +126,19 @@ export function LabelStudio() {
                   <Skeleton key={index} className="h-12 w-full" />
                 ))}
               </div>
-            ) : variants.length === 0 ? (
+            ) : bundles.length === 0 ? (
               <p className="text-muted-foreground py-6 text-center text-sm">
-                {debouncedSearch ? 'No matching variants.' : 'No active variants to label.'}
+                {debouncedSearch ? 'No matching bundles.' : 'No bundles to label.'}
               </p>
             ) : (
               <ul className="divide-y rounded-lg border">
-                {variants.map((variant) => {
-                  const isSelected = selected.has(variant.variantId);
+                {bundles.map((bundle) => {
+                  const isSelected = selected.has(bundle.bundleId);
                   return (
-                    <li key={variant.variantId}>
+                    <li key={bundle.bundleId}>
                       <button
                         type="button"
-                        onClick={() => toggle(variant)}
+                        onClick={() => toggle(bundle)}
                         aria-pressed={isSelected}
                         className="hover:bg-accent/50 flex w-full items-center gap-3 px-3 py-2 text-left transition-colors"
                       >
@@ -152,20 +152,18 @@ export function LabelStudio() {
                         >
                           {isSelected ? <Check className="size-3" /> : null}
                         </span>
-                        <ImageThumb src={variant.imageUrl} alt={variant.name} />
+                        <ImageThumb src={bundle.imageUrl} alt={bundle.name} />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">
-                            {variant.productName} · {variant.name}
-                          </span>
+                          <span className="block truncate text-sm font-medium">{bundle.name}</span>
                           <span className="text-muted-foreground block truncate text-xs">
-                            {labelCodeFor(variant)} · {formatCurrency(variant.price)}
+                            {labelCodeFor(bundle)} · {formatCurrency(bundle.price)}
                           </span>
-                          {variant.labelPrintedAt ? (
+                          {bundle.labelPrintedAt ? (
                             <span
                               className="block truncate text-[11px] text-amber-600"
                               suppressHydrationWarning
                             >
-                              Printed {formatRelativeTime(variant.labelPrintedAt)}
+                              Printed {formatRelativeTime(bundle.labelPrintedAt)}
                             </span>
                           ) : null}
                         </span>
@@ -193,7 +191,7 @@ export function LabelStudio() {
             <EmptyState
               icon={QrCode}
               title="No labels selected"
-              description="Pick variants on the left to build a printable label sheet."
+              description="Pick bundles on the left to build a printable label sheet."
               className="print:hidden"
             />
           ) : (

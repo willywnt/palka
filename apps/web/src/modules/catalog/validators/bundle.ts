@@ -62,3 +62,10 @@ export type ListBundlesQuery = z.infer<typeof listBundlesQuerySchema>;
 export const resolveBundleQuerySchema = z.object({
   code: z.string().trim().min(1).max(64),
 });
+
+/** Stamp print time for the given bundles (label studio). */
+export const markBundleLabelsPrintedSchema = z.object({
+  bundleIds: z.array(z.string().min(1)).min(1).max(500),
+});
+
+export type MarkBundleLabelsPrintedInput = z.infer<typeof markBundleLabelsPrintedSchema>;

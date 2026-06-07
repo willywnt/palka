@@ -131,6 +131,17 @@ export type BundleListSummary = {
   unavailable: number;
 };
 
+/** A printable bundle row for the label studio — the QR encodes `barcode ?? sku`. */
+export type BundleLabel = {
+  bundleId: string;
+  name: string;
+  sku: string;
+  barcode: string | null;
+  price: string;
+  imageUrl: string | null;
+  labelPrintedAt: string | null;
+};
+
 /** A bundle row in the dedicated Bundles list. */
 export type BundleListItem = {
   id: string;

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { PageHeader } from '@/components/page-header';
-import { LabelStudio } from '@/modules/catalog/components/label-studio';
+import { LabelsTabs } from '@/modules/catalog/components/labels-tabs';
 
 export const metadata: Metadata = {
   title: 'Labels',
@@ -13,9 +13,9 @@ export default function LabelsPage() {
       <PageHeader
         eyebrow="Catalog"
         title="Labels"
-        description="Print QR labels for your variants — each encodes the barcode (or SKU) for counter scanning."
+        description="Print QR labels for your variants and bundles — each encodes the barcode (or SKU) for counter scanning."
       />
-      <LabelStudio />
+      <LabelsTabs />
     </div>
   );
 }

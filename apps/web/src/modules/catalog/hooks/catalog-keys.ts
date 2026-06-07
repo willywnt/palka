@@ -17,4 +17,6 @@ export const catalogKeys = {
   bundles: (q: string, status: string, page: number, pageSize: number) =>
     ['catalog', 'bundles', q, status, page, pageSize] as const,
   bundleDetail: (id: string) => ['catalog', 'bundle', id] as const,
+  bundleLabels: (q: string, page: number, pageSize: number) =>
+    ['catalog', 'bundle-labels', q, page, pageSize] as const,
 };
