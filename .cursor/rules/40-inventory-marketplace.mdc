@@ -198,8 +198,12 @@ per-PO) is **allocated across components proportional to each component's standa
 `allocateBundleUnitAmounts`, integer minor units) so per-variant revenue/COGS stay correct. `available` =
 `computeBuildableQty` = min(floor(component.available / per-bundle qty)). SKU is unique across **bundles AND
 variants** (shared scan namespace; resolver tries variant then bundle). POS oversell warnings accumulate per
-variant across the cart. Bundles have their own QR labels (labels studio "Bundles" tab). Marketplace orders are
-NOT bundle-aware (deferred). UI: `/dashboard/bundles` pages + `BundleComponentsField` + `BundleImage`.
+variant across the cart. A bundle has an **`isActive`** flag (toggled on its detail) — inactive bundles are
+hidden from the POS/PO Bundling pickers and don't resolve from a scan (the Bundles list tags them "Inactive").
+Bundles have their own QR labels (labels studio "Bundles" tab; ⋯ "Show QR code" on the list also stamps
+`labelPrintedAt`). Marketplace orders are NOT bundle-aware (deferred). UI: `/dashboard/bundles` pages +
+`BundleComponentsField` + `BundleImage`. Sale + PO detail GROUP a bundle's exploded lines under a
+"Bundle · {name}" header.
 
 ## Deferred (raise as separate suggestions)
 ProviderHealth + reconciliation/drift; marketplace-order bundle decrement; multi-warehouse; per-order re-pull (pull is

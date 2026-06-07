@@ -214,6 +214,17 @@ Detail: `.cursor/rules/40-inventory-marketplace.mdc` + `docs/roadmap/inventory-m
   (no Supplier entity yet); variant `cost` stays manual. Code `PO00001` per-user. The reorder report's
   **"Create PO"** prefills the form from URGENT/SOON suggestions (its `suggestedReorderQty` already nets
   `incoming`, so a PO immediately corrects the suggestion).
+- **Bundles / kits (`catalog` — `Bundle`/`BundleItem`) = a SHORTCUT, NOT a stock variant.** A bundle groups
+  several variants for buy/sell (own sku/barcode/price/image/`isActive`/`labelPrintedAt`); it holds NO stock and
+  never appears in product/inventory lists. Sell (POS) / buy (PO) **explode it into per-component `SaleItem`/
+  `PurchaseOrderItem` rows at create** (`qty × perBundleQty`, tagged `bundleName`), so receive/void/incoming/
+  propagate reuse the per-row paths unchanged; the single bundle price/cost is **allocated proportionally** to
+  components (`allocateBundleUnitAmounts`, integer cents, unit-tested) keeping per-variant revenue/COGS correct.
+  `available` = `computeBuildableQty` (min over components). POS + New-PO have a Products/**Bundling** tab; POS
+  oversell warnings **accumulate per variant**; scan resolves variant-OR-bundle (`resolveBundleByCode`); SKU is
+  unique across bundles **and** variants; **inactive** bundles are hidden from POS/PO/scan. Bundle QR labels =
+  labels-studio "Bundles" tab. Catalog owns it (`resolveBundles`/CRUD/image/labels); sales/purchasing call its
+  service, never the tables. Marketplace orders NOT bundle-aware (deferred). Detail: `…/40-inventory-marketplace.mdc`.
 - **Reorder + activity**: reorder report (velocity → days-of-cover → suggested qty, honours per-variant
   `leadTimeDays`/`minOrderQty`); stock activity log (filter + paginate + CSV); variant editing. Demand
   velocity sums `ORDER_RESERVE`+`ORDER_RELEASE`+`RETURN` (net), excludes the delta-0 `ORDER_SHIP`.
