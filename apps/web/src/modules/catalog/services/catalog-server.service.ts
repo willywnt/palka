@@ -714,6 +714,14 @@ export class CatalogServerService {
     return resolved;
   }
 
+  /** Buildable count keyed by variant id, for the bundles among `variantIds` (others absent). */
+  async getBundleBuildable(userId: string, variantIds: string[]): Promise<Record<string, number>> {
+    const resolved = await this.resolveBundles(userId, variantIds);
+    const buildableByVariant: Record<string, number> = {};
+    for (const [id, resolution] of resolved) buildableByVariant[id] = resolution.buildable;
+    return buildableByVariant;
+  }
+
   private async buildBundleDetail(userId: string, variantId: string): Promise<BundleDetail> {
     const variant = await prisma.productVariant.findFirst({
       where: { id: variantId, userId },

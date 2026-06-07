@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MoreHorizontal, PackageSearch, QrCode, ScrollText, SlidersHorizontal } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,7 +33,10 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePagination } from '@/hooks/use-pagination';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { formatDateTime } from '@/lib/formatters';
-import { useMarkLabelsPrintedMutation } from '@/modules/catalog/hooks/use-products';
+import {
+  useBundleBuildableQuery,
+  useMarkLabelsPrintedMutation,
+} from '@/modules/catalog/hooks/use-products';
 
 import { useStockOverviewQuery } from '../hooks/use-inventory';
 import type { StockOverviewItem } from '../types';
@@ -68,6 +72,10 @@ export function InventoryOverview() {
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const pageItems = items.slice((safePage - 1) * pageSize, safePage * pageSize);
+  // Overlay bundle awareness for the visible rows only (catalog hook — no service cross-import).
+  const { data: buildableByVariant } = useBundleBuildableQuery(
+    pageItems.map((item) => item.variantId),
+  );
 
   return (
     <div className="space-y-6">
@@ -130,95 +138,122 @@ export function InventoryOverview() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageItems.map((item) => (
-                <TableRow key={item.variantId}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <ImageThumb src={item.imageUrl} alt={item.variantName} />
-                      <div className="min-w-0">
-                        <Link
-                          href={`/dashboard/products/${item.productId}`}
-                          className="font-medium hover:underline"
-                        >
-                          {item.productName}
-                        </Link>
-                        <div className="text-muted-foreground text-xs">{item.variantName}</div>
+              {pageItems.map((item) => {
+                const buildable = buildableByVariant?.[item.variantId];
+                const isBundle = buildable !== undefined;
+                return (
+                  <TableRow key={item.variantId}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <ImageThumb src={item.imageUrl} alt={item.variantName} />
+                        <div className="min-w-0">
+                          <Link
+                            href={`/dashboard/products/${item.productId}`}
+                            className="font-medium hover:underline"
+                          >
+                            {item.productName}
+                          </Link>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground text-xs">
+                              {item.variantName}
+                            </span>
+                            {isBundle ? (
+                              <Badge className="shrink-0 border-transparent bg-violet-500/10 px-1.5 py-0 text-[10px] font-medium text-violet-600 dark:text-violet-400">
+                                Bundle
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{item.sku}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <span className="font-medium tabular-nums">{item.availableStock}</span>
-                    {item.isLowStock ? (
-                      <LowStockBadge threshold={item.lowStockThreshold} className="ml-2" />
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {item.reservedStock > 0 ? (
-                      <span title="Committed to paid, not-yet-shipped orders">
-                        {item.reservedStock}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {item.damagedStock > 0 ? (
-                      <span className="text-destructive" title="Written off from returns">
-                        {item.damagedStock}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
-                    {item.incomingStock > 0 ? (
-                      <span className="text-sky-600" title="On order from suppliers">
-                        {item.incomingStock}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                    {item.lastUpdatedAt ? (
-                      <span suppressHydrationWarning>{formatDateTime(item.lastUpdatedAt)}</span>
-                    ) : (
-                      '—'
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setAdjustTarget(item)}>
-                        <SlidersHorizontal className="size-4" />
-                        Adjust
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="size-4" />
-                            <span className="sr-only">More actions</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setQrTarget(item)}>
-                            <QrCode className="size-4" />
-                            Show QR code
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link
-                              href={`/dashboard/inventory/activity?search=${encodeURIComponent(item.sku)}`}
-                            >
-                              <ScrollText className="size-4" />
-                              View activity
-                            </Link>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{item.sku}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      {isBundle ? (
+                        <span
+                          className="font-medium tabular-nums"
+                          title="Buildable from component stock"
+                        >
+                          {buildable}
+                          <span className="text-muted-foreground ml-1 text-xs font-normal">
+                            buildable
+                          </span>
+                        </span>
+                      ) : (
+                        <>
+                          <span className="font-medium tabular-nums">{item.availableStock}</span>
+                          {item.isLowStock ? (
+                            <LowStockBadge threshold={item.lowStockThreshold} className="ml-2" />
+                          ) : null}
+                        </>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">
+                      {item.reservedStock > 0 ? (
+                        <span title="Committed to paid, not-yet-shipped orders">
+                          {item.reservedStock}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">
+                      {item.damagedStock > 0 ? (
+                        <span className="text-destructive" title="Written off from returns">
+                          {item.damagedStock}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">
+                      {item.incomingStock > 0 ? (
+                        <span className="text-sky-600" title="On order from suppliers">
+                          {item.incomingStock}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                      {item.lastUpdatedAt ? (
+                        <span suppressHydrationWarning>{formatDateTime(item.lastUpdatedAt)}</span>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setAdjustTarget(item)}>
+                          <SlidersHorizontal className="size-4" />
+                          Adjust
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="size-4" />
+                              <span className="sr-only">More actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setQrTarget(item)}>
+                              <QrCode className="size-4" />
+                              Show QR code
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={`/dashboard/inventory/activity?search=${encodeURIComponent(item.sku)}`}
+                              >
+                                <ScrollText className="size-4" />
+                                View activity
+                              </Link>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

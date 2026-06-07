@@ -76,6 +76,26 @@ export function useBundlesQuery(q: string, page: number, pageSize: number) {
   });
 }
 
+/**
+ * Buildable count per variant id for the bundles among `variantIds` (others absent →
+ * not a bundle). Lets a stock table (e.g. inventory) overlay a Bundle badge + buildable
+ * without importing the catalog service. Query only the visible page's ids.
+ */
+export function useBundleBuildableQuery(variantIds: string[]) {
+  const key = [...variantIds].sort().join(',');
+  return useQuery({
+    queryKey: catalogKeys.bundleBuildable(key),
+    queryFn: async () => {
+      const result = await apiFetch<Record<string, number>>(`${apiRoutes.bundles}/resolve`, {
+        params: { variantIds: key },
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    enabled: variantIds.length > 0,
+  });
+}
+
 /** Variant-id-keyed bundle read for the dedicated Bundles edit page. */
 export function useBundleByVariantQuery(variantId: string | null, enabled = true) {
   return useQuery({
