@@ -36,12 +36,13 @@ export const createBundleSchema = z.object({
 
 export type CreateBundleInput = z.infer<typeof createBundleSchema>;
 
-/** Update a bundle: identity fields + replace its component set. */
+/** Update a bundle: identity fields + active flag + replace its component set. */
 export const updateBundleSchema = z.object({
   name: bundleNameSchema,
   sku: bundleSkuSchema,
   barcode: bundleBarcodeSchema,
   price: bundlePriceSchema,
+  isActive: z.boolean(),
   items: bundleItemsSchema,
 });
 

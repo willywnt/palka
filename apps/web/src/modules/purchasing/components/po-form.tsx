@@ -480,7 +480,7 @@ export function PoForm() {
               </TabsContent>
               <TabsContent value="bundling" className="mt-3">
                 <BundleResults
-                  bundles={bundlesData?.items}
+                  bundles={bundlesData?.items.filter((bundle) => bundle.isActive)}
                   isLoading={bundlesLoading}
                   hasSearch={Boolean(debouncedSearch)}
                   isAdding={resolveBundleDetail.isPending}

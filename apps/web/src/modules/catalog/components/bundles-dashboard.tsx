@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -204,12 +205,22 @@ export function BundlesDashboard() {
                           label={bundle.name}
                         />
                         <div className="min-w-0">
-                          <Link
-                            href={`/dashboard/bundles/${bundle.id}`}
-                            className="font-medium hover:underline"
-                          >
-                            {bundle.name}
-                          </Link>
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href={`/dashboard/bundles/${bundle.id}`}
+                              className="font-medium hover:underline"
+                            >
+                              {bundle.name}
+                            </Link>
+                            {!bundle.isActive ? (
+                              <Badge
+                                variant="secondary"
+                                className="shrink-0 px-1.5 py-0 text-[10px]"
+                              >
+                                Inactive
+                              </Badge>
+                            ) : null}
+                          </div>
                           <div className="text-muted-foreground text-xs">{bundle.sku}</div>
                         </div>
                       </div>

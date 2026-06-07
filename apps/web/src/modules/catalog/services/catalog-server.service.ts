@@ -559,6 +559,7 @@ export class CatalogServerService {
       sku: bundle.sku,
       imageUrl: bundle.imageUrl,
       price: bundle.price.toString(),
+      isActive: bundle.isActive,
       totalVariant: bundle.items.length,
       available: computeBuildableQty(
         bundle.items.map((item) => ({
@@ -698,6 +699,7 @@ export class CatalogServerService {
           sku: input.sku,
           barcode: input.barcode ?? null,
           price: input.price,
+          isActive: input.isActive,
         },
       });
       await tx.bundleItem.deleteMany({ where: { bundleId } });
@@ -809,11 +811,11 @@ export class CatalogServerService {
 
     const bundle =
       (await prisma.bundle.findFirst({
-        where: { userId, barcode: { equals: term, mode: 'insensitive' } },
+        where: { userId, isActive: true, barcode: { equals: term, mode: 'insensitive' } },
         select: { id: true },
       })) ??
       (await prisma.bundle.findFirst({
-        where: { userId, sku: { equals: term, mode: 'insensitive' } },
+        where: { userId, isActive: true, sku: { equals: term, mode: 'insensitive' } },
         select: { id: true },
       }));
     if (!bundle) return null;
@@ -836,6 +838,7 @@ export class CatalogServerService {
       sku: bundle.sku,
       barcode: bundle.barcode,
       price: bundle.price.toString(),
+      isActive: bundle.isActive,
       imageUrl: bundle.imageUrl,
       components,
       available: computeBuildableQty(

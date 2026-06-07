@@ -108,6 +108,7 @@ export type BundleDetail = {
   sku: string;
   barcode: string | null;
   price: string;
+  isActive: boolean;
   imageUrl: string | null;
   components: BundleComponentLine[];
   /** How many whole bundles can be built from component stock. */
@@ -149,6 +150,7 @@ export type BundleListItem = {
   sku: string;
   imageUrl: string | null;
   price: string;
+  isActive: boolean;
   /** How many distinct component variants the bundle groups. */
   totalVariant: number;
   available: number;

@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { NumberInput } from '@/components/ui/number-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/stat-card';
@@ -45,6 +46,7 @@ export function BundleDetailEditor({ bundleId }: { bundleId: string }) {
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState(0);
+  const [isActive, setIsActive] = useState(true);
   const [components, setComponents] = useState<BundleComponentDraft[]>([]);
 
   useEffect(() => {
@@ -52,6 +54,7 @@ export function BundleDetailEditor({ bundleId }: { bundleId: string }) {
     setName(data.name);
     setSku(data.sku);
     setPrice(Number(data.price));
+    setIsActive(data.isActive);
     setComponents(
       data.components.map((component) => ({
         productVariantId: component.productVariantId,
@@ -76,6 +79,7 @@ export function BundleDetailEditor({ bundleId }: { bundleId: string }) {
         name: name.trim(),
         sku: sku.trim(),
         price,
+        isActive,
         items: components.map((component) => ({
           productVariantId: component.productVariantId,
           quantity: component.quantity,
@@ -196,6 +200,16 @@ export function BundleDetailEditor({ bundleId }: { bundleId: string }) {
                   value={price}
                   onChange={(value) => setPrice(Math.max(0, value))}
                 />
+              </div>
+              <div className="flex items-center justify-between gap-3 sm:col-span-2">
+                <div>
+                  <Label htmlFor="bundle-active">Active</Label>
+                  <p className="text-muted-foreground text-xs">
+                    Inactive bundles can&apos;t be sold or bought (hidden from POS, New PO, and
+                    scan).
+                  </p>
+                </div>
+                <Switch id="bundle-active" checked={isActive} onCheckedChange={setIsActive} />
               </div>
             </CardContent>
           </Card>

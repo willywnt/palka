@@ -284,6 +284,7 @@ model Bundle {
   barcode        String?
   name           String
   price          Decimal   @db.Decimal(12, 2)
+  isActive       Boolean   @default(true) // inactive bundles can't be sold/bought (hidden from POS/PO pickers + scan)
   imageKey       String?
   imageUrl       String?
   labelPrintedAt DateTime? // when a QR/barcode label was last printed; null = never
