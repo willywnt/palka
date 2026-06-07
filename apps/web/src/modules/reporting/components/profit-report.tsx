@@ -1,14 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import { Banknote, Coins, Download, Info, Percent, TrendingDown, Wallet } from 'lucide-react';
+import { Banknote, Coins, Info, Percent, TrendingDown, Wallet } from 'lucide-react';
 
-import { DateRangePicker } from '@/components/date-range-picker';
 import { EmptyState } from '@/components/empty-state';
 import { StatCard } from '@/components/stat-card';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -22,55 +19,16 @@ import {
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
-import {
-  profitExportUrl,
-  useProfitReportQuery,
-  type ProfitReportParams,
-} from '../hooks/use-reporting';
+import { ReportRangeControls, rangeToParams } from './report-range-controls';
+import { channelLabel } from '../utils/channel-label';
+import { formatPct, marginClass } from '../utils/format';
+import { profitExportUrl, useProfitReportQuery } from '../hooks/use-reporting';
 import type {
   ProfitBySku,
   ProfitMetrics,
   ProfitPeriodGranularity,
   ProfitReport as ProfitReportData,
 } from '../types';
-
-const GROUP_OPTIONS: { value: ProfitPeriodGranularity; label: string }[] = [
-  { value: 'day', label: 'Harian' },
-  { value: 'week', label: 'Mingguan' },
-  { value: 'month', label: 'Bulanan' },
-];
-
-const CHANNEL_LABELS: Record<string, string> = {
-  POS: 'Kasir',
-  SHOPEE: 'Shopee',
-  TOKOPEDIA: 'Tokopedia',
-  LAZADA: 'Lazada',
-};
-
-function channelLabel(channel: string): string {
-  return CHANNEL_LABELS[channel] ?? channel;
-}
-
-function formatPct(value: number | null): string {
-  return value === null ? '—' : `${value.toFixed(1)}%`;
-}
-
-function marginClass(value: number | null): string | undefined {
-  if (value === null) return 'text-muted-foreground';
-  if (value < 0) return 'text-destructive';
-  return undefined;
-}
-
-function rangeToParams(
-  range: DateRange | undefined,
-  groupBy: ProfitPeriodGranularity,
-): ProfitReportParams {
-  return {
-    groupBy,
-    ...(range?.from ? { from: format(range.from, 'yyyy-MM-dd') } : {}),
-    ...(range?.to ? { to: format(range.to, 'yyyy-MM-dd') } : {}),
-  };
-}
 
 /** The shared trailing metric cells (revenue / COGS / profit / margin / units). */
 function MetricCells({ metrics }: { metrics: ProfitMetrics }) {
@@ -166,29 +124,13 @@ export function ProfitReport() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <DateRangePicker value={range} onChange={setRange} placeholder="30 hari terakhir" />
-          <div className="flex items-center gap-1">
-            {GROUP_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                variant={groupBy === option.value ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setGroupBy(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-        <Button variant="outline" size="sm" asChild>
-          <a href={profitExportUrl(params)} download>
-            <Download className="size-4" />
-            Ekspor CSV
-          </a>
-        </Button>
-      </div>
+      <ReportRangeControls
+        range={range}
+        onRangeChange={setRange}
+        groupBy={groupBy}
+        onGroupByChange={setGroupBy}
+        exportUrl={profitExportUrl(params)}
+      />
 
       {error ? (
         <div className="border-destructive/30 bg-destructive/5 text-destructive rounded-lg border p-4 text-sm">

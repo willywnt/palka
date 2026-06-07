@@ -2,8 +2,18 @@ import 'server-only';
 
 import { prisma } from '@olshop/db';
 
-import type { InventoryValuationReport, ProfitBySku, ProfitChannel, ProfitReport } from '../types';
+import type {
+  ChannelPerformanceReport,
+  InventoryValuationReport,
+  ProfitBySku,
+  ProfitChannel,
+  ProfitReport,
+} from '../types';
 import type { ProfitReportQuery } from '../validators/profit-report';
+import {
+  aggregateChannelPerformance,
+  type TransactionsByChannel,
+} from '../utils/channel-performance-aggregate';
 import {
   aggregateInventoryValuation,
   type ValuationVariant,
@@ -165,6 +175,53 @@ export class ReportingServerService {
   async getProfitSkuRows(userId: string, query: ProfitReportQuery): Promise<ProfitBySku[]> {
     const { lines } = await this.loadSoldLines(userId, query);
     return aggregateProfitBySku(lines);
+  }
+
+  /**
+   * Count realized transactions per channel over the SAME range + recognition as
+   * the sold lines: one per COMPLETED POS sale, one per SHIPPED/COMPLETED order
+   * (grouped by provider). Drives average-order-value (a SoldLine is per-item).
+   */
+  private async loadTransactionCounts(
+    userId: string,
+    from: Date,
+    to: Date,
+  ): Promise<TransactionsByChannel> {
+    const [posCount, ordersByProvider] = await Promise.all([
+      prisma.sale.count({
+        where: { userId, status: 'COMPLETED', createdAt: { gte: from, lte: to } },
+      }),
+      prisma.order.groupBy({
+        by: ['provider'],
+        where: {
+          userId,
+          status: { in: ['SHIPPED', 'COMPLETED'] },
+          placedAt: { gte: from, lte: to },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const transactions: TransactionsByChannel = {};
+    if (posCount > 0) transactions.POS = posCount;
+    for (const row of ordersByProvider) {
+      transactions[row.provider as ProfitChannel] = row._count._all;
+    }
+    return transactions;
+  }
+
+  /**
+   * Per-channel performance: the profit metrics per channel plus revenue share,
+   * transactions + average order value, refunds/return rate, and a channel ×
+   * period revenue trend. Same realized-sales basis as the profit report.
+   */
+  async getChannelPerformance(
+    userId: string,
+    query: ProfitReportQuery,
+  ): Promise<ChannelPerformanceReport> {
+    const { lines, from, to } = await this.loadSoldLines(userId, query);
+    const transactions = await this.loadTransactionCounts(userId, from, to);
+    return aggregateChannelPerformance(lines, transactions, { from, to, groupBy: query.groupBy });
   }
 
   /**

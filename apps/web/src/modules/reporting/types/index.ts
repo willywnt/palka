@@ -66,6 +66,53 @@ export type ProfitReport = {
 };
 
 /**
+ * Channel performance = the profit metrics per sales channel, plus the dimensions
+ * the flat profit report omits: each channel's share of net revenue, its
+ * transaction count + average order value, and what returns clawed back. All money
+ * is net of processed returns (same recognition as the profit report).
+ */
+export type ChannelPerformanceRow = ProfitMetrics & {
+  channel: ProfitChannel;
+  /** Net gross revenue as a % of all channels' net revenue (null when total is 0). */
+  revenueSharePct: number | null;
+  /** Distinct completed POS sales / shipped-or-completed marketplace orders in range. */
+  transactions: number;
+  /** grossRevenue / transactions (money string); "0.00" when there are no transactions. */
+  avgOrderValue: string;
+  /** Refunded revenue netted out for this channel (positive magnitude). */
+  refundedRevenue: string;
+  /** refundedRevenue as a % of this channel's gross revenue (null when revenue is 0). */
+  returnRatePct: number | null;
+};
+
+/** One row of the channel × period trend matrix: net revenue per channel for a period. */
+export type ChannelTrendPeriod = {
+  period: string;
+  /** Net gross revenue per channel key (a money string), keyed by channel. */
+  revenueByChannel: Record<string, string>;
+  total: string;
+};
+
+export type ChannelPerformanceReport = {
+  range: { from: string; to: string; groupBy: ProfitPeriodGranularity };
+  summary: {
+    totalGrossRevenue: string;
+    totalGrossProfit: string;
+    grossMarginPct: number | null;
+    transactions: number;
+    activeChannels: number;
+    /** The channel with the highest net revenue (null when there are no sales). */
+    topByRevenue: ProfitChannel | null;
+    /** The channel with the highest gross margin % among those with a known cost. */
+    topByMargin: ProfitChannel | null;
+  };
+  /** Per-channel rows, highest net revenue first (also the trend matrix's column order). */
+  byChannel: ChannelPerformanceRow[];
+  /** Per-period rows, oldest first (the trend matrix's rows). */
+  trend: ChannelTrendPeriod[];
+};
+
+/**
  * Inventory valuation = on-hand stock valued at the variant's moving-average cost
  * (the same formula behind the dashboard's totalStockValue KPI). Money is an
  * integer-rupiah string. A variant with stock but no cost is counted in
