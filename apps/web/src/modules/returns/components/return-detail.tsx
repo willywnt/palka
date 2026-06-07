@@ -22,6 +22,7 @@ import {
 import { ImageThumb } from '@/components/image-thumb';
 import { formatDateTime } from '@/lib/formatters';
 
+import { ShareEvidenceControl } from '@/modules/recordings/components/share-evidence-control';
 import { useRecordingsByResiQuery } from '@/modules/recordings/hooks/use-recordings-management';
 
 import {
@@ -210,6 +211,7 @@ export function ReturnDetail({ returnId }: { returnId: string }) {
                       View packing video
                     </Link>
                   </Button>
+                  <ShareEvidenceControl recordings={packingVideos ?? []} />
                 </>
               ) : (
                 <p className="text-muted-foreground text-xs">No tracking number on this order.</p>
