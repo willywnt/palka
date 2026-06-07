@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { NumberDelta } from '@/components/number-delta';
 import { cn } from '@/lib/utils';
 
 /** Tinted icon-chip palettes, so a row of stats/actions isn't one flat colour. */
@@ -27,6 +28,7 @@ export function StatCard({
   icon: Icon,
   tone = 'muted',
   hint,
+  delta,
   accentClassName,
   className,
 }: {
@@ -35,6 +37,8 @@ export function StatCard({
   icon?: LucideIcon;
   tone?: StatTone;
   hint?: ReactNode;
+  /** Optional signed trend shown under the value (+gain green / −loss ember). */
+  delta?: number;
   accentClassName?: string;
   className?: string;
 }) {
@@ -42,7 +46,7 @@ export function StatCard({
     <Card className={className}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
-          <CardDescription>{label}</CardDescription>
+          <p className="eyebrow text-muted-foreground">{label}</p>
           {Icon ? (
             <span
               className={cn(
@@ -54,11 +58,14 @@ export function StatCard({
             </span>
           ) : null}
         </div>
-        <CardTitle className={cn('text-2xl tabular-nums', accentClassName)}>{value}</CardTitle>
+        <CardTitle className={cn('num text-2xl', accentClassName)}>{value}</CardTitle>
       </CardHeader>
-      {hint ? (
+      {hint || delta != null ? (
         <CardContent className="pt-0">
-          <div className="text-muted-foreground text-xs">{hint}</div>
+          <div className="text-muted-foreground flex items-center gap-2 text-xs">
+            {delta != null ? <NumberDelta value={delta} arrow /> : null}
+            {hint ? <span>{hint}</span> : null}
+          </div>
         </CardContent>
       ) : null}
     </Card>

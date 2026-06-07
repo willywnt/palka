@@ -58,9 +58,11 @@ export function DashboardNavbar() {
           <Menu className="size-4" />
           <span className="sr-only">Toggle sidebar</span>
         </Button>
+        {/* Reserved slot: <LocationSelector/> (multi-warehouse switcher) — backlog item E. */}
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
+        {/* Reserved slot: <NotificationBell/> (count badge → tray) — backlog item A. */}
         <Button
           variant="ghost"
           size="icon"

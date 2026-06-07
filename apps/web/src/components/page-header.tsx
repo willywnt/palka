@@ -1,15 +1,26 @@
+import type { ReactNode } from 'react';
+
 import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
   title: string;
   description?: string;
-  /** Small uppercase label shown above the title (e.g. a section name). */
+  /** Micro-caps label shown above the title (e.g. a section name). */
   eyebrow?: string;
+  /** Optional context line above the eyebrow — reserved for location/org scope. */
+  breadcrumb?: ReactNode;
   className?: string;
   children?: React.ReactNode;
 }
 
-export function PageHeader({ title, description, eyebrow, className, children }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  eyebrow,
+  breadcrumb,
+  className,
+  children,
+}: PageHeaderProps) {
   return (
     <div
       className={cn(
@@ -18,9 +29,8 @@ export function PageHeader({ title, description, eyebrow, className, children }:
       )}
     >
       <div className="space-y-1">
-        {eyebrow ? (
-          <p className="text-primary text-xs font-semibold tracking-wider uppercase">{eyebrow}</p>
-        ) : null}
+        {breadcrumb ? <div className="text-muted-foreground text-xs">{breadcrumb}</div> : null}
+        {eyebrow ? <p className="eyebrow text-primary">{eyebrow}</p> : null}
         <h1 className="text-2xl font-semibold tracking-tight text-balance">{title}</h1>
         {description ? (
           <p className="text-muted-foreground max-w-2xl text-sm text-pretty">{description}</p>

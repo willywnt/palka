@@ -5,13 +5,17 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Theme "Ombak": clean, airy neutral surfaces, a teal brand accent, and a neutral
- * charcoal sidebar whose brand mark + active markers pick up the accent.
+ * Theme "Ombak — Ledger on Paper": a faintly-warm paper canvas, hairline
+ * structure (borders over shadows), the teal brand accent kept verbatim, a
+ * charcoal sidebar, and a disciplined signed-up/down pair (calm green / ember)
+ * for ledger numerics — ember is hue-separated from destructive red so a
+ * negative delta never reads as an error.
  */
 :root {
   --radius: 0.875rem;
 
-  --background: oklch(0.99 0.0015 240);
+  /* Warm paper canvas (hue ~95) — distinct from the pure-white card. */
+  --background: oklch(0.992 0.004 95);
   --foreground: oklch(0.21 0.006 255);
 
   --card: oklch(1 0 0);
@@ -23,24 +27,32 @@
   --primary: oklch(0.58 0.1 205);
   --primary-foreground: oklch(0.99 0.005 200);
 
-  --secondary: oklch(0.968 0.002 240);
+  /* The three neutral fills are now genuinely distinct (warm paper-greys). */
+  --secondary: oklch(0.965 0.004 95);
   --secondary-foreground: oklch(0.25 0.006 255);
 
-  --muted: oklch(0.968 0.002 240);
+  --muted: oklch(0.975 0.003 95);
   --muted-foreground: oklch(0.53 0.012 255);
 
-  --accent: oklch(0.968 0.002 240);
+  --accent: oklch(0.95 0.006 95);
   --accent-foreground: oklch(0.25 0.006 255);
 
   --destructive: oklch(0.585 0.2 27);
   --destructive-foreground: oklch(0.99 0.01 95);
 
-  --border: oklch(0.925 0.003 245);
-  --input: oklch(0.925 0.003 245);
+  /* Hairline border vs. a notch-darker input well (no longer identical). */
+  --border: oklch(0.922 0.004 95);
+  --input: oklch(0.9 0.005 95);
   --ring: oklch(0.58 0.1 205);
 
   --highlight: oklch(0.8 0.13 80);
   --highlight-foreground: oklch(0.26 0.05 70);
+
+  /* Ledger signed numerics — calm green up, ember down (≠ destructive red). */
+  --signed-up: oklch(0.55 0.13 155);
+  --signed-up-foreground: oklch(0.99 0.01 155);
+  --signed-down: oklch(0.62 0.17 45);
+  --signed-down-foreground: oklch(0.99 0.01 60);
 
   --sidebar: oklch(0.23 0.006 260);
   --sidebar-foreground: oklch(0.92 0.004 250);
@@ -53,25 +65,25 @@
 }
 
 .dark {
-  --background: oklch(0.175 0.005 260);
+  --background: oklch(0.178 0.006 285);
   --foreground: oklch(0.96 0.003 250);
 
-  --card: oklch(0.215 0.006 260);
+  --card: oklch(0.215 0.006 285);
   --card-foreground: oklch(0.96 0.003 250);
 
-  --popover: oklch(0.215 0.006 260);
+  --popover: oklch(0.215 0.006 285);
   --popover-foreground: oklch(0.96 0.003 250);
 
   --primary: oklch(0.7 0.1 200);
   --primary-foreground: oklch(0.17 0.02 220);
 
-  --secondary: oklch(0.27 0.006 260);
+  --secondary: oklch(0.27 0.006 285);
   --secondary-foreground: oklch(0.96 0.003 250);
 
-  --muted: oklch(0.27 0.006 260);
+  --muted: oklch(0.255 0.006 285);
   --muted-foreground: oklch(0.7 0.01 255);
 
-  --accent: oklch(0.3 0.008 260);
+  --accent: oklch(0.31 0.008 285);
   --accent-foreground: oklch(0.96 0.003 250);
 
   --destructive: oklch(0.66 0.18 25);
@@ -83,6 +95,11 @@
 
   --highlight: oklch(0.8 0.13 80);
   --highlight-foreground: oklch(0.22 0.04 70);
+
+  --signed-up: oklch(0.72 0.12 155);
+  --signed-up-foreground: oklch(0.17 0.02 155);
+  --signed-down: oklch(0.74 0.15 55);
+  --signed-down-foreground: oklch(0.17 0.02 50);
 
   --sidebar: oklch(0.15 0.005 260);
   --sidebar-foreground: oklch(0.92 0.004 250);
@@ -99,8 +116,8 @@
     'Plus Jakarta Sans Variable', var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     'Apple Color Emoji', 'Segoe UI Emoji';
   --font-mono: var(--font-geist-mono), ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
@@ -121,6 +138,10 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-highlight: var(--highlight);
   --color-highlight-foreground: var(--highlight-foreground);
+  --color-signed-up: var(--signed-up);
+  --color-signed-up-foreground: var(--signed-up-foreground);
+  --color-signed-down: var(--signed-down);
+  --color-signed-down-foreground: var(--signed-down-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -132,6 +153,25 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/*
+ * Ledger numerics — mono + tabular figures for every stock/price/qty/delta/KPI
+ * number, so columns align and read like a ledger. Geist Mono is already loaded.
+ */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Micro-caps "instrument" label — section eyebrows, stat labels, nav headings. */
+@utility eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 @layer base {

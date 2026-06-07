@@ -124,7 +124,7 @@ export function SidebarNav({
                 type="button"
                 onClick={() => toggleSection(label)}
                 aria-expanded={!sectionCollapsed}
-                className="text-sidebar-foreground/50 hover:text-sidebar-foreground/80 flex w-full items-center justify-between gap-2 px-3 pb-1 text-xs font-medium tracking-wider uppercase transition-colors"
+                className="text-sidebar-foreground/50 hover:text-sidebar-foreground/80 eyebrow flex w-full items-center justify-between gap-2 px-3 pb-1 transition-colors"
               >
                 {label}
                 <ChevronRight

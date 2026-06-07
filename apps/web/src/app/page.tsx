@@ -87,8 +87,8 @@ export default async function HomePage() {
           <div className="bg-primary/10 absolute -top-32 left-1/2 size-[36rem] -translate-x-1/2 rounded-full blur-3xl" />
         </div>
         <div className="relative mx-auto max-w-3xl px-6 py-24 text-center">
-          <span className="border-primary/20 bg-primary/5 text-primary inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium">
-            Inventory · Marketplace · Fulfillment
+          <span className="border-primary/20 bg-primary/5 text-primary eyebrow inline-flex items-center rounded-full border px-3 py-1">
+            Stok · Marketplace · Packing
           </span>
           <h1 className="mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
             Keep your stock accurate across every marketplace.
@@ -124,16 +124,21 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => {
+          {FEATURES.map((feature, index) => {
             const Icon = feature.icon;
             return (
               <div
                 key={feature.title}
-                className="bg-card hover:border-primary/30 rounded-xl border p-5 transition-colors"
+                className="bg-card hover:border-primary/40 group relative rounded-lg border p-5 transition-colors"
               >
-                <span className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg">
-                  <Icon className="size-5" />
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg">
+                    <Icon className="size-5" />
+                  </span>
+                  <span className="text-muted-foreground/50 num text-xs">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                </div>
                 <h3 className="mt-4 font-semibold tracking-tight">{feature.title}</h3>
                 <p className="text-muted-foreground mt-1.5 text-sm text-pretty">{feature.text}</p>
               </div>
