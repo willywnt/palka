@@ -26,7 +26,7 @@ const { prismaMock, txMock, enqueueMock, inventoryMock, catalogMock } = vi.hoist
     },
     catalogMock: { resolveBundles: vi.fn().mockResolvedValue(new Map()) },
     prismaMock: {
-      productVariant: { findMany: vi.fn() },
+      productVariant: { findMany: vi.fn(), count: vi.fn() },
       sale: { findMany: vi.fn(), findFirst: vi.fn() },
       inventory: { findUnique: vi.fn() },
       marketplaceProductMapping: { count: vi.fn() },
@@ -35,7 +35,20 @@ const { prismaMock, txMock, enqueueMock, inventoryMock, catalogMock } = vi.hoist
   };
 });
 
-vi.mock('@olshop/db', () => ({ prisma: prismaMock }));
+vi.mock('@olshop/db', () => ({
+  prisma: prismaMock,
+  buildPaginatedResult: (items: unknown[], total: number, page: number, pageSize: number) => ({
+    items,
+    meta: {
+      page,
+      pageSize,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / pageSize),
+      hasNextPage: page * pageSize < total,
+      hasPreviousPage: page > 1,
+    },
+  }),
+}));
 vi.mock('@olshop/queue', () => ({ enqueuePropagateInventoryStock: enqueueMock }));
 vi.mock('@/lib/logger', () => ({
   appLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -204,14 +217,19 @@ describe('searchSellableVariants', () => {
         sku: 'BLACK-S',
         name: 'Black / S',
         price: 100_000,
-        inventory: { availableStock: 12 },
+        inventory: { availableStock: 12, incomingStock: 20 },
         product: { name: 'Cotton Tee' },
       },
     ]);
+    prismaMock.productVariant.count.mockResolvedValue(1);
 
-    const result = await service.searchSellableVariants(USER, 'black');
+    const result = await service.searchSellableVariants(USER, {
+      q: 'black',
+      page: 1,
+      pageSize: 10,
+    });
 
-    expect(result).toEqual([
+    expect(result.items).toEqual([
       {
         variantId: 'v1',
         sku: 'BLACK-S',
@@ -219,7 +237,9 @@ describe('searchSellableVariants', () => {
         productName: 'Cotton Tee',
         price: '100000',
         availableStock: 12,
+        incomingStock: 20,
       },
     ]);
+    expect(result.meta.total).toBe(1);
   });
 });

@@ -197,11 +197,11 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Listing" value={listings.length} icon={ShoppingCart} tone="sky" />
           <StatCard
-            label="Sudah cocok"
+            label="Sudah ter-mapping"
             value={mappedCount}
             icon={Link2}
             tone="emerald"
-            hint={`${listings.length - mappedCount} belum cocok`}
+            hint={`${listings.length - mappedCount} belum ter-mapping`}
           />
           <StatCard
             label="Sinkronisasi aktif"

@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Boxes,
-  ChevronDown,
-  ChevronRight,
   ClipboardList,
   PackagePlus,
   Plus,
@@ -38,6 +36,7 @@ import { apiRoutes } from '@/lib/api/routes';
 import { formatCurrency } from '@/lib/formatters';
 import { unlockScanSound } from '@/lib/scan-sound';
 import { cn } from '@/lib/utils';
+import { formatProductVariantLabel } from '@/lib/variant-label';
 import { useBundlesQuery } from '@/modules/catalog/hooks/use-bundles';
 import type { BundleComponentLine, BundleDetail, BundleListItem } from '@/modules/catalog/types';
 import { ConnectScannerDialog } from '@/modules/scanner-pairing/components/connect-scanner-dialog';
@@ -81,6 +80,7 @@ type VariantPoLine = {
   sku: string;
   name: string;
   productName: string;
+  variantGroup: string | null;
   quantity: number;
   unitCost: number;
   availableStock: number;
@@ -205,6 +205,7 @@ export function PoForm() {
       sku: variant.sku,
       name: variant.name,
       productName: variant.productName,
+      variantGroup: variant.variantGroup,
       quantity: 1,
       unitCost: Number(variant.cost ?? 0),
       availableStock: variant.availableStock,
@@ -234,6 +235,7 @@ export function PoForm() {
           sku: variant.sku,
           name: variant.name,
           productName: variant.productName,
+          variantGroup: variant.variantGroup,
           quantity: 1,
           unitCost: Number(variant.cost ?? 0),
           availableStock: variant.availableStock,
@@ -326,6 +328,7 @@ export function PoForm() {
         sku: item.sku,
         name: item.variantName,
         productName: item.productName,
+        variantGroup: null,
         quantity: item.suggestedReorderQty,
         unitCost: 0,
         availableStock: item.availableStock,
@@ -616,7 +619,7 @@ function VariantResults({
             <ImageThumb src={variant.imageUrl} alt={variant.name} />
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">
-                {variant.productName} · {variant.name}
+                {formatProductVariantLabel(variant.productName, variant)}
               </div>
               <div className="text-muted-foreground text-xs">
                 {variant.sku} · {variant.availableStock} tersedia · {variant.incomingStock} akan
@@ -714,7 +717,7 @@ function VariantPoRow({
           <ImageThumb src={line.imageUrl} alt={line.name} />
           <div className="min-w-0">
             <div className="truncate text-sm font-medium">
-              {line.productName} · {line.name}
+              {formatProductVariantLabel(line.productName, line)}
             </div>
             <div className="text-muted-foreground text-xs">
               {line.sku} · {line.availableStock} tersedia · {line.incomingStock} akan datang
@@ -741,7 +744,7 @@ function VariantPoRow({
           />
         </div>
         <div className="text-right">
-          <div className="text-muted-foreground text-xs">Baris</div>
+          <div className="text-muted-foreground text-xs">Total</div>
           <div className="num font-medium">{formatCurrency(line.unitCost * line.quantity)}</div>
         </div>
       </div>
@@ -749,7 +752,7 @@ function VariantPoRow({
   );
 }
 
-/** A bundle PO row: a violet badge, a bundle-cost input, and an expandable per-component breakdown. */
+/** A bundle PO row: a violet badge, a bundle-cost input, and its per-component breakdown. */
 function BundlePoRow({
   line,
   onPatch,
@@ -759,8 +762,6 @@ function BundlePoRow({
   onPatch: (patch: Partial<BundlePoLine>) => void;
   onRemove: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-
   return (
     <div className="rounded-lg border p-3">
       <div className="flex items-start justify-between gap-2">
@@ -785,27 +786,17 @@ function BundlePoRow({
         </Button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setExpanded((prev) => !prev)}
-        className="text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1 text-xs"
-      >
-        {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-        {line.components.length} komponen
-      </button>
-      {expanded ? (
-        <ul className="bg-muted/40 mt-2 space-y-1 rounded-md px-2.5 py-2">
-          {line.components.map((component) => (
-            <li
-              key={component.name}
-              className="text-muted-foreground flex items-center justify-between gap-2 text-xs"
-            >
-              <span className="truncate">{component.name}</span>
-              <span className="num whitespace-nowrap">{line.quantity * component.quantity}×</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <ul className="bg-muted/40 mt-2 space-y-1 rounded-md px-2.5 py-2">
+        {line.components.map((component) => (
+          <li
+            key={component.name}
+            className="text-muted-foreground flex items-center justify-between gap-2 text-xs"
+          >
+            <span className="truncate">{component.name}</span>
+            <span className="num whitespace-nowrap">{line.quantity * component.quantity}×</span>
+          </li>
+        ))}
+      </ul>
 
       <div className="mt-2 grid grid-cols-[5rem_1fr_auto] items-center gap-2">
         <div className="space-y-1.5">
@@ -823,7 +814,7 @@ function BundlePoRow({
           />
         </div>
         <div className="text-right">
-          <div className="text-muted-foreground text-xs">Baris</div>
+          <div className="text-muted-foreground text-xs">Total</div>
           <div className="num font-medium">{formatCurrency(line.unitCost * line.quantity)}</div>
         </div>
       </div>

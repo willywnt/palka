@@ -10,6 +10,8 @@ export type PurchasableVariant = {
   sku: string;
   name: string;
   productName: string;
+  /** Parent group label when this is a subvariant; null = standalone. */
+  variantGroup: string | null;
   cost: string | null;
   availableStock: number;
   incomingStock: number;

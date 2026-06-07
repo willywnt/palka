@@ -205,8 +205,8 @@ export function BundleDetailEditor({ bundleId }: { bundleId: string }) {
                 <div>
                   <Label htmlFor="bundle-active">Aktif</Label>
                   <p className="text-muted-foreground text-xs">
-                    Bundel nonaktif tidak bisa dijual atau dibeli (disembunyikan dari Kasir, PO
-                    baru, dan scan).
+                    Bundel nonaktif tidak bisa dijual atau dibeli (disembunyikan dari Kasir,
+                    Pembelian baru, dan scan).
                   </p>
                 </div>
                 <Switch id="bundle-active" checked={isActive} onCheckedChange={setIsActive} />

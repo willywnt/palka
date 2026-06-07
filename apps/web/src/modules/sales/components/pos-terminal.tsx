@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Boxes,
   PackageSearch,
@@ -26,7 +26,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/empty-state';
 import { ImageThumb } from '@/components/image-thumb';
+import { TablePagination } from '@/components/table-pagination';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { usePagination } from '@/hooks/use-pagination';
 import { useScanSoundPref } from '@/hooks/use-scan-sound-pref';
 import { useSoundUnlock } from '@/hooks/use-sound-unlock';
 import { apiFetch } from '@/lib/api/fetch-client';
@@ -35,6 +37,7 @@ import { apiRoutes } from '@/lib/api/routes';
 import { formatCurrency } from '@/lib/formatters';
 import { unlockScanSound } from '@/lib/scan-sound';
 import { cn } from '@/lib/utils';
+import { formatProductVariantLabel } from '@/lib/variant-label';
 import { useBundlesQuery } from '@/modules/catalog/hooks/use-bundles';
 import type { BundleDetail, BundleListItem, BundleResolution } from '@/modules/catalog/types';
 import { ConnectScannerDialog } from '@/modules/scanner-pairing/components/connect-scanner-dialog';
@@ -83,9 +86,11 @@ type VariantCartLine = {
   sku: string;
   name: string;
   productName: string;
+  variantGroup: string | null;
   unitPrice: number;
   quantity: number;
   availableStock: number;
+  incomingStock: number;
   imageUrl: string | null;
 };
 
@@ -124,7 +129,16 @@ function useResolveBundleDetail() {
 export function PosTerminal() {
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput.trim(), 300);
-  const { data: results, isLoading } = useSellableVariantsQuery(debouncedSearch);
+  const { page, setPage, pageSize, setPageSize } = usePagination(10);
+  const { data: results, isLoading } = useSellableVariantsQuery(debouncedSearch, page, pageSize);
+
+  // A new search resets to the first page.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, setPage]);
+
+  const variants = results?.items ?? [];
+  const meta = results?.meta;
 
   // Bundles for the Bundling tab (debounced search). A separate unfiltered query
   // decides whether the tab is worth showing at all (≥1 bundle exists).
@@ -215,9 +229,11 @@ export function PosTerminal() {
           sku: variant.sku,
           name: variant.name,
           productName: variant.productName,
+          variantGroup: variant.variantGroup,
           unitPrice: Number(variant.price),
           quantity: 1,
           availableStock: variant.availableStock,
+          incomingStock: variant.incomingStock,
           imageUrl: variant.imageUrl,
         },
       ];
@@ -432,7 +448,7 @@ export function PosTerminal() {
               </TabsList>
               <TabsContent value="products" className="mt-3">
                 <ProductResults
-                  variants={results}
+                  variants={variants}
                   isLoading={isLoading}
                   hasSearch={Boolean(debouncedSearch)}
                   onAdd={addVariantToCart}
@@ -450,12 +466,22 @@ export function PosTerminal() {
             </Tabs>
           ) : (
             <ProductResults
-              variants={results}
+              variants={variants}
               isLoading={isLoading}
               hasSearch={Boolean(debouncedSearch)}
               onAdd={addVariantToCart}
             />
           )}
+
+          {meta && meta.total > 0 ? (
+            <TablePagination
+              page={meta.page}
+              pageSize={pageSize}
+              total={meta.total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          ) : null}
         </CardContent>
       </Card>
 
@@ -523,7 +549,7 @@ export function PosTerminal() {
             </div>
 
             <div className="flex items-center justify-between border-t pt-3">
-              <span className="text-muted-foreground text-sm">Total</span>
+              <span className="text-muted-foreground text-sm">Total harga</span>
               <span className="num text-lg font-semibold">{formatCurrency(total)}</span>
             </div>
 
@@ -583,7 +609,7 @@ function ProductResults({
             <ImageThumb src={variant.imageUrl} alt={variant.name} />
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">
-                {variant.productName} · {variant.name}
+                {formatProductVariantLabel(variant.productName, variant)}
               </div>
               <div className="text-muted-foreground text-xs">
                 {variant.sku} · {formatCurrency(variant.price)} ·{' '}
@@ -688,9 +714,11 @@ function VariantCartRow({
           <ImageThumb src={line.imageUrl} alt={line.name} />
           <div className="min-w-0">
             <div className="truncate text-sm font-medium">
-              {line.productName} · {line.name}
+              {formatProductVariantLabel(line.productName, line)}
             </div>
-            <div className="text-muted-foreground text-xs">{line.sku}</div>
+            <div className="text-muted-foreground text-xs">
+              {line.sku} · {line.availableStock} tersedia · {line.incomingStock} akan datang
+            </div>
           </div>
         </div>
         <Button size="icon" variant="ghost" onClick={onRemove} aria-label="Hapus">
@@ -713,7 +741,7 @@ function VariantCartRow({
           />
         </div>
         <div className="text-right">
-          <div className="text-muted-foreground text-xs">Baris</div>
+          <div className="text-muted-foreground text-xs">Total</div>
           <div className="num font-medium">{formatCurrency(line.unitPrice * line.quantity)}</div>
         </div>
       </div>
@@ -790,7 +818,7 @@ function BundleCartRow({
           />
         </div>
         <div className="text-right">
-          <div className="text-muted-foreground text-xs">Baris</div>
+          <div className="text-muted-foreground text-xs">Total</div>
           <div className="num font-medium">{formatCurrency(line.unitPrice * line.quantity)}</div>
         </div>
       </div>

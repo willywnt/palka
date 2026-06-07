@@ -7,13 +7,16 @@ import { withApiRoute } from '@/lib/api/with-api-route';
 
 export const GET = withApiRoute(
   async (request, { user }) => {
+    const url = new URL(request.url);
     const parsed = searchVariantsQuerySchema.safeParse({
-      q: new URL(request.url).searchParams.get('q') ?? '',
+      q: url.searchParams.get('q') ?? '',
+      page: url.searchParams.get('page') ?? undefined,
+      pageSize: url.searchParams.get('pageSize') ?? undefined,
     });
     if (!parsed.success) return apiValidationError(parsed.error);
 
-    const variants = await salesServerService.searchSellableVariants(user.id, parsed.data.q);
-    return apiSuccess(variants);
+    const result = await salesServerService.searchSellableVariants(user.id, parsed.data);
+    return apiSuccess(result);
   },
   { requireAuth: true },
 );

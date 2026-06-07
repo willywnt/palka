@@ -1,15 +1,22 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiFetch } from '@/lib/api/fetch-client';
 import { formatApiErrorMessage } from '@/lib/api/format-api-error';
 import { apiRoutes } from '@/lib/api/routes';
+import type { PageMeta } from '@/hooks/use-pagination';
 import { inventoryKeys } from '@/modules/inventory/hooks/inventory-keys';
 
 import { saleKeys } from './sale-keys';
 import type { CreateSaleInput } from '../validators/create-sale';
 import type { SaleDetail, SaleListItem, ScannedSaleItem, SellableVariant } from '../types';
+
+/** A page of POS-picker variants (mirror of the server's PaginatedResult). */
+export type SellableVariantsPage = {
+  items: SellableVariant[];
+  meta: PageMeta;
+};
 
 export function useSalesQuery() {
   return useQuery({
@@ -34,19 +41,25 @@ export function useSaleQuery(id: string | null, enabled = true) {
   });
 }
 
-/** Variants for the POS picker (debounced search by SKU/name). */
-export function useSellableVariantsQuery(q: string, enabled = true) {
+/** A paginated page of POS-picker variants (debounced search by SKU/name). */
+export function useSellableVariantsQuery(
+  q: string,
+  page: number,
+  pageSize: number,
+  enabled = true,
+) {
   const trimmed = q.trim();
   return useQuery({
-    queryKey: saleKeys.variants(trimmed),
+    queryKey: saleKeys.variants(trimmed, page, pageSize),
     queryFn: async () => {
-      const result = await apiFetch<SellableVariant[]>(
-        `${apiRoutes.sales}/variants?q=${encodeURIComponent(trimmed)}`,
-      );
+      const result = await apiFetch<SellableVariantsPage>(`${apiRoutes.sales}/variants`, {
+        params: { page, pageSize, ...(trimmed ? { q: trimmed } : {}) },
+      });
       if (!result.success) throw new Error(formatApiErrorMessage(result.error));
       return result.data;
     },
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 

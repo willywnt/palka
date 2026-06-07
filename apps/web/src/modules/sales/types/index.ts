@@ -10,8 +10,12 @@ export type SellableVariant = {
   sku: string;
   name: string;
   productName: string;
+  /** Parent group label when this is a subvariant; null = standalone. */
+  variantGroup: string | null;
   price: string;
   availableStock: number;
+  /** Units on order from suppliers (not yet received). */
+  incomingStock: number;
   /** Variant photo public URL; null = none. */
   imageUrl: string | null;
 };

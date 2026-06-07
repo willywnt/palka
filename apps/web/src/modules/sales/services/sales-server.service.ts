@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { prisma } from '@olshop/db';
+import { buildPaginatedResult, prisma, type PaginatedResult } from '@olshop/db';
 import { enqueuePropagateInventoryStock } from '@olshop/queue';
 import type { Prisma } from '@prisma/client';
 
@@ -13,6 +13,7 @@ import type { BundleResolution } from '@/modules/catalog/types';
 
 import { SaleError } from '../errors/sale-errors';
 import type { CreateSaleInput } from '../validators/create-sale';
+import type { SearchVariantsQuery } from '../validators/search-variants';
 import type {
   SaleDetail,
   SaleItemDetail,
@@ -21,7 +22,6 @@ import type {
   SellableVariant,
 } from '../types';
 
-const SEARCH_LIMIT = 20;
 const LIST_LIMIT = 100;
 
 const DETAIL_INCLUDE = {
@@ -67,40 +67,53 @@ function mapDetail(row: SaleRow): SaleDetail {
  * inventory service; this module reads catalog variants read-only.
  */
 export class SalesServerService {
-  /** Active variants for the POS picker — matched by SKU/name, with price + stock. */
-  async searchSellableVariants(userId: string, q: string): Promise<SellableVariant[]> {
-    const term = q.trim();
-    const variants = await prisma.productVariant.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        isActive: true,
-        ...(term
-          ? {
-              OR: [
-                { sku: { contains: term, mode: 'insensitive' } },
-                { name: { contains: term, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
-      include: {
-        inventory: { select: { availableStock: true } },
-        product: { select: { name: true } },
-      },
-      orderBy: [{ product: { name: 'asc' } }, { name: 'asc' }],
-      take: SEARCH_LIMIT,
-    });
+  /** Active variants for the POS picker — matched by SKU/name, with price + stock, paginated. */
+  async searchSellableVariants(
+    userId: string,
+    query: SearchVariantsQuery,
+  ): Promise<PaginatedResult<SellableVariant>> {
+    const term = query.q.trim();
+    const where: Prisma.ProductVariantWhereInput = {
+      userId,
+      deletedAt: null,
+      isActive: true,
+      ...(term
+        ? {
+            OR: [
+              { sku: { contains: term, mode: 'insensitive' } },
+              { name: { contains: term, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
 
-    return variants.map((variant) => ({
+    const [variants, total] = await Promise.all([
+      prisma.productVariant.findMany({
+        where,
+        include: {
+          inventory: { select: { availableStock: true, incomingStock: true } },
+          product: { select: { name: true } },
+        },
+        orderBy: [{ product: { name: 'asc' } }, { name: 'asc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      prisma.productVariant.count({ where }),
+    ]);
+
+    const items: SellableVariant[] = variants.map((variant) => ({
       variantId: variant.id,
       sku: variant.sku,
       name: variant.name,
       productName: variant.product.name,
+      variantGroup: variant.variantGroup,
       price: variant.price.toString(),
       availableStock: variant.inventory?.availableStock ?? 0,
+      incomingStock: variant.inventory?.incomingStock ?? 0,
       imageUrl: variant.imageUrl,
     }));
+
+    return buildPaginatedResult(items, total, query.page, query.pageSize);
   }
 
   /**
@@ -115,7 +128,7 @@ export class SalesServerService {
 
     const base = { userId, deletedAt: null, isActive: true } as const;
     const include = {
-      inventory: { select: { availableStock: true } },
+      inventory: { select: { availableStock: true, incomingStock: true } },
       product: { select: { name: true } },
     } satisfies Prisma.ProductVariantInclude;
 
@@ -136,8 +149,10 @@ export class SalesServerService {
       sku: variant.sku,
       name: variant.name,
       productName: variant.product.name,
+      variantGroup: variant.variantGroup,
       price: variant.price.toString(),
       availableStock: variant.inventory?.availableStock ?? 0,
+      incomingStock: variant.inventory?.incomingStock ?? 0,
       imageUrl: variant.imageUrl,
     };
   }

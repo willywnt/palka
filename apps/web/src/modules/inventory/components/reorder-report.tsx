@@ -128,7 +128,7 @@ export function ReorderReport() {
           <Button size="sm" asChild>
             <Link href="/dashboard/purchasing/new">
               <Truck className="size-4" />
-              Buat PO
+              Buat pembelian
             </Link>
           </Button>
         </div>
