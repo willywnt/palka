@@ -21,12 +21,12 @@ import {
 import { ImageThumb } from '@/components/image-thumb';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 
+import { VariantPickerDialog } from '@/components/variant-picker-dialog';
 import { ShareEvidenceControl } from '@/modules/recordings/components/share-evidence-control';
 import { useRecordingsByResiQuery } from '@/modules/recordings/hooks/use-recordings-management';
 import { useCreateReturnMutation } from '@/modules/returns/hooks/use-returns';
 
 import { useOrderQuery, useResolveOrderItemMutation } from '../hooks/use-orders';
-import { MapOrderItemDialog } from './map-order-item-dialog';
 import { OrderActionsMenu } from './order-actions-menu';
 import { OrderStatusBadge } from './order-status-badge';
 
@@ -274,13 +274,14 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       </div>
 
       {mapTarget ? (
-        <MapOrderItemDialog
+        <VariantPickerDialog
           open={Boolean(mapTarget)}
           onOpenChange={(next) => {
             if (!next) setMapTarget(null);
           }}
-          itemLabel={mapTarget.label}
-          isMapping={resolveMutation.isPending}
+          title="Match to a product"
+          description={mapTarget.label}
+          busy={resolveMutation.isPending}
           onSelect={(variantId) => void handleResolve(variantId)}
         />
       ) : null}

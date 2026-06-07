@@ -76,26 +76,22 @@ function rangeToParams(
 function MetricCells({ metrics }: { metrics: ProfitMetrics }) {
   return (
     <>
-      <TableCell className="text-right tabular-nums">
-        {formatCurrency(metrics.grossRevenue)}
-      </TableCell>
-      <TableCell className="text-muted-foreground text-right tabular-nums">
+      <TableCell className="num text-right">{formatCurrency(metrics.grossRevenue)}</TableCell>
+      <TableCell className="text-muted-foreground num text-right">
         {formatCurrency(metrics.cogs)}
       </TableCell>
       <TableCell
         className={cn(
-          'text-right font-medium tabular-nums',
+          'num text-right font-medium',
           Number(metrics.grossProfit) < 0 && 'text-destructive',
         )}
       >
         {formatCurrency(metrics.grossProfit)}
       </TableCell>
-      <TableCell className={cn('text-right tabular-nums', marginClass(metrics.grossMarginPct))}>
+      <TableCell className={cn('num text-right', marginClass(metrics.grossMarginPct))}>
         {formatPct(metrics.grossMarginPct)}
       </TableCell>
-      <TableCell className="text-muted-foreground text-right tabular-nums">
-        {metrics.unitsSold}
-      </TableCell>
+      <TableCell className="text-muted-foreground num text-right">{metrics.unitsSold}</TableCell>
     </>
   );
 }
@@ -145,12 +141,10 @@ function SkuTable({
                     <div className="font-medium">{row.name}</div>
                     <div className="text-muted-foreground text-xs">{row.sku}</div>
                   </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
+                  <TableCell className="num text-right font-medium">
                     {formatCurrency(row.grossProfit)}
                   </TableCell>
-                  <TableCell
-                    className={cn('text-right tabular-nums', marginClass(row.grossMarginPct))}
-                  >
+                  <TableCell className={cn('num text-right', marginClass(row.grossMarginPct))}>
                     {formatPct(row.grossMarginPct)}
                   </TableCell>
                 </TableRow>
@@ -299,7 +293,7 @@ function ProfitContent({ data }: { data: ProfitReportData }) {
               <TableBody>
                 {data.byPeriod.map((row) => (
                   <TableRow key={row.period}>
-                    <TableCell className="font-medium tabular-nums">{row.period}</TableCell>
+                    <TableCell className="num font-medium">{row.period}</TableCell>
                     <MetricCells metrics={row} />
                   </TableRow>
                 ))}
@@ -350,16 +344,14 @@ function ProfitContent({ data }: { data: ProfitReportData }) {
                       <div className="text-muted-foreground text-xs">{row.sku}</div>
                     </TableCell>
                     <TableCell>{channelLabel(row.channel)}</TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="num text-right">
                       {formatCurrency(row.unitPrice)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(row.unitCost)}
-                    </TableCell>
-                    <TableCell className="text-destructive text-right font-medium tabular-nums">
+                    <TableCell className="num text-right">{formatCurrency(row.unitCost)}</TableCell>
+                    <TableCell className="text-destructive num text-right font-medium">
                       {formatCurrency(row.lossPerUnit)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{row.units}</TableCell>
+                    <TableCell className="num text-right">{row.units}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

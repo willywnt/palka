@@ -134,11 +134,11 @@ function ValuationContent({ data }: { data: InventoryValuationData }) {
                     <TableCell className="text-muted-foreground text-sm">
                       {row.category ?? '—'}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                    <TableCell className="text-muted-foreground num text-right">
                       {row.variantCount}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{row.availableUnits}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
+                    <TableCell className="num text-right">{row.availableUnits}</TableCell>
+                    <TableCell className="num text-right font-medium">
                       {formatCurrency(row.stockValue)}
                     </TableCell>
                   </TableRow>

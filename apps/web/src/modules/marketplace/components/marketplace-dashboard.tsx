@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
+
+import { EmptyState } from '@/components/empty-state';
 
 import type { MarketplaceConnectionListItem } from '../types';
 import {
@@ -11,7 +13,6 @@ import {
 } from '../hooks/use-marketplace-connections';
 import { AddMarketplaceModal } from './add-marketplace-modal';
 import { DisconnectMarketplaceDialog } from './disconnect-marketplace-dialog';
-import { MarketplaceEmptyState } from './marketplace-empty-state';
 import { MarketplaceTable } from './marketplace-table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,8 +37,7 @@ export function MarketplaceDashboard() {
       setDisconnectTarget(null);
     } catch (disconnectError) {
       toast.error('Disconnect failed', {
-        description:
-          disconnectError instanceof Error ? disconnectError.message : 'Unknown error',
+        description: disconnectError instanceof Error ? disconnectError.message : 'Unknown error',
       });
     }
   }
@@ -75,7 +75,8 @@ export function MarketplaceDashboard() {
           ))}
         </div>
       ) : isEmpty ? (
-        <MarketplaceEmptyState
+        <EmptyState
+          icon={ShoppingBag}
           title="No marketplace stores connected"
           description="Connect Shopee or Tokopedia stores to prepare for inventory and order synchronization."
         />

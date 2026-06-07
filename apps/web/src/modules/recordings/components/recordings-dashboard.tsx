@@ -38,7 +38,7 @@ import { RecordingDetailModal } from './recording-detail-modal';
 import { RecordingPlayerModal } from './recording-player-modal';
 import { ShareEvidenceDialog } from './share-evidence-dialog';
 import { OperationalStatusBadge } from './operational-status-badge';
-import { RecordingsEmptyState } from './recordings-empty-state';
+import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -245,7 +245,8 @@ export function RecordingsDashboard() {
           ))}
         </div>
       ) : isEmpty ? (
-        <RecordingsEmptyState
+        <EmptyState
+          icon={Video}
           title={hasSearch ? 'No matching recordings' : 'No recordings yet'}
           description={
             hasSearch

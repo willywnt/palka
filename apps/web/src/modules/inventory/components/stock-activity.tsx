@@ -24,10 +24,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { DateRangePicker } from '@/components/date-range-picker';
 import { EmptyState } from '@/components/empty-state';
 import { ImageThumb } from '@/components/image-thumb';
+import { NumberDelta } from '@/components/number-delta';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { apiRoutes } from '@/lib/api/routes';
-import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
 
 import { useStockActivityQuery, type StockActivityFilters } from '../hooks/use-inventory';
@@ -249,18 +249,10 @@ export function StockActivity() {
                       <TableCell>
                         <Badge variant="secondary">{entry.source}</Badge>
                       </TableCell>
-                      <TableCell
-                        className={cn(
-                          'text-right font-medium tabular-nums',
-                          entry.delta >= 0 ? 'text-emerald-600' : 'text-destructive',
-                        )}
-                      >
-                        {entry.delta >= 0 ? '+' : ''}
-                        {entry.delta}
+                      <TableCell className="text-right font-medium">
+                        <NumberDelta value={entry.delta} showZero />
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {entry.balanceAfter}
-                      </TableCell>
+                      <TableCell className="num text-right">{entry.balanceAfter}</TableCell>
                       <TableCell className="max-w-[14rem]">
                         {noteText ? (
                           <Tooltip>

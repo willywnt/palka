@@ -157,12 +157,12 @@ export function InventoryOverview() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{item.sku}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    <span className="font-medium tabular-nums">{item.availableStock}</span>
+                    <span className="num font-medium">{item.availableStock}</span>
                     {item.isLowStock ? (
                       <LowStockBadge threshold={item.lowStockThreshold} className="ml-2" />
                     ) : null}
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
+                  <TableCell className="num text-right whitespace-nowrap">
                     {item.reservedStock > 0 ? (
                       <span title="Committed to paid, not-yet-shipped orders">
                         {item.reservedStock}
@@ -171,7 +171,7 @@ export function InventoryOverview() {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
+                  <TableCell className="num text-right whitespace-nowrap">
                     {item.damagedStock > 0 ? (
                       <span className="text-destructive" title="Written off from returns">
                         {item.damagedStock}
@@ -180,7 +180,7 @@ export function InventoryOverview() {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap tabular-nums">
+                  <TableCell className="num text-right whitespace-nowrap">
                     {item.incomingStock > 0 ? (
                       <span className="text-sky-600" title="On order from suppliers">
                         {item.incomingStock}

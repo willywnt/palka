@@ -28,6 +28,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/empty-state';
 import { StatCard } from '@/components/stat-card';
+import { VariantPickerDialog } from '@/components/variant-picker-dialog';
 
 import { useMarketplaceConnectionQuery } from '../hooks/use-marketplace-connections';
 import {
@@ -40,7 +41,6 @@ import {
   useUnmapListingMutation,
 } from '../hooks/use-marketplace-listings';
 import type { MarketplaceListingMapping } from '../types';
-import { MapListingDialog } from './map-listing-dialog';
 import { MarketplaceProviderBadge } from './marketplace-provider-badge';
 
 function SyncStatusBadge({ mapping }: { mapping: MarketplaceListingMapping }) {
@@ -368,12 +368,14 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
       )}
 
       {mapTarget ? (
-        <MapListingDialog
+        <VariantPickerDialog
           open={Boolean(mapTarget)}
           onOpenChange={(open) => {
             if (!open) setMapTarget(null);
           }}
-          isMapping={mapMutation.isPending}
+          title="Map to a variant"
+          description="Pick the internal variant this listing represents."
+          busy={mapMutation.isPending}
           onSelect={(variantId) => void handleMap(mapTarget, variantId)}
         />
       ) : null}
