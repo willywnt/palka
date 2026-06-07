@@ -17,7 +17,11 @@ import type {
 import type { AdjustStockInput } from '../validators/adjust-stock';
 import type { ListStockOverviewQuery } from '../validators/list-stock-overview';
 import { computeMovingAverageCost } from '../utils/cost-math';
-import { computeBalanceAfter, damagedBucketDelta } from '../utils/stock-math';
+import {
+  clampWriteOffQuantity,
+  computeBalanceAfter,
+  damagedBucketDelta,
+} from '../utils/stock-math';
 
 const LEDGER_PAGE_SIZE = 50;
 /** Upper bound on variants scanned for the stock overview; logged if exceeded. */
@@ -243,6 +247,58 @@ export class InventoryServerService {
       outcome.entry.id,
     );
 
+    return outcome;
+  }
+
+  /**
+   * Write off / dispose damaged units — removes them from the damaged bucket
+   * (clamped to what is held). Available is UNCHANGED (the units already left
+   * available when they were damaged), so this never propagates. Records a
+   * DAMAGE_WRITE_OFF ledger row with delta 0 (the ledger is available-centric)
+   * and the disposed count in the note for the audit trail.
+   */
+  async disposeDamaged(
+    userId: string,
+    variantId: string,
+    quantity: number,
+    note?: string,
+  ): Promise<AdjustStockResult> {
+    const outcome = await prisma.$transaction(async (tx) => {
+      const variant = await tx.productVariant.findFirst({
+        where: { id: variantId, userId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!variant) throw InventoryError.variantNotFound();
+
+      const existing = await tx.inventory.findUnique({ where: { variantId } });
+      const disposed = clampWriteOffQuantity(existing?.damagedStock ?? 0, quantity);
+      if (disposed <= 0) {
+        throw InventoryError.validation('No damaged stock to write off.');
+      }
+
+      const available = existing?.availableStock ?? 0;
+      const now = new Date();
+      const inventory = await tx.inventory.update({
+        where: { variantId },
+        data: { damagedStock: { decrement: disposed }, lastAdjustedAt: now },
+      });
+
+      const entry = await tx.stockLedger.create({
+        data: {
+          userId,
+          variantId,
+          delta: 0,
+          balanceAfter: available,
+          reason: 'DAMAGE_WRITE_OFF',
+          source: 'MANUAL',
+          note: `Wrote off ${disposed} damaged unit(s)${note ? ` — ${note}` : ''}`,
+        },
+      });
+
+      return { inventory: mapInventory(inventory), entry: mapLedgerEntry(entry) };
+    });
+
+    appLogger.info('inventory.damage_written_off', { userId, variantId });
     return outcome;
   }
 

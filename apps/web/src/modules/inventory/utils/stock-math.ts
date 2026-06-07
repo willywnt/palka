@@ -44,3 +44,12 @@ export function computeBalanceAfter(currentAvailable: number, delta: number): St
 export function damagedBucketDelta(reason: StockLedgerReason, delta: number): number {
   return reason === StockLedgerReason.DAMAGE && delta < 0 ? -delta : 0;
 }
+
+/**
+ * Units a damage write-off can actually dispose: the requested quantity clamped to
+ * what is in the damaged bucket (and never below zero). You can't write off more
+ * damaged units than you hold.
+ */
+export function clampWriteOffQuantity(damagedStock: number, requested: number): number {
+  return Math.min(Math.max(0, requested), Math.max(0, damagedStock));
+}

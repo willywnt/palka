@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, PackageSearch, QrCode, ScrollText, SlidersHorizontal } from 'lucide-react';
+import {
+  MoreHorizontal,
+  PackageSearch,
+  QrCode,
+  ScrollText,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -37,12 +44,14 @@ import { useMarkLabelsPrintedMutation } from '@/modules/catalog/hooks/use-produc
 import { useStockOverviewQuery } from '../hooks/use-inventory';
 import type { StockOverviewItem } from '../types';
 import { AdjustStockDialog } from './adjust-stock-dialog';
+import { WriteOffDamagedDialog } from './write-off-damaged-dialog';
 
 export function InventoryOverview() {
   const [filters, setFilters] = useUrlFilters({ search: '', low: '' });
   const [searchInput, setSearchInput] = useState(filters.search);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
   const [adjustTarget, setAdjustTarget] = useState<StockOverviewItem | null>(null);
+  const [disposeTarget, setDisposeTarget] = useState<StockOverviewItem | null>(null);
   const [qrTarget, setQrTarget] = useState<StockOverviewItem | null>(null);
   const markPrinted = useMarkLabelsPrintedMutation();
 
@@ -213,6 +222,15 @@ export function InventoryOverview() {
                               View activity
                             </Link>
                           </DropdownMenuItem>
+                          {item.damagedStock > 0 ? (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDisposeTarget(item)}
+                            >
+                              <Trash2 className="size-4" />
+                              Write off damaged
+                            </DropdownMenuItem>
+                          ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -242,6 +260,18 @@ export function InventoryOverview() {
           open={Boolean(adjustTarget)}
           onOpenChange={(open) => {
             if (!open) setAdjustTarget(null);
+          }}
+        />
+      ) : null}
+
+      {disposeTarget ? (
+        <WriteOffDamagedDialog
+          variantId={disposeTarget.variantId}
+          variantLabel={`${disposeTarget.variantName} · ${disposeTarget.sku}`}
+          damagedStock={disposeTarget.damagedStock}
+          open={Boolean(disposeTarget)}
+          onOpenChange={(open) => {
+            if (!open) setDisposeTarget(null);
           }}
         />
       ) : null}

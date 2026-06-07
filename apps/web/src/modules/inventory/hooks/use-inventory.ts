@@ -17,6 +17,7 @@ import type {
   StockOverviewItem,
 } from '../types';
 import type { AdjustStockInput } from '../validators/adjust-stock';
+import type { DisposeDamagedInput } from '../validators/dispose-damaged';
 import type { ReorderReportQuery } from '../validators/reorder-report';
 
 /** Client-held filter state for the stock activity log. Empty string = unset. */
@@ -144,6 +145,29 @@ export function useAdjustStockMutation(variantId: string) {
     mutationFn: async (input: AdjustStockInput) => {
       const result = await apiFetch<AdjustStockResult>(
         `${apiRoutes.inventory}/variants/${variantId}/adjust`,
+        { method: 'POST', body: input },
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+    },
+  });
+}
+
+/** Write off damaged-bucket units (disposal); available is unchanged. */
+export function useDisposeDamagedMutation(variantId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: DisposeDamagedInput) => {
+      const result = await apiFetch<AdjustStockResult>(
+        `${apiRoutes.inventory}/variants/${variantId}/dispose-damaged`,
         { method: 'POST', body: input },
       );
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  clampWriteOffQuantity,
   computeBalanceAfter,
   damagedBucketDelta,
   isManualStockReason,
@@ -46,6 +47,25 @@ describe('damagedBucketDelta', () => {
 
   it('is zero when a DAMAGE adjustment adds stock (no good unit removed)', () => {
     expect(damagedBucketDelta('DAMAGE', 4)).toBe(0);
+  });
+});
+
+describe('clampWriteOffQuantity', () => {
+  it('disposes the requested amount when the damaged bucket can cover it', () => {
+    expect(clampWriteOffQuantity(10, 4)).toBe(4);
+  });
+
+  it('clamps to the damaged bucket when asked for more than is held', () => {
+    expect(clampWriteOffQuantity(3, 10)).toBe(3);
+  });
+
+  it('is zero when there is nothing damaged to write off', () => {
+    expect(clampWriteOffQuantity(0, 5)).toBe(0);
+  });
+
+  it('never returns a negative amount', () => {
+    expect(clampWriteOffQuantity(-2, 5)).toBe(0);
+    expect(clampWriteOffQuantity(5, -3)).toBe(0);
   });
 });
 
