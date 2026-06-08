@@ -108,7 +108,7 @@ export function OrdersDashboard() {
                       <span className="num">{order.itemCount}</span>
                       {order.unresolvedCount > 0 ? (
                         <Badge variant="outline" className="ml-2 border-amber-500 text-amber-600">
-                          {order.unresolvedCount} belum ter-mapping
+                          {order.unresolvedCount} belum dikaitkan
                         </Badge>
                       ) : null}
                     </TableCell>

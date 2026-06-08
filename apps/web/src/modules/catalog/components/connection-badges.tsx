@@ -37,7 +37,7 @@ export function ConnectionBadges({ connections }: { connections: VariantMappingR
           <Badge
             variant="outline"
             className="hover:bg-muted max-w-[150px] gap-1 font-normal"
-            title={`${connection.shopName} — buka untuk lepas mapping`}
+            title={`${connection.shopName} — buka untuk lepas kaitan`}
           >
             <span className="truncate">{connection.shopName}</span>
             <ExternalLink className="size-3 shrink-0" />

@@ -8,21 +8,22 @@ import { PendingUploadTrigger } from '@/modules/recordings/recovery/components/p
 import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = {
-  title: 'New Recording',
+  title: 'Rekam baru',
 };
 
 export default function RecordingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="New recording"
-        description="Record operational workflows from your webcam and upload directly to storage."
+        eyebrow="Fulfillment"
+        title="Rekam baru"
+        description="Rekam proses packing dari webcam kamu, langsung terupload ke penyimpanan."
       >
         <PendingUploadTrigger />
         <Button variant="outline" asChild>
           <Link href="/dashboard/recordings">
             <Library className="size-4" />
-            Open library
+            Daftar rekaman
           </Link>
         </Button>
       </PageHeader>

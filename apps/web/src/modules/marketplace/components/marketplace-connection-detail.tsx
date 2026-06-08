@@ -74,7 +74,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
     try {
       const result = await importMutation.mutateAsync();
       toast.success('Impor selesai', {
-        description: `${result.imported} listing masuk, ${result.autoMapped} otomatis cocok.`,
+        description: `${result.imported} listing masuk, ${result.autoMapped} otomatis terkait.`,
       });
     } catch (error) {
       toast.error('Gagal impor', {
@@ -86,14 +86,14 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
   async function handleRerunAutoMap() {
     try {
       const result = await rerunMutation.mutateAsync();
-      toast.success('Auto-cocok selesai', {
+      toast.success('Auto-kait selesai', {
         description:
           result.autoMapped > 0
-            ? `${result.autoMapped} listing baru berhasil dicocokkan.`
-            : 'Belum ada SKU baru yang cocok.',
+            ? `${result.autoMapped} listing baru berhasil dikaitkan.`
+            : 'Belum ada SKU baru yang bisa dikaitkan.',
       });
     } catch (error) {
-      toast.error('Auto-cocok gagal', {
+      toast.error('Auto-kait gagal', {
         description: error instanceof Error ? error.message : 'Terjadi kesalahan',
       });
     }
@@ -102,10 +102,10 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
   async function handleMap(marketplaceProductId: string, variantId: string) {
     try {
       await mapMutation.mutateAsync({ marketplaceProductId, variantId });
-      toast.success('Listing berhasil dicocokkan');
+      toast.success('Listing berhasil dikaitkan');
       setMapTarget(null);
     } catch (error) {
-      toast.error('Gagal mencocokkan', {
+      toast.error('Gagal mengaitkan', {
         description: error instanceof Error ? error.message : 'Terjadi kesalahan',
       });
     }
@@ -184,7 +184,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
             disabled={rerunMutation.isPending || listings.length === 0}
           >
             <Wand2 className="size-4" />
-            {rerunMutation.isPending ? 'Mencocokkan...' : 'Auto-cocok lagi'}
+            {rerunMutation.isPending ? 'Mengaitkan...' : 'Auto-kait lagi'}
           </Button>
           <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
             <DownloadCloud className="size-4" />
@@ -197,11 +197,11 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Listing" value={listings.length} icon={ShoppingCart} tone="sky" />
           <StatCard
-            label="Sudah ter-mapping"
+            label="Sudah dikaitkan"
             value={mappedCount}
             icon={Link2}
             tone="emerald"
-            hint={`${listings.length - mappedCount} belum ter-mapping`}
+            hint={`${listings.length - mappedCount} belum dikaitkan`}
           />
           <StatCard
             label="Sinkronisasi aktif"
@@ -229,7 +229,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
         <EmptyState
           icon={DownloadCloud}
           title="Belum ada listing diimpor"
-          description="Impor listing toko ini, lalu cocokkan satu per satu ke produk."
+          description="Impor listing toko ini, lalu kaitkan satu per satu ke produk."
           action={
             <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
               <DownloadCloud className="size-4" />
@@ -244,7 +244,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
               <TableRow>
                 <TableHead>Listing</TableHead>
                 <TableHead className="text-right">Stok</TableHead>
-                <TableHead>Dicocokkan ke</TableHead>
+                <TableHead>Dikaitkan ke</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -280,7 +280,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
                           <SyncStatusBadge mapping={mapping} />
                         </div>
                       ) : (
-                        <Badge variant="outline">Belum cocok</Badge>
+                        <Badge variant="outline">Belum dikaitkan</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -305,7 +305,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
                             </TooltipTrigger>
                             <TooltipContent>
                               {mapping.mappingStatus === 'NEEDS_REVIEW'
-                                ? 'Konfirmasi kecocokannya dulu sebelum sinkronisasi diaktifkan.'
+                                ? 'Konfirmasi kaitannya dulu sebelum sinkronisasi diaktifkan.'
                                 : mapping.syncEnabled
                                   ? 'Stok dikirim ke listing ini.'
                                   : 'Aktifkan untuk kirim stok ke listing ini.'}
@@ -352,7 +352,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
                               }
                             >
                               <Link2 className="size-4" />
-                              Cocokkan ke {suggested.sku}
+                              Kaitkan ke {suggested.sku}
                               {suggested.quality === 'NORMALIZED' ? ' (mirip)' : ''}
                             </Button>
                           ) : null}
@@ -380,7 +380,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
           onOpenChange={(open) => {
             if (!open) setMapTarget(null);
           }}
-          title="Cocokkan ke varian"
+          title="Kaitkan ke varian"
           description="Pilih varian di tokomu yang sama dengan listing ini."
           busy={mapMutation.isPending}
           onSelect={(variantId) => void handleMap(mapTarget, variantId)}

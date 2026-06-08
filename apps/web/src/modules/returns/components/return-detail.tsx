@@ -141,7 +141,7 @@ export function ReturnDetail({ returnId }: { returnId: string }) {
                         <div className="min-w-0">
                           <div className="font-medium">{item.externalName}</div>
                           <div className="text-muted-foreground text-xs">
-                            {item.sku ? `${item.sku}` : 'belum dicocokkan'}
+                            {item.sku ? `${item.sku}` : 'belum dikaitkan'}
                             {item.productName ? ` · ${item.productName}` : ''}
                           </div>
                         </div>

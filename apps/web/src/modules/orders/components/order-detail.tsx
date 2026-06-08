@@ -56,12 +56,12 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     if (!mapTarget) return;
     try {
       await resolveMutation.mutateAsync({ orderItemId: mapTarget.id, variantId });
-      toast.success('Item dicocokkan', {
+      toast.success('Item dikaitkan', {
         description: 'Stok ikut diperbarui kalau pesanan sudah dibayar.',
       });
       setMapTarget(null);
     } catch (error) {
-      toast.error('Gagal mencocokkan item', {
+      toast.error('Gagal mengaitkan item', {
         description: error instanceof Error ? error.message : 'Terjadi kesalahan',
       });
     }
@@ -124,7 +124,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                   <TableHead>Item</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Harga satuan</TableHead>
-                  <TableHead>Mapping</TableHead>
+                  <TableHead>Dikaitkan ke</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -154,7 +154,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                       ) : (
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="border-amber-500 text-amber-600">
-                            Belum ter-mapping
+                            Belum dikaitkan
                           </Badge>
                           <Button
                             variant="outline"
@@ -167,7 +167,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                             }
                           >
                             <Link2 className="size-4" />
-                            Cocokkan
+                            Kaitkan
                           </Button>
                         </div>
                       )}
@@ -186,8 +186,8 @@ export function OrderDetail({ orderId }: { orderId: string }) {
             </div>
           ) : data.status === 'PAID' && data.unresolvedCount > 0 ? (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-700">
-              {data.unresolvedCount} item belum dicocokkan ke produk, jadi stok belum diperbarui.
-              Cocokkan listing-nya, lalu tarik pesanan lagi.
+              {data.unresolvedCount} item belum dikaitkan ke produk, jadi stok belum diperbarui.
+              Kaitkan listing-nya, lalu tarik pesanan lagi.
             </div>
           ) : data.status === 'PAID' ? (
             <div className="text-muted-foreground rounded-lg border p-3 text-sm">
@@ -283,7 +283,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           onOpenChange={(next) => {
             if (!next) setMapTarget(null);
           }}
-          title="Cocokkan ke produk"
+          title="Kaitkan ke produk"
           description={mapTarget.label}
           busy={resolveMutation.isPending}
           onSelect={(variantId) => void handleResolve(variantId)}

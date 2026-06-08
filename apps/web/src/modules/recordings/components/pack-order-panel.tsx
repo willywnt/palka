@@ -63,7 +63,7 @@ export function PackOrderPanel({ noResi }: { noResi: string }) {
       </ul>
       {order.unresolvedCount > 0 ? (
         <p className="text-xs text-amber-600">
-          {order.unresolvedCount} item belum dicocokkan ke produk kamu.
+          {order.unresolvedCount} item belum dikaitkan ke produk kamu.
         </p>
       ) : null}
       {order.fulfilledAt ? (

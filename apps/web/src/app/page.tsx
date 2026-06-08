@@ -22,7 +22,7 @@ const FEATURES = [
   {
     icon: RefreshCw,
     title: 'Sinkronisasi stok di semua toko',
-    text: 'Cocokkan listing sekali, stok kamu langsung sinkron di Shopee, Tokopedia, dan lainnya.',
+    text: 'Kaitkan listing sekali, stok kamu langsung sinkron di Shopee, Tokopedia, dan lainnya.',
   },
   {
     icon: ShoppingCart,
