@@ -43,6 +43,40 @@ export function CurrencyTooltip({
   payload?: TooltipItem[];
   label?: string | number;
 }) {
+  return <SeriesTooltip active={active} payload={payload} label={label} format={formatCurrency} />;
+}
+
+/** Same hairline tooltip as CurrencyTooltip, but values are plain counts ("12 unit"). */
+export function CountTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: TooltipItem[];
+  label?: string | number;
+}) {
+  return (
+    <SeriesTooltip
+      active={active}
+      payload={payload}
+      label={label}
+      format={(value) => `${value.toLocaleString('id-ID')} unit`}
+    />
+  );
+}
+
+function SeriesTooltip({
+  active,
+  payload,
+  label,
+  format,
+}: {
+  active?: boolean;
+  payload?: TooltipItem[];
+  label?: string | number;
+  format: (value: number) => string;
+}) {
   if (!active || !payload || payload.length === 0) return null;
 
   return (
@@ -60,7 +94,7 @@ export function CurrencyTooltip({
               />
               <span className="text-muted-foreground">{item.name}</span>
             </span>
-            <span className="num font-medium">{formatCurrency(Number(item.value ?? 0))}</span>
+            <span className="num font-medium">{format(Number(item.value ?? 0))}</span>
           </li>
         ))}
       </ul>

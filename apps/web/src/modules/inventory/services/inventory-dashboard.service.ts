@@ -3,9 +3,12 @@ import 'server-only';
 import { prisma } from '@olshop/db';
 
 import type { InventoryDashboard, InventoryLowStockItem } from '../types';
+import { aggregateDailyMovement } from '../utils/daily-movement';
 
 const LOW_STOCK_LIST_SIZE = 8;
 const RECENT_MOVEMENTS_SIZE = 10;
+const DAILY_WINDOW_DAYS = 14;
+const DAILY_MOVEMENT_CAP = 4000;
 
 export class InventoryDashboardService {
   async getDashboard(userId: string): Promise<InventoryDashboard> {
@@ -76,6 +79,18 @@ export class InventoryDashboardService {
       },
     });
 
+    // Daily in/out stock flow over the recent window (UTC days), for the trend chart.
+    const now = new Date();
+    const windowStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (DAILY_WINDOW_DAYS - 1)),
+    );
+    const flowRows = await prisma.stockLedger.findMany({
+      where: { userId, createdAt: { gte: windowStart } },
+      orderBy: { createdAt: 'desc' },
+      take: DAILY_MOVEMENT_CAP,
+      select: { createdAt: true, delta: true },
+    });
+
     return {
       summary: {
         variantCount: variants.length,
@@ -97,6 +112,7 @@ export class InventoryDashboardService {
         source: movement.source,
         createdAt: movement.createdAt.toISOString(),
       })),
+      dailyMovement: aggregateDailyMovement(flowRows, windowStart, DAILY_WINDOW_DAYS),
     };
   }
 }

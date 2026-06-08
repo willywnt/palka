@@ -117,10 +117,20 @@ export type StockActivityItem = {
   createdAt: string;
 };
 
+/** Stock units moved in (positive deltas) vs out (negative deltas) on one day. */
+export type DailyMovementPoint = {
+  /** UTC day, "YYYY-MM-DD". */
+  date: string;
+  in: number;
+  out: number;
+};
+
 export type InventoryDashboard = {
   summary: InventoryDashboardSummary;
   lowStock: InventoryLowStockItem[];
   recentMovements: InventoryMovementItem[];
+  /** Daily in/out stock flow over a recent window — for the dashboard trend chart. */
+  dailyMovement: DailyMovementPoint[];
 };
 
 export type ReorderItem = {
