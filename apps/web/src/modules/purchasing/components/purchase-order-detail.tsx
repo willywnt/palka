@@ -5,8 +5,19 @@ import Link from 'next/link';
 import { ArrowLeft, Boxes, PackageCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -54,15 +65,33 @@ function groupItems(items: PurchaseOrderItemDetail[]): ItemGroup[] {
   return groups;
 }
 
+/** The bundle group caption — shared by the desktop table band and the mobile card list. */
+function BundleGroupLabel({ bundleName }: { bundleName: string }) {
+  return (
+    <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+      <Boxes className="size-3.5 text-violet-500 dark:text-violet-400" />
+      Bundel · {bundleName}
+    </div>
+  );
+}
+
 export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: string }) {
   const { data, isLoading, error } = usePurchaseOrderQuery(purchaseOrderId);
   const receiveMutation = useReceivePurchaseOrderMutation(purchaseOrderId);
   const cancelMutation = useCancelPurchaseOrderMutation(purchaseOrderId);
   // itemId → qty to receive this round (defaults to each line's outstanding).
   const [receiveQty, setReceiveQty] = useState<Record<string, number>>({});
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const canReceive = data?.status === 'ORDERED' || data?.status === 'PARTIALLY_RECEIVED';
   const busy = receiveMutation.isPending || cancelMutation.isPending;
+
+  function setItemReceiveQty(item: PurchaseOrderItemDetail, value: number) {
+    setReceiveQty((prev) => ({
+      ...prev,
+      [item.id]: Math.max(0, Math.min(value, item.outstanding)),
+    }));
+  }
 
   /** One item row. `indented` nudges bundle-component lines under their group header. */
   function renderItemRow(item: PurchaseOrderItemDetail, indented: boolean) {
@@ -89,20 +118,68 @@ export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: stri
               <div className="ml-auto w-20">
                 <NumberInput
                   value={receiveQty[item.id] ?? item.outstanding}
-                  onChange={(value) =>
-                    setReceiveQty((prev) => ({
-                      ...prev,
-                      [item.id]: Math.max(0, Math.min(value, item.outstanding)),
-                    }))
-                  }
+                  onChange={(value) => setItemReceiveQty(item, value)}
                 />
               </div>
             ) : (
-              <span className="text-muted-foreground text-xs">selesai</span>
+              <span className="text-muted-foreground text-xs">Selesai</span>
             )}
           </TableCell>
         ) : null}
       </TableRow>
+    );
+  }
+
+  /** One item card (<sm) — same figures as the table row, receive input full-width. */
+  function renderItemCard(item: PurchaseOrderItemDetail) {
+    return (
+      <article key={item.id} className="bg-card space-y-3 rounded-xl border p-4">
+        <div className="min-w-0">
+          <div className="font-medium break-words">{item.name}</div>
+          <div className="text-muted-foreground text-xs">{item.sku}</div>
+        </div>
+
+        <dl className="grid grid-cols-3 gap-2">
+          <div>
+            <dt className="text-muted-foreground text-xs">Dipesan</dt>
+            <dd className="num font-medium">{item.quantity}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground text-xs">Diterima</dt>
+            <dd className="num font-medium">{item.receivedQuantity}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground text-xs">Sisa</dt>
+            <dd className="num font-medium">{item.outstanding}</dd>
+          </div>
+        </dl>
+
+        <div className="space-y-1 text-sm">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Modal satuan</span>
+            <span className="num">{formatCurrency(item.unitCost)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Total</span>
+            <span className="num font-medium">{formatCurrency(item.lineTotal)}</span>
+          </div>
+        </div>
+
+        {canReceive ? (
+          item.outstanding > 0 ? (
+            <div className="space-y-1.5 border-t pt-3">
+              <Label htmlFor={`receive-now-${item.id}`}>Terima sekarang</Label>
+              <NumberInput
+                id={`receive-now-${item.id}`}
+                value={receiveQty[item.id] ?? item.outstanding}
+                onChange={(value) => setItemReceiveQty(item, value)}
+              />
+            </div>
+          ) : (
+            <p className="text-muted-foreground border-t pt-3 text-xs">Selesai</p>
+          )
+        ) : null}
+      </article>
     );
   }
 
@@ -132,6 +209,7 @@ export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: stri
   async function handleCancel() {
     try {
       await cancelMutation.mutateAsync();
+      setCancelOpen(false);
       toast.success('Pembelian dibatalkan', { description: 'Sisa stok akan datang dihapus.' });
     } catch (err) {
       toast.error('Gagal membatalkan', {
@@ -142,9 +220,19 @@ export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: stri
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-44" />
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-8 w-48" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-3 lg:col-span-2">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-64 w-full rounded-xl" />
+          </div>
+          <Skeleton className="h-60 w-full rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -176,17 +264,25 @@ export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: stri
         </Link>
       </Button>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">{data.code}</h2>
-        <PurchaseOrderStatusBadge status={data.status} />
+      <div className="space-y-1">
+        <p className="eyebrow text-primary">Pembelian</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="num text-2xl font-semibold tracking-tight">{data.code}</h1>
+          <PurchaseOrderStatusBadge status={data.status} />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           <p className="text-sm font-medium">
-            Item <span className="text-muted-foreground">· {data.items.length}</span>
+            Item{' '}
+            <span className="text-muted-foreground">
+              · <span className="num">{data.items.length}</span>
+            </span>
           </p>
-          <div className="overflow-x-auto rounded-xl border">
+
+          {/* Desktop table — the same lines render as cards below sm. */}
+          <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -206,10 +302,7 @@ export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: stri
                     <Fragment key={`bundle-${group.bundleName}-${group.items[0]?.id}`}>
                       <TableRow className="hover:bg-transparent">
                         <TableCell colSpan={canReceive ? 6 : 5} className="bg-muted/30 py-2">
-                          <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
-                            <Boxes className="size-3.5 text-violet-500 dark:text-violet-400" />
-                            Bundel · {group.bundleName}
-                          </div>
+                          <BundleGroupLabel bundleName={group.bundleName} />
                         </TableCell>
                       </TableRow>
                       {group.items.map((item) => renderItemRow(item, true))}
@@ -222,15 +315,29 @@ export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: stri
             </Table>
           </div>
 
+          {/* Mobile card list — same data, the receive input gets a full-width row. */}
+          <div className="space-y-3 sm:hidden">
+            {groups.map((group) =>
+              group.kind === 'bundle' ? (
+                <div key={`bundle-${group.bundleName}-${group.items[0]?.id}`} className="space-y-3">
+                  <BundleGroupLabel bundleName={group.bundleName} />
+                  {group.items.map((item) => renderItemCard(item))}
+                </div>
+              ) : (
+                renderItemCard(group.item)
+              ),
+            )}
+          </div>
+
           {canReceive ? (
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => void handleReceive()} disabled={busy}>
                 <PackageCheck className="size-4" />
                 {receiveMutation.isPending ? 'Menerima...' : 'Terima stok'}
               </Button>
-              <Button variant="outline" onClick={() => void handleCancel()} disabled={busy}>
+              <Button variant="outline" onClick={() => setCancelOpen(true)} disabled={busy}>
                 <XCircle className="size-4" />
-                Batalkan Pembelian
+                Batalkan pembelian
               </Button>
             </div>
           ) : null}
@@ -276,6 +383,31 @@ export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: stri
           </Card>
         </aside>
       </div>
+
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Batalkan pembelian ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sisa barang yang belum diterima dari <span className="num">{data.code}</span> bakal
+              dihapus dari hitungan stok akan datang, dan pembelian ini nggak bisa diterima lagi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelMutation.isPending}>Nggak jadi</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void handleCancel();
+              }}
+            >
+              {cancelMutation.isPending ? 'Membatalkan...' : 'Batalkan pembelian'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

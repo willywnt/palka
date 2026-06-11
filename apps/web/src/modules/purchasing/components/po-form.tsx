@@ -15,6 +15,7 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+import { ActionTooltip } from '@/components/ui/action-tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,13 +60,13 @@ const SCAN_STATUS_META: Record<PoScannerStatus, { dot: string; cta: string; hint
     waiting: { dot: 'bg-highlight', cta: 'Tampilkan QR', hint: 'Menunggu ponsel kamu terhubung…' },
     connected: {
       dot: 'bg-status-ok',
-      cta: 'ponsel terhubung',
-      hint: 'ponsel terhubung — scan label produk untuk menambahkannya ke pembelian.',
+      cta: 'Ponsel terhubung',
+      hint: 'Ponsel terhubung — scan label produk buat nambahin ke pembelian.',
     },
     disconnected: {
       dot: 'bg-destructive',
-      cta: 'Hubungkan lagi',
-      hint: 'ponsel terputus. Tap Hubungkan lagi untuk munculin QR baru.',
+      cta: 'Hubungkan ulang',
+      hint: 'Ponsel terputus. Ketuk Hubungkan ulang buat tampilin QR baru.',
     },
   };
 
@@ -190,7 +191,7 @@ export function PoForm() {
     [lines],
   );
 
-  /** Append a variant line, or do nothing if it is already on the order. */
+  /** Append a variant line, or do nothing if it is already on the order (reorder suggestions). */
   function addVariantLine(line: VariantPoLine) {
     setLines((prev) => {
       if (
@@ -204,23 +205,7 @@ export function PoForm() {
     });
   }
 
-  function addVariant(variant: PurchasableVariant) {
-    addVariantLine({
-      kind: 'variant',
-      variantId: variant.variantId,
-      sku: variant.sku,
-      name: variant.name,
-      productName: variant.productName,
-      variantGroup: variant.variantGroup,
-      quantity: 1,
-      unitCost: Number(variant.cost ?? 0),
-      availableStock: variant.availableStock,
-      incomingStock: variant.incomingStock,
-      imageUrl: variant.imageUrl,
-    });
-  }
-
-  /** Scanner add: append the variant line, or bump its qty if already on the order. */
+  /** Manual Tambah + scanner: append the variant line, or bump its qty if already on the order. */
   function addOrBumpVariant(variant: PurchasableVariant) {
     setLines((prev) => {
       const existing = prev.find(
@@ -416,20 +401,18 @@ export function PoForm() {
             <CardTitle className="text-base">Cari produk</CardTitle>
             {scannerEnabled ? (
               <div className="flex items-center gap-1.5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  onClick={toggleSound}
-                  aria-label={soundOn ? 'Matikan suara scan' : 'Nyalakan suara scan'}
-                  title={soundOn ? 'Matikan suara scan' : 'Nyalakan suara scan'}
-                >
-                  {soundOn ? (
-                    <Volume2 className="size-4" />
-                  ) : (
-                    <VolumeX className="text-muted-foreground size-4" />
-                  )}
-                </Button>
+                <ActionTooltip label={soundOn ? 'Bisukan suara scan' : 'Aktifkan suara scan'}>
+                  <Button variant="ghost" size="icon" onClick={toggleSound}>
+                    {soundOn ? (
+                      <Volume2 className="size-4" />
+                    ) : (
+                      <VolumeX className="text-muted-foreground size-4" />
+                    )}
+                    <span className="sr-only">
+                      {soundOn ? 'Bisukan suara scan' : 'Aktifkan suara scan'}
+                    </span>
+                  </Button>
+                </ActionTooltip>
                 <Button variant="outline" size="sm" onClick={openScanner}>
                   <span className={cn('size-2 rounded-full', scanMeta.dot)} aria-hidden />
                   <ScanLine className="size-4" />
@@ -447,16 +430,17 @@ export function PoForm() {
               placeholder="Cari SKU atau nama produk..."
               autoFocus
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={loadReorderSuggestions}
-              disabled={reorder.isLoading}
-              title="Tambah item saran dari laporan restok"
-            >
-              <ClipboardList className="size-4" />
-              Restok
-            </Button>
+            <ActionTooltip label="Tambah item saran dari laporan restok">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={loadReorderSuggestions}
+                disabled={reorder.isLoading}
+              >
+                <ClipboardList className="size-4" />
+                Restok
+              </Button>
+            </ActionTooltip>
           </div>
           {scannerEnabled && scanMeta.hint ? (
             <p
@@ -486,7 +470,7 @@ export function PoForm() {
                   error={variantsError}
                   onRetry={() => void refetchVariants()}
                   hasSearch={Boolean(debouncedSearch)}
-                  onAdd={addVariant}
+                  onAdd={addOrBumpVariant}
                 />
               </TabsContent>
               <TabsContent value="bundling" className="mt-3">
@@ -508,7 +492,7 @@ export function PoForm() {
               error={variantsError}
               onRetry={() => void refetchVariants()}
               hasSearch={Boolean(debouncedSearch)}
-              onAdd={addVariant}
+              onAdd={addOrBumpVariant}
             />
           )}
 
@@ -580,7 +564,7 @@ export function PoForm() {
               disabled={lines.length === 0 || createPo.isPending}
             >
               <PackagePlus className="size-4" />
-              {createPo.isPending ? 'Membuat...' : 'Buat Pembelian'}
+              {createPo.isPending ? 'Membuat...' : 'Buat pembelian'}
             </Button>
           </div>
         </CardContent>
@@ -642,8 +626,8 @@ function VariantResults({
                 {formatProductVariantLabel(variant.productName, variant)}
               </div>
               <div className="text-muted-foreground text-xs">
-                {variant.sku} · {variant.availableStock} tersedia · {variant.incomingStock} akan
-                datang
+                {variant.sku} · <span className="num">{variant.availableStock}</span> tersedia ·{' '}
+                <span className="num">{variant.incomingStock}</span> akan datang
               </div>
             </div>
           </div>
@@ -714,7 +698,7 @@ function BundleResults({
                 </Badge>
               </div>
               <div className="text-muted-foreground text-xs">
-                {bundle.sku} · {bundle.totalVariant} item
+                {bundle.sku} · <span className="num">{bundle.totalVariant}</span> item
               </div>
             </div>
           </div>
@@ -748,7 +732,8 @@ function VariantPoRow({
               {formatProductVariantLabel(line.productName, line)}
             </div>
             <div className="text-muted-foreground text-xs">
-              {line.sku} · {line.availableStock} tersedia · {line.incomingStock} akan datang
+              {line.sku} · <span className="num">{line.availableStock}</span> tersedia ·{' '}
+              <span className="num">{line.incomingStock}</span> akan datang
             </div>
           </div>
         </div>
@@ -758,15 +743,17 @@ function VariantPoRow({
       </div>
       <div className="mt-2 grid grid-cols-[5rem_1fr_auto] items-center gap-2">
         <div className="space-y-1.5">
-          <Label>Qty</Label>
+          <Label htmlFor={`po-line-qty-${line.variantId}`}>Qty</Label>
           <NumberInput
+            id={`po-line-qty-${line.variantId}`}
             value={line.quantity}
             onChange={(value) => onPatch({ quantity: Math.max(1, value) })}
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Modal satuan</Label>
+          <Label htmlFor={`po-line-cost-${line.variantId}`}>Modal satuan</Label>
           <NumberInput
+            id={`po-line-cost-${line.variantId}`}
             value={line.unitCost}
             onChange={(value) => onPatch({ unitCost: Math.max(0, value) })}
           />
@@ -828,15 +815,17 @@ function BundlePoRow({
 
       <div className="mt-2 grid grid-cols-[5rem_1fr_auto] items-center gap-2">
         <div className="space-y-1.5">
-          <Label>Qty</Label>
+          <Label htmlFor={`po-bundle-qty-${line.bundleId}`}>Qty</Label>
           <NumberInput
+            id={`po-bundle-qty-${line.bundleId}`}
             value={line.quantity}
             onChange={(value) => onPatch({ quantity: Math.max(1, value) })}
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Modal bundel</Label>
+          <Label htmlFor={`po-bundle-cost-${line.bundleId}`}>Modal bundel</Label>
           <NumberInput
+            id={`po-bundle-cost-${line.bundleId}`}
             value={line.unitCost}
             onChange={(value) => onPatch({ unitCost: Math.max(0, value) })}
           />
