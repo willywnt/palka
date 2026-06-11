@@ -105,7 +105,7 @@ function RowActionsMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => onShowQr(item)}>
           <QrCode className="size-4" />
-          Tampilkan QR
+          Tampilkan QR code
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href={`/dashboard/inventory/activity?search=${encodeURIComponent(item.sku)}`}>

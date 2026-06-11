@@ -339,6 +339,23 @@
     visibility: visible;
   }
 
+  /*
+   * When the print-root sits inside a modal (the single-label QR dialog),
+   * neutralize Radix's centering transform, fixed position and scroll clip so the
+   * absolute print-root below resolves to the PAGE origin — otherwise the dialog's
+   * transform is its containing block and the QR prints offset / cut in half.
+   */
+  [data-slot='dialog-overlay'] {
+    display: none !important;
+  }
+
+  [data-slot='dialog-content'] {
+    position: static !important;
+    transform: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   [data-print-root] {
     position: absolute;
     top: 0;
