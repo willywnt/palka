@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { APP_NAME } from '@falka/config/constants';
-import { Boxes, Plus, ShoppingBag, Video } from 'lucide-react';
+import { Boxes, Plus, Store, Truck, Video } from 'lucide-react';
 
 import { BrandBadge } from '@/components/brand-mark';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
@@ -18,12 +18,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
+/* Ordered by real creation frequency: counter sale, restock PO, product, packing video. */
 function SidebarCreate({ collapsed }: { collapsed: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {collapsed ? (
-          <Button size="icon" className="mx-auto" title="Buat">
+          <Button size="icon" className="mx-auto">
             <Plus className="size-4" />
             <span className="sr-only">Buat</span>
           </Button>
@@ -38,15 +39,21 @@ function SidebarCreate({ collapsed }: { collapsed: boolean }) {
         <DropdownMenuLabel>Buat</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/dashboard/products">
-            <Boxes className="size-4" />
-            Produk baru
+          <Link href="/dashboard/sales/new">
+            <Store className="size-4" />
+            Penjualan kasir
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/dashboard/marketplace">
-            <ShoppingBag className="size-4" />
-            Hubungkan toko
+          <Link href="/dashboard/purchasing/new">
+            <Truck className="size-4" />
+            Pembelian (PO)
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/products">
+            <Boxes className="size-4" />
+            Produk baru
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -95,7 +102,7 @@ export function AppSidebar({ className }: { className?: string }) {
 
       {collapsed ? null : (
         <div className="border-sidebar-border text-sidebar-foreground/45 border-t px-5 py-3 text-xs">
-          Inventaris &amp; fulfillment
+          Lihat lebih tajam, jualan lebih tenang.
         </div>
       )}
     </aside>

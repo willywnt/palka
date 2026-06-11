@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import { useSidebar } from '@/components/layout/sidebar-provider';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 type SidebarNavItem = {
@@ -62,13 +63,14 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
   {
     label: 'Fulfillment',
     items: [
-      { title: 'Rekam', href: '/recordings', icon: Video },
+      // "Rekam packing" vs "Rekaman": one letter apart was an easy mis-tap.
+      { title: 'Rekam packing', href: '/recordings', icon: Video },
       { title: 'Rekaman', href: '/dashboard/recordings', icon: Library },
       { title: 'Retur', href: '/dashboard/returns', icon: Undo2 },
     ],
   },
   {
-    label: 'Insight',
+    label: 'Laporan',
     items: [
       { title: 'Laba & channel', href: '/dashboard/reports/profit', icon: LineChart },
       { title: 'Nilai stok', href: '/dashboard/reports/inventory-value', icon: Coins },
@@ -143,12 +145,11 @@ export function SidebarNav({
                   const isActive = item.href === activeHref;
                   const Icon = item.icon;
 
-                  return (
+                  const link = (
                     <Link
                       key={item.href}
                       href={item.href}
                       onClick={onNavigate}
-                      title={collapsed ? item.title : undefined}
                       className={cn(
                         'focus-visible:ring-sidebar-ring flex items-center rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
                         collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2',
@@ -159,7 +160,17 @@ export function SidebarNav({
                     >
                       <Icon className={cn('size-4 shrink-0', isActive && 'text-primary')} />
                       {collapsed ? null : item.title}
+                      {collapsed ? <span className="sr-only">{item.title}</span> : null}
                     </Link>
+                  );
+
+                  if (!collapsed) return link;
+
+                  return (
+                    <Tooltip key={item.href}>
+                      <TooltipTrigger asChild>{link}</TooltipTrigger>
+                      <TooltipContent side="right">{item.title}</TooltipContent>
+                    </Tooltip>
                   );
                 })
               : null}
