@@ -327,6 +327,7 @@ function BundlesDashboardContent() {
           value={qrTarget.sku}
           name={qrTarget.name}
           sku={qrTarget.sku}
+          lastPrintedAt={qrTarget.labelPrintedAt}
           onPrint={() => markPrinted.mutate([qrTarget.id])}
         />
       ) : null}

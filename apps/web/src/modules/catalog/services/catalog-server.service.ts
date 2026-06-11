@@ -561,6 +561,7 @@ export class CatalogServerService {
       imageUrl: bundle.imageUrl,
       price: bundle.price.toString(),
       isActive: bundle.isActive,
+      labelPrintedAt: bundle.labelPrintedAt?.toISOString() ?? null,
       totalVariant: bundle.items.length,
       available: computeBuildableQty(
         bundle.items.map((item) => ({

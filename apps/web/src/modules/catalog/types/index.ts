@@ -156,4 +156,6 @@ export type BundleListItem = {
   /** How many distinct component variants the bundle groups. */
   totalVariant: number;
   available: number;
+  /** When the bundle's QR label was last printed (ISO); null = never. */
+  labelPrintedAt: string | null;
 };

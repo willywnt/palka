@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Printer } from 'lucide-react';
+import { ChevronDown, Printer } from 'lucide-react';
 import QRCode from 'qrcode';
 
 import { Button } from '@/components/ui/button';
@@ -12,17 +12,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { formatRelativeTime } from '@/lib/formatters';
 
 import { QrImage } from './qr-image';
 
-type LabelSize = 'kecil' | 'sedang' | 'besar';
-
-/** Printed QR edge length per size choice. */
-const SIZE_OPTIONS: { value: LabelSize; label: string; mm: number }[] = [
-  { value: 'kecil', label: 'Kecil', mm: 30 },
-  { value: 'sedang', label: 'Sedang', mm: 45 },
-  { value: 'besar', label: 'Besar', mm: 60 },
+/** Printed QR edge length (mm) per size choice. */
+const SIZE_OPTIONS: { label: string; mm: number }[] = [
+  { label: 'Kecil', mm: 30 },
+  { label: 'Sedang', mm: 50 },
+  { label: 'Besar', mm: 70 },
 ];
 
 function escapeHtml(value: string): string {
@@ -128,11 +132,9 @@ export function QrCodeDialog({
   lastPrintedAt,
   onPrint,
 }: QrCodeDialogProps) {
-  const [size, setSize] = useState<LabelSize>('sedang');
   const [printing, setPrinting] = useState(false);
 
-  const handlePrint = async () => {
-    const mm = SIZE_OPTIONS.find((option) => option.value === size)?.mm ?? 45;
+  const handlePrint = async (mm: number) => {
     setPrinting(true);
     try {
       onPrint?.();
@@ -156,33 +158,23 @@ export function QrCodeDialog({
           <div className="num text-muted-foreground text-sm">{sku}</div>
         </div>
 
-        <div className="space-y-2">
-          <div className="text-muted-foreground text-xs">Ukuran cetak</div>
-          <div className="flex gap-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" className="w-full" disabled={printing}>
+              <Printer className="size-4" />
+              {printing ? 'Menyiapkan…' : lastPrintedAt ? 'Cetak lagi' : 'Cetak'}
+              <ChevronDown className="ml-auto size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[var(--radix-dropdown-menu-trigger-width)]">
             {SIZE_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                variant={size === option.value ? 'default' : 'outline'}
-                size="sm"
-                className="flex-1"
-                onClick={() => setSize(option.value)}
-                aria-pressed={size === option.value}
-              >
+              <DropdownMenuItem key={option.mm} onClick={() => void handlePrint(option.mm)}>
                 {option.label}
-              </Button>
+                <span className="text-muted-foreground ml-auto text-xs">{option.mm} mm</span>
+              </DropdownMenuItem>
             ))}
-          </div>
-          <Button
-            type="button"
-            className="w-full"
-            onClick={() => void handlePrint()}
-            disabled={printing}
-          >
-            <Printer className="size-4" />
-            {printing ? 'Menyiapkan…' : lastPrintedAt ? 'Cetak lagi' : 'Cetak'}
-          </Button>
-        </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <p className="text-muted-foreground text-center text-xs" suppressHydrationWarning>
           {lastPrintedAt
