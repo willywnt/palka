@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, Plus, ScanLine } from 'lucide-react';
+import { Check, Plus, ScanLine, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { ActionTooltip } from '@/components/ui/action-tooltip';
 import { ErrorState } from '@/components/error-state';
 import { ImageThumb } from '@/components/image-thumb';
 import { TablePagination } from '@/components/table-pagination';
@@ -13,14 +14,36 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePagination } from '@/hooks/use-pagination';
+import { useScanSoundPref } from '@/hooks/use-scan-sound-pref';
+import { useSoundUnlock } from '@/hooks/use-sound-unlock';
+import { unlockScanSound } from '@/lib/scan-sound';
+import { cn } from '@/lib/utils';
 import { formatProductVariantLabel } from '@/lib/variant-label';
+import { ConnectScannerDialog } from '@/modules/scanner-pairing/components/connect-scanner-dialog';
 
-import {
-  useCountableVariantsQuery,
-  useResolveCountableMutation,
-  useUpsertOpnameItemMutation,
-} from '../hooks/use-stock-opname';
+import { useOpnameScanner, type OpnameScannerStatus } from '../hooks/use-opname-scanner';
+import { useCountableVariantsQuery, useUpsertOpnameItemMutation } from '../hooks/use-stock-opname';
 import type { CountableVariant } from '../types';
+
+/** Per-state copy + accent for the opname phone-scanner indicator. */
+const SCAN_STATUS_META: Record<
+  OpnameScannerStatus,
+  { dot: string; cta: string; hint: string | null }
+> = {
+  off: { dot: '', cta: '', hint: null },
+  idle: { dot: 'bg-muted-foreground/40', cta: 'Scan pakai ponsel', hint: null },
+  waiting: { dot: 'bg-highlight', cta: 'Tampilkan QR', hint: 'Menunggu ponsel kamu terhubung…' },
+  connected: {
+    dot: 'bg-status-ok',
+    cta: 'Ponsel terhubung',
+    hint: 'Ponsel terhubung — scan label produk buat nambah hitungan (+1 tiap scan).',
+  },
+  disconnected: {
+    dot: 'bg-destructive',
+    cta: 'Hubungkan ulang',
+    hint: 'Ponsel terputus. Ketuk Hubungkan ulang buat tampilin QR baru.',
+  },
+};
 
 export function OpnameAddItem({
   opnameId,
@@ -39,13 +62,27 @@ export function OpnameAddItem({
   );
 
   const [scanCode, setScanCode] = useState('');
-  const resolve = useResolveCountableMutation();
   const upsert = useUpsertOpnameItemMutation(opnameId);
+
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const { soundOn, toggleSound } = useScanSoundPref('falka-opname-scan-sound');
+  useSoundUnlock();
+  // Phone scan-to-count: a paired phone scans a product label → tally +1.
+  const { scannerEnabled, status, scan, isScanning } = useOpnameScanner({
+    opnameId,
+    soundEnabled: soundOn,
+  });
+  const scanMeta = SCAN_STATUS_META[status];
 
   // A new search resets to the first page.
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, setPage]);
+
+  function openScanner() {
+    unlockScanSound();
+    setScannerOpen(true);
+  }
 
   /** Add a variant with its count defaulting to the system qty (variance 0 — edit it in the table). */
   function addVariant(variant: CountableVariant) {
@@ -60,29 +97,12 @@ export function OpnameAddItem({
     );
   }
 
-  async function handleScan(event: React.FormEvent) {
+  function handleScanSubmit(event: React.FormEvent) {
     event.preventDefault();
     const code = scanCode.trim();
     if (!code) return;
-    try {
-      const variant = await resolve.mutateAsync(code);
-      if (!variant) {
-        toast.error('Kode tidak ditemukan', { description: code });
-        return;
-      }
-      if (countedVariantIds.has(variant.variantId)) {
-        toast.info('Sudah ada di hitungan', {
-          description: formatProductVariantLabel(variant.productName, variant),
-        });
-      } else {
-        addVariant(variant);
-      }
-      setScanCode('');
-    } catch (err) {
-      toast.error('Gagal mencari kode', {
-        description: err instanceof Error ? err.message : 'Terjadi kesalahan',
-      });
-    }
+    void scan(code);
+    setScanCode('');
   }
 
   const variants = data?.items ?? [];
@@ -91,21 +111,55 @@ export function OpnameAddItem({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Tambah item ke hitungan</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Tambah item ke hitungan</CardTitle>
+          {scannerEnabled ? (
+            <div className="flex items-center gap-1.5">
+              <ActionTooltip label={soundOn ? 'Bisukan suara scan' : 'Aktifkan suara scan'}>
+                <Button variant="ghost" size="icon" onClick={toggleSound}>
+                  {soundOn ? (
+                    <Volume2 className="size-4" />
+                  ) : (
+                    <VolumeX className="text-muted-foreground size-4" />
+                  )}
+                  <span className="sr-only">
+                    {soundOn ? 'Bisukan suara scan' : 'Aktifkan suara scan'}
+                  </span>
+                </Button>
+              </ActionTooltip>
+              <Button variant="outline" size="sm" onClick={openScanner}>
+                <span className={cn('size-2 rounded-full', scanMeta.dot)} aria-hidden />
+                <ScanLine className="size-4" />
+                {scanMeta.cta}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <form onSubmit={(event) => void handleScan(event)} className="flex gap-2">
+        <form onSubmit={handleScanSubmit} className="flex gap-2">
           <Input
             value={scanCode}
             onChange={(event) => setScanCode(event.target.value)}
-            placeholder="Scan / ketik barcode atau SKU lalu Enter"
+            placeholder="Scan / ketik barcode atau SKU lalu Enter (+1)"
             aria-label="Scan barcode atau SKU"
+            autoFocus
           />
-          <Button type="submit" variant="outline" disabled={resolve.isPending || !scanCode.trim()}>
+          <Button type="submit" variant="outline" disabled={isScanning || !scanCode.trim()}>
             <ScanLine className="size-4" />
-            Tambah
+            +1
           </Button>
         </form>
+        {scannerEnabled && scanMeta.hint ? (
+          <p
+            className={cn(
+              'text-xs',
+              status === 'disconnected' ? 'text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            {scanMeta.hint}
+          </p>
+        ) : null}
 
         <Input
           value={searchInput}
@@ -177,6 +231,8 @@ export function OpnameAddItem({
           />
         ) : null}
       </CardContent>
+
+      <ConnectScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} purpose="OPNAME" />
     </Card>
   );
 }

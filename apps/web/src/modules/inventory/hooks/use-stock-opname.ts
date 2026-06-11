@@ -9,7 +9,12 @@ import type { PageMeta } from '@/hooks/use-pagination';
 
 import { inventoryKeys } from './inventory-keys';
 import { stockOpnameKeys } from './stock-opname-keys';
-import type { CountableVariant, StockOpnameDetail, StockOpnameListItem } from '../types';
+import type {
+  CountableVariant,
+  OpnameScanResult,
+  StockOpnameDetail,
+  StockOpnameListItem,
+} from '../types';
 import type { CreateStockOpnameInput, UpsertOpnameItemInput } from '../validators/stock-opname';
 
 const opnameBase = `${apiRoutes.inventory}/opname`;
@@ -126,6 +131,24 @@ export function useRemoveOpnameItemMutation(id: string) {
       return result.data;
     },
     onSuccess: (detail) => seedDetail(queryClient, id, detail),
+  });
+}
+
+/** Scan-to-count (+1 tally). Seeds the detail cache from the returned detail when something matched. */
+export function useScanCountMutation(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const result = await apiFetch<OpnameScanResult>(`${opnameBase}/${id}/scan`, {
+        method: 'POST',
+        body: { code },
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    onSuccess: (result) => {
+      if (result.detail) seedDetail(queryClient, id, result.detail);
+    },
   });
 }
 
