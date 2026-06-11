@@ -37,17 +37,23 @@ order actions (mark-shipped / edit resi / cancel-with-reason) · DAMAGE write-of
   sold), capital valued at moving-average cost. ABC: SKUs ranked by net revenue and bucketed A/B/C by
   cumulative share (Pareto, over positive revenue so return-heavy SKUs fall to C). Pure aggregates + 9 unit
   tests; CSV export each; no schema change. Distinct from the reorder report's coarse age-proxy `DEAD` flag.
+- **Stock opname / cycle count** (branch `feat/dead-stock-abc-report` → opname commits on `main`) —
+  `StockOpname`/`StockOpnameItem` + `StockOpnameStatus` (DRAFT/COMPLETED/CANCELLED). A session at
+  `/dashboard/inventory/opname`: scan/type or search to add a line (system qty snapshotted at add), edit the
+  counted qty inline with a live variance, then **post** → each line's variance writes a `RECONCILE`/`MANUAL`
+  ledger row via a new `applyReconcileTx` and corrects the Inventory cache (then propagates), or cancel.
+  Posted/cancelled sessions render read-only as the variance report. Counting input = manual + hardware-wedge
+  (phone-scan via an `OPNAME` PairingPurpose deferred to phase 2).
 
 ## 🎯 Mid-size features (1 session each)
 
 | #   | Item                                                              | Module            | Effort | Gate | Notes                                                                                                                                                                                        |
 | --- | ----------------------------------------------------------------- | ----------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Stock opname / cycle count**                                    | inventory         | L      | 🟡   | `StockOpname`/`StockOpnameItem` (system vs counted vs variance); count by SKU/barcode via the existing scanner; variance posts a RECONCILE/MANUAL_ADJUST ledger row. Variance report.        |
-| 2   | **Per-channel performance report**                                | reporting         | M      | 🟢   | Beyond profit-by-channel: payment-method mix, return rate by channel, fulfillment time, turnover. Charts (see redesign). (Partly shipped: revenue share, AOV, return rate, trend matrix.)    |
-| 3   | **Phase 6: scheduled reconciliation + provider-health dashboard** | queue/marketplace | L      | 🟢   | Daily per-connection drift detect (pull external → compare → log); connection test endpoint (Lazada `validateStockSync` exists, unused) + health widget. High-value once real adapters live. |
-| 4   | **Supplier entity + per-supplier lead time**                      | purchasing        | L      | 🟡   | `Supplier` + `PurchaseOrder.supplierId`; per-supplier `leadTimeDays`/MOQ the reorder report prefers over the variant default. (Free-text `supplierName` today.) Precursor to AP.             |
+| 1   | **Per-channel performance report**                                | reporting         | M      | 🟢   | Beyond profit-by-channel: payment-method mix, return rate by channel, fulfillment time, turnover. Charts (see redesign). (Partly shipped: revenue share, AOV, return rate, trend matrix.)    |
+| 2   | **Phase 6: scheduled reconciliation + provider-health dashboard** | queue/marketplace | L      | 🟢   | Daily per-connection drift detect (pull external → compare → log); connection test endpoint (Lazada `validateStockSync` exists, unused) + health widget. High-value once real adapters live. |
+| 3   | **Supplier entity + per-supplier lead time**                      | purchasing        | L      | 🟡   | `Supplier` + `PurchaseOrder.supplierId`; per-supplier `leadTimeDays`/MOQ the reorder report prefers over the variant default. (Free-text `supplierName` today.) Precursor to AP.             |
 
-> _Shipped from this table: **Dead-stock & ABC analysis** (2026-06-11, `feat/dead-stock-abc-report`)._
+> _Shipped from this table: **Dead-stock & ABC analysis** + **Stock opname / cycle count** (2026-06-11)._
 
 ## 🛰️ Big bets (multi-session / gated, sequenced later)
 
