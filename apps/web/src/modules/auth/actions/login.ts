@@ -44,7 +44,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
       return {
         success: false,
         code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
-        message: 'Too many failed login attempts. Try again later.',
+        message: 'Terlalu banyak percobaan masuk yang gagal. Coba lagi beberapa menit lagi, ya.',
       };
     }
 

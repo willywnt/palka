@@ -10,12 +10,12 @@ export const AUTH_ERROR_CODES = {
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
 
 export const AUTH_ERROR_MESSAGES: Record<AuthErrorCode, string> = {
-  INVALID_CREDENTIALS: 'Invalid email or password.',
-  UNAUTHORIZED: 'You must be signed in to continue.',
-  FORBIDDEN: 'You do not have permission to perform this action.',
-  EMAIL_TAKEN: 'An account with this email already exists.',
-  ACCOUNT_DISABLED: 'This account is no longer available.',
-  VALIDATION_ERROR: 'Please check your input and try again.',
+  INVALID_CREDENTIALS: 'Email atau password salah.',
+  UNAUTHORIZED: 'Kamu harus masuk dulu untuk melanjutkan.',
+  FORBIDDEN: 'Kamu tidak punya akses untuk tindakan ini.',
+  EMAIL_TAKEN: 'Email ini sudah terdaftar.',
+  ACCOUNT_DISABLED: 'Akun ini sudah tidak aktif.',
+  VALIDATION_ERROR: 'Periksa lagi isianmu, ya.',
 };
 
 export class AuthError extends Error {

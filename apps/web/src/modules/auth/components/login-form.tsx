@@ -62,7 +62,7 @@ export function LoginForm() {
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="you@company.com"
+                    placeholder="nama@email.com"
                     autoComplete="email"
                     {...field}
                   />

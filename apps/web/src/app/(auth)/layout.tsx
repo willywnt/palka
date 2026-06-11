@@ -3,22 +3,23 @@ import { APP_NAME } from '@falka/config/constants';
 import { Boxes, PackageCheck, RefreshCw } from 'lucide-react';
 
 import { BrandBadge } from '@/components/brand-mark';
+import { WaveHairline } from '@/components/maritime-art';
 
 const HIGHLIGHTS = [
   {
     icon: Boxes,
-    title: 'Always-accurate stock',
-    text: 'One stock count you can trust, everywhere.',
+    title: 'Stok selalu akurat',
+    text: 'Satu angka stok yang bisa kamu percaya, di semua toko.',
   },
   {
     icon: RefreshCw,
-    title: 'Synced across stores',
-    text: 'Stock stays in sync so you never oversell.',
+    title: 'Sinkron antar toko',
+    text: 'Stok ikut update otomatis biar kamu nggak oversell.',
   },
   {
     icon: PackageCheck,
-    title: 'Packing video proof',
-    text: 'A video of every order you pack, for disputes.',
+    title: 'Bukti video packing',
+    text: 'Setiap pesanan terekam — siap jadi bukti kalau ada komplain.',
   },
 ];
 
@@ -26,9 +27,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="bg-primary text-primary-foreground relative hidden flex-col justify-between overflow-hidden p-10 lg:flex">
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 -right-16 size-80 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 size-96 rounded-full bg-white/5 blur-3xl" />
+        {/* Calm water, not SaaS blur-blobs: two riak strokes low on the panel. */}
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-10 space-y-4">
+          <WaveHairline className="h-4 text-white/25" />
+          <WaveHairline className="h-4 text-white/15" />
         </div>
 
         <Link href="/" className="relative flex items-center gap-2.5">
@@ -39,10 +41,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="relative space-y-8">
           <div className="space-y-3">
             <h2 className="text-3xl font-semibold tracking-tight text-balance">
-              See sharper. Sell calmer.
+              Lihat lebih tajam, jualan lebih tenang.
             </h2>
             <p className="text-primary-foreground/70 max-w-sm text-pretty">
-              Orders from every store in, accurate stock in sync, a packing video out.
+              Pesanan dari semua toko masuk, stok tetap sinkron, dan setiap paket punya video
+              packing.
             </p>
           </div>
 
@@ -64,7 +67,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </ul>
         </div>
 
-        <p className="text-primary-foreground/50 relative text-xs">Built for Indonesian sellers.</p>
+        <p className="text-primary-foreground/50 relative text-xs">
+          Dibuat untuk penjual Indonesia.
+        </p>
       </div>
 
       <div className="flex items-center justify-center p-6">
