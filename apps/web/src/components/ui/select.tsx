@@ -13,7 +13,8 @@ function Select({ className, children, ...props }: React.ComponentProps<'select'
       <select
         data-slot="select"
         className={cn(
-          'border-input bg-background h-9 w-full appearance-none rounded-md border px-3 py-1 pr-8 text-sm shadow-xs transition-[color,box-shadow] outline-none',
+          // text-base on touch viewports prevents the iOS focus-zoom (matches Input).
+          'border-input bg-background h-9 w-full appearance-none rounded-md border px-3 py-1 pr-8 text-base shadow-xs transition-[color,box-shadow] outline-none md:text-sm',
           'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
           'disabled:cursor-not-allowed disabled:opacity-50',
           className,

@@ -52,7 +52,7 @@ export function TablePagination({
         <Button
           variant="outline"
           size="icon"
-          className="size-8"
+          className="size-9"
           disabled={safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
           aria-label="Halaman sebelumnya"
@@ -65,7 +65,7 @@ export function TablePagination({
         <Button
           variant="outline"
           size="icon"
-          className="size-8"
+          className="size-9"
           disabled={safePage >= totalPages}
           onClick={() => onPageChange(safePage + 1)}
           aria-label="Halaman berikutnya"

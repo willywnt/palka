@@ -36,7 +36,7 @@ export function PageHeader({
           <p className="text-muted-foreground max-w-2xl text-sm text-pretty">{description}</p>
         ) : null}
       </div>
-      {children ? <div className="flex shrink-0 items-center gap-2">{children}</div> : null}
+      {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
     </div>
   );
 }
