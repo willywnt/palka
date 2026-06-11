@@ -27,8 +27,11 @@ import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { BuoyArt } from '@/components/maritime-art';
 import { StatusBadge } from '@/components/status-badge';
+import { TablePagination } from '@/components/table-pagination';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { usePagination } from '@/hooks/use-pagination';
 import { useUrlFilters } from '@/hooks/use-url-filters';
+import { cn } from '@/lib/utils';
 
 import { useDeleteProductMutation, useProductsQuery } from '../hooks/use-products';
 import type { ProductListItem } from '../types';
@@ -36,17 +39,23 @@ import { DeleteProductDialog } from './delete-product-dialog';
 import { ProductFormDialog } from './product-form-dialog';
 
 export function ProductsDashboard() {
-  const [filters, setFilters] = useUrlFilters({ search: '' });
+  const [filters, setFilters] = useUrlFilters({ search: '', page: '1' });
   const [searchInput, setSearchInput] = useState(filters.search);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const { pageSize, setPageSize } = usePagination();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProductListItem | null>(null);
 
   useEffect(() => {
-    if (debouncedSearch !== filters.search) setFilters({ search: debouncedSearch });
+    if (debouncedSearch !== filters.search) setFilters({ search: debouncedSearch, page: '1' });
   }, [debouncedSearch, filters.search, setFilters]);
 
-  const { data, isLoading, error, refetch } = useProductsQuery(filters.search.trim() || undefined);
+  const page = Math.max(1, Number.parseInt(filters.page, 10) || 1);
+  const { data, isLoading, isFetching, error, refetch } = useProductsQuery(
+    filters.search.trim() || undefined,
+    page,
+    pageSize,
+  );
   const deleteMutation = useDeleteProductMutation();
 
   async function handleDeleteConfirm() {
@@ -63,8 +72,9 @@ export function ProductsDashboard() {
     }
   }
 
-  const products = data ?? [];
-  const isEmpty = !isLoading && products.length === 0;
+  const products = data?.items ?? [];
+  const total = data?.meta?.total ?? products.length;
+  const isEmpty = !isLoading && total === 0;
 
   // Row actions (the ⋯ menu) — shared by the sm+ table and the <sm card list.
   function renderRowActions(product: ProductListItem) {
@@ -141,7 +151,7 @@ export function ProductsDashboard() {
           }
         />
       ) : (
-        <>
+        <div className={cn('space-y-3', isFetching && 'opacity-60 transition-opacity')}>
           <div className="hidden rounded-xl border sm:block">
             <Table>
               <TableHeader>
@@ -232,7 +242,18 @@ export function ProductsDashboard() {
               </div>
             ))}
           </div>
-        </>
+
+          <TablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(nextPage) => setFilters({ page: String(nextPage) })}
+            onPageSizeChange={(nextSize) => {
+              setPageSize(nextSize);
+              setFilters({ page: '1' });
+            }}
+          />
+        </div>
       )}
 
       <ProductFormDialog open={createOpen} onOpenChange={setCreateOpen} />

@@ -22,32 +22,37 @@ import type { CreateVariantInput } from '../validators/variant';
 import type { ListProductsQuery } from '../validators/list-products';
 import type { UpdateVariantInput } from '../validators/update-variant';
 
-const LIST_PAGE_SIZE = 50;
-
 /** A page of label-studio variants (mirror of the server's PaginatedResult). */
 export type LabelVariantsPage = {
   items: LabelVariant[];
   meta: PageMeta;
 };
 
-function listQuery(search?: string): ListProductsQuery {
-  return { page: 1, pageSize: LIST_PAGE_SIZE, search: search || undefined };
-}
+/** A page of products — the service paginates; the hook finally surfaces the meta. */
+export type ProductsPage = {
+  items: ProductListItem[];
+  /** Envelope meta (page/pageSize/total) — optional fields per the API contract. */
+  meta: { page?: number; pageSize?: number; total?: number } | undefined;
+};
 
-export function useProductsQuery(search?: string) {
+export function useProductsQuery(search: string | undefined, page: number, pageSize: number) {
+  const trimmed = search?.trim() || undefined;
+  const query: ListProductsQuery = { page, pageSize, search: trimmed };
+
   return useQuery({
-    queryKey: catalogKeys.list(listQuery(search)),
-    queryFn: async () => {
+    queryKey: catalogKeys.list(query),
+    queryFn: async (): Promise<ProductsPage> => {
       const result = await apiFetch<ProductListItem[]>(apiRoutes.products, {
-        params: { page: 1, pageSize: LIST_PAGE_SIZE, ...(search ? { search } : {}) },
+        params: { page, pageSize, ...(trimmed ? { search: trimmed } : {}) },
       });
 
       if (!result.success) {
         throw new Error(formatApiErrorMessage(result.error));
       }
 
-      return result.data;
+      return { items: result.data, meta: result.meta };
     },
+    placeholderData: keepPreviousData,
   });
 }
 
