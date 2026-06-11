@@ -24,7 +24,11 @@ import type {
 const DETAIL_INCLUDE = {
   items: {
     orderBy: { createdAt: 'asc' },
-    include: { productVariant: { select: { variantGroup: true, imageUrl: true } } },
+    include: {
+      productVariant: {
+        select: { variantGroup: true, imageUrl: true, product: { select: { name: true } } },
+      },
+    },
   },
 } satisfies Prisma.StockOpnameInclude;
 
@@ -36,6 +40,7 @@ function mapDetail(row: StockOpnameRow): StockOpnameDetail {
     variantId: item.productVariantId,
     sku: item.sku,
     name: item.name,
+    productName: item.productVariant.product.name,
     variantGroup: item.productVariant.variantGroup,
     imageUrl: item.productVariant.imageUrl,
     systemQuantity: item.systemQuantity,

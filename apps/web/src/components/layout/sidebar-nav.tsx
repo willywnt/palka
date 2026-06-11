@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Boxes,
   ChevronRight,
+  ClipboardCheck,
   Coins,
   Layers,
   LayoutDashboard,
@@ -49,6 +50,7 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
       { title: 'Produk', href: '/dashboard/products', icon: Boxes },
       { title: 'Bundel', href: '/dashboard/bundles', icon: Layers },
       { title: 'Inventaris', href: '/dashboard/inventory', icon: Warehouse },
+      { title: 'Opname stok', href: '/dashboard/inventory/opname', icon: ClipboardCheck },
       { title: 'Pembelian', href: '/dashboard/purchasing', icon: Truck },
       { title: 'Label', href: '/dashboard/labels', icon: QrCode },
     ],

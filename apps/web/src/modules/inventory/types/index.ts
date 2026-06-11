@@ -210,6 +210,7 @@ export type StockOpnameItemDetail = {
   variantId: string;
   sku: string;
   name: string;
+  productName: string;
   variantGroup: string | null;
   imageUrl: string | null;
   systemQuantity: number;
