@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { CalendarDays } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, startOfMonth, subDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useMediaQuery } from '@/hooks/use-media-query';
 import { cn } from '@/lib/utils';
 
 function formatRange(range: DateRange | undefined, placeholder: string): string {
@@ -15,6 +16,17 @@ function formatRange(range: DateRange | undefined, placeholder: string): string 
   if (!range.to) return format(range.from, 'd MMM yyyy');
   return `${format(range.from, 'd MMM yyyy')} – ${format(range.to, 'd MMM yyyy')}`;
 }
+
+/* Quick ranges sellers actually think in — applying one commits immediately. */
+const PRESETS: ReadonlyArray<{ label: string; range: () => DateRange }> = [
+  { label: 'Hari ini', range: () => ({ from: startOfDay(new Date()), to: new Date() }) },
+  { label: '7 hari', range: () => ({ from: startOfDay(subDays(new Date(), 6)), to: new Date() }) },
+  {
+    label: '30 hari',
+    range: () => ({ from: startOfDay(subDays(new Date(), 29)), to: new Date() }),
+  },
+  { label: 'Bulan ini', range: () => ({ from: startOfMonth(new Date()), to: new Date() }) },
+];
 
 /**
  * Single-popover from–to date range picker. Selection is held as a draft and only
@@ -34,10 +46,18 @@ export function DateRangePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(value);
+  // One month under sm — the two-month grid (~600px) overflows phone viewports.
+  const singleMonth = useMediaQuery('(max-width: 639px)');
 
   function handleOpenChange(next: boolean) {
     if (next) setDraft(value);
     setOpen(next);
+  }
+
+  function applyPreset(range: DateRange) {
+    setDraft(range);
+    onChange(range);
+    setOpen(false);
   }
 
   function apply() {
@@ -67,8 +87,27 @@ export function DateRangePicker({
           <span className="truncate">{formatRange(value, placeholder)}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="range" selected={draft} onSelect={setDraft} numberOfMonths={2} autoFocus />
+      <PopoverContent className="w-auto max-w-[calc(100vw-1rem)] p-0" align="start">
+        <div className="flex flex-wrap items-center gap-1.5 border-b p-2.5">
+          {PRESETS.map((preset) => (
+            <Button
+              key={preset.label}
+              variant="secondary"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => applyPreset(preset.range())}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+        <Calendar
+          mode="range"
+          selected={draft}
+          onSelect={setDraft}
+          numberOfMonths={singleMonth ? 1 : 2}
+          autoFocus
+        />
         <div className="flex items-center justify-between gap-3 border-t p-2.5">
           <span className="text-muted-foreground px-1 text-xs">
             {draft?.from ? formatRange(draft, '') : 'Pilih rentang'}
