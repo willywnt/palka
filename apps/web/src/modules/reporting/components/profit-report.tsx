@@ -212,8 +212,12 @@ function ProfitContent({
             <RevenueTrendChart data={trendData} />
             <details className="group mt-3">
               <summary className="text-muted-foreground hover:text-foreground cursor-pointer list-none text-xs select-none">
-                <span className="group-open:hidden">▸ Lihat tabel per periode</span>
-                <span className="hidden group-open:inline">▾ Sembunyikan tabel</span>
+                <span className="group-open:hidden">
+                  <span aria-hidden="true">▸</span> Lihat tabel per periode
+                </span>
+                <span className="hidden group-open:inline">
+                  <span aria-hidden="true">▾</span> Sembunyikan tabel
+                </span>
               </summary>
               <div className="mt-3">
                 <Table>

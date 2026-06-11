@@ -190,8 +190,12 @@ function ChannelContent({ data }: { data: ChannelReportData }) {
             )}
             <details className="group mt-3">
               <summary className="text-muted-foreground hover:text-foreground cursor-pointer list-none text-xs select-none">
-                <span className="group-open:hidden">▸ Lihat tabel tren</span>
-                <span className="hidden group-open:inline">▾ Sembunyikan tabel</span>
+                <span className="group-open:hidden">
+                  <span aria-hidden="true">▸</span> Lihat tabel tren
+                </span>
+                <span className="hidden group-open:inline">
+                  <span aria-hidden="true">▾</span> Sembunyikan tabel
+                </span>
               </summary>
               <div className="mt-3 overflow-x-auto">
                 <Table>
@@ -235,66 +239,125 @@ function ChannelContent({ data }: { data: ChannelReportData }) {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Perbandingan channel</CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Channel</TableHead>
-                <TableHead className="text-right">Omzet bersih</TableHead>
-                <TableHead className="text-right">Porsi</TableHead>
-                <TableHead className="text-right">Laba</TableHead>
-                <TableHead className="text-right">Margin</TableHead>
-                <TableHead className="text-right">Unit</TableHead>
-                <TableHead className="text-right">Transaksi</TableHead>
-                <TableHead className="text-right">AOV</TableHead>
-                <TableHead className="text-right">Retur</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.byChannel.map((row) => (
-                <TableRow key={row.channel}>
-                  <TableCell className="font-medium">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: colorOf.get(row.channel) }}
-                      />
-                      {channelLabel(row.channel)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="num text-right">
-                    {formatCurrency(row.grossRevenue)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground num text-right">
-                    {formatPct(row.revenueSharePct)}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'num text-right font-medium',
-                      Number(row.grossProfit) < 0 && 'text-signed-down',
-                    )}
-                  >
-                    {formatCurrency(row.grossProfit)}
-                  </TableCell>
-                  <TableCell className={cn('num text-right', marginClass(row.grossMarginPct))}>
-                    {formatPct(row.grossMarginPct)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground num text-right">
-                    {row.unitsSold}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground num text-right">
-                    {row.transactions}
-                  </TableCell>
-                  <TableCell className="num text-right">
-                    {formatCurrency(row.avgOrderValue)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground num text-right">
-                    {formatPct(row.returnRatePct)}
-                  </TableCell>
+        <CardContent>
+          <ul className="space-y-3 sm:hidden">
+            {data.byChannel.map((row) => (
+              <li key={row.channel} className="border-border/70 rounded-lg border p-3">
+                <p className="flex items-center gap-2 font-medium">
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: colorOf.get(row.channel) }}
+                  />
+                  {channelLabel(row.channel)}
+                </p>
+                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Omzet bersih</dt>
+                    <dd className="num">{formatCurrency(row.grossRevenue)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Laba</dt>
+                    <dd
+                      className={cn(
+                        'num font-medium',
+                        Number(row.grossProfit) < 0 && 'text-signed-down',
+                      )}
+                    >
+                      {formatCurrency(row.grossProfit)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Margin</dt>
+                    <dd className={cn('num', marginClass(row.grossMarginPct))}>
+                      {formatPct(row.grossMarginPct)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Porsi</dt>
+                    <dd className="num">{formatPct(row.revenueSharePct)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Unit</dt>
+                    <dd className="num">{row.unitsSold}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Transaksi</dt>
+                    <dd className="num">{row.transactions}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground text-xs">AOV</dt>
+                    <dd className="num">{formatCurrency(row.avgOrderValue)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Retur</dt>
+                    <dd className="num">{formatPct(row.returnRatePct)}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden overflow-x-auto sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Channel</TableHead>
+                  <TableHead className="text-right">Omzet bersih</TableHead>
+                  <TableHead className="text-right">Porsi</TableHead>
+                  <TableHead className="text-right">Laba</TableHead>
+                  <TableHead className="text-right">Margin</TableHead>
+                  <TableHead className="text-right">Unit</TableHead>
+                  <TableHead className="text-right">Transaksi</TableHead>
+                  <TableHead className="text-right">AOV</TableHead>
+                  <TableHead className="text-right">Retur</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {data.byChannel.map((row) => (
+                  <TableRow key={row.channel}>
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: colorOf.get(row.channel) }}
+                        />
+                        {channelLabel(row.channel)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="num text-right">
+                      {formatCurrency(row.grossRevenue)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground num text-right">
+                      {formatPct(row.revenueSharePct)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'num text-right font-medium',
+                        Number(row.grossProfit) < 0 && 'text-signed-down',
+                      )}
+                    >
+                      {formatCurrency(row.grossProfit)}
+                    </TableCell>
+                    <TableCell className={cn('num text-right', marginClass(row.grossMarginPct))}>
+                      {formatPct(row.grossMarginPct)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground num text-right">
+                      {row.unitsSold}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground num text-right">
+                      {row.transactions}
+                    </TableCell>
+                    <TableCell className="num text-right">
+                      {formatCurrency(row.avgOrderValue)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground num text-right">
+                      {formatPct(row.returnRatePct)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
