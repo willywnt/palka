@@ -5,6 +5,7 @@ import { LineChart, ScrollText } from 'lucide-react';
 
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { InventoryOverview } from '@/modules/inventory/components/inventory-overview';
 
 export const metadata: Metadata = {
@@ -32,7 +33,18 @@ export default function InventoryPage() {
           </Link>
         </Button>
       </PageHeader>
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          <div className="space-y-6">
+            <Skeleton className="h-9 w-full sm:max-w-xs" />
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} className="h-12 w-full" />
+              ))}
+            </div>
+          </div>
+        }
+      >
         <InventoryOverview />
       </Suspense>
     </div>

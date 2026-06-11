@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 
 import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StockActivity } from '@/modules/inventory/components/stock-activity';
 
 export const metadata: Metadata = {
@@ -25,7 +26,22 @@ export default function StockActivityPage() {
         title="Aktivitas stok"
         description="Semua perubahan stok, terbaru di atas — cari dan export seluruh riwayatnya."
       />
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-9 w-full sm:max-w-xs" />
+              <Skeleton className="h-9 w-40" />
+              <Skeleton className="h-9 w-36" />
+            </div>
+            <div className="space-y-3">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <Skeleton key={index} className="h-12 w-full" />
+              ))}
+            </div>
+          </div>
+        }
+      >
         <StockActivity />
       </Suspense>
     </div>

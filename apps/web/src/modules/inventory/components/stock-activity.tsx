@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { StockLedgerReason, StockLedgerSource } from '@prisma/client';
-import { ChevronLeft, ChevronRight, Download, RotateCcw, ScrollText } from 'lucide-react';
+import { Download, RotateCcw, ScrollText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 
@@ -26,16 +26,27 @@ import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { ImageThumb } from '@/components/image-thumb';
 import { NumberDelta } from '@/components/number-delta';
+import { TablePagination } from '@/components/table-pagination';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { apiRoutes } from '@/lib/api/routes';
 import { formatDateTime } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
 
 import { useStockActivityQuery, type StockActivityFilters } from '../hooks/use-inventory';
 import { stockReasonLabel } from '../utils/reason-display';
 
 const REASONS = Object.values(StockLedgerReason);
 const SOURCES = Object.values(StockLedgerSource);
+
+/** Display-only labels for ledger sources — the values sent to the API stay verbatim. */
+const SOURCE_LABELS: Record<StockLedgerSource, string> = {
+  MANUAL: 'Manual',
+  MARKETPLACE: 'Marketplace',
+  POS: 'Kasir',
+  PURCHASE: 'Pembelian',
+  SYSTEM: 'Sistem',
+};
 
 const URL_DEFAULTS = {
   search: '',
@@ -87,14 +98,13 @@ export function StockActivity() {
     to: filters.to,
   };
 
-  const { data, isLoading, error, refetch } = useStockActivityQuery(query);
+  const { data, isLoading, isFetching, error, refetch } = useStockActivityQuery(query);
 
   const items = data?.items ?? [];
   const total = data?.meta?.total ?? 0;
-  const pageSize = data?.meta?.pageSize ?? 0;
-  const totalPages = total > 0 && pageSize > 0 ? Math.ceil(total / pageSize) : 0;
-  const hasPrev = page > 1;
-  const hasNext = totalPages > 0 && page < totalPages;
+  // The activity API decides the page size; fall back defensively so the math never divides by 0.
+  const metaPageSize = data?.meta?.pageSize ?? 0;
+  const pageSize = metaPageSize > 0 ? metaPageSize : Math.max(items.length, 1);
 
   const isFiltered =
     Boolean(filters.search) ||
@@ -144,7 +154,7 @@ export function StockActivity() {
           <option value="">Semua sumber</option>
           {SOURCES.map((source) => (
             <option key={source} value={source}>
-              {source}
+              {SOURCE_LABELS[source]}
             </option>
           ))}
         </Select>
@@ -206,7 +216,13 @@ export function StockActivity() {
         />
       ) : (
         <>
-          <div className="rounded-xl border">
+          {/* Dim the previous page while the next one loads so paging feels alive. */}
+          <div
+            className={cn(
+              'rounded-xl border transition-opacity',
+              isFetching ? 'opacity-60' : 'opacity-100',
+            )}
+          >
             <Table>
               <TableHeader>
                 <TableRow>
@@ -246,7 +262,7 @@ export function StockActivity() {
                       </TableCell>
                       <TableCell className="text-sm">{stockReasonLabel(entry.reason)}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{entry.source}</Badge>
+                        <Badge variant="secondary">{SOURCE_LABELS[entry.source]}</Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         <NumberDelta value={entry.delta} showZero />
@@ -275,31 +291,15 @@ export function StockActivity() {
             </Table>
           </div>
 
-          <div className="flex items-center justify-between">
-            <p className="text-muted-foreground text-sm">
-              {totalPages > 0 ? `Halaman ${page} dari ${totalPages}` : null} · {total} entri
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!hasPrev}
-                onClick={() => setFilters({ page: String(page - 1) })}
-              >
-                <ChevronLeft className="size-4" />
-                Sebelumnya
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!hasNext}
-                onClick={() => setFilters({ page: String(page + 1) })}
-              >
-                Berikutnya
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
+          {/* The API fixes the page size, so the rows-per-page select only shows the current one. */}
+          <TablePagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={(next) => setFilters({ page: String(next) })}
+            onPageSizeChange={() => undefined}
+            pageSizeOptions={[pageSize]}
+          />
         </>
       )}
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { CalendarRange, Info, PackageSearch, PackageX, ShoppingCart, Truck } from 'lucide-react';
 
@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { ImageThumb } from '@/components/image-thumb';
 import { StatCard } from '@/components/stat-card';
+import { useUrlFilters } from '@/hooks/use-url-filters';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -31,6 +32,19 @@ import { reorderStatusDisplay } from '../utils/reorder-display';
 import type { ReorderItem } from '../types';
 
 const WINDOW_OPTIONS = [7, 30, 90] as const;
+
+const URL_DEFAULTS = {
+  window: String(REORDER_DEFAULTS.windowDays),
+  reorderOnly: '',
+};
+
+/** Defensive int parse for the URL param — anything off-menu falls back to the default window. */
+function parseWindowDays(raw: string): number {
+  const parsed = Number.parseInt(raw, 10);
+  return (WINDOW_OPTIONS as readonly number[]).includes(parsed)
+    ? parsed
+    : REORDER_DEFAULTS.windowDays;
+}
 
 /** A right-aligned column header with an info icon explaining the metric. */
 function HeadWithHint({ label, hint }: { label: string; hint: string }) {
@@ -52,13 +66,42 @@ function formatVelocity(value: number): string {
 }
 
 function formatDaysOfCover(value: number | null): string {
-  if (value === null) return '∞';
-  return `${Math.round(value)}h`;
+  if (value === null) return 'Tidak terjual';
+  return `${Math.round(value)} hari`;
 }
 
+/** Skeleton fallback matching the report rhythm: 3 stat cards + table rows. */
+function ReorderReportFallback() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-24 w-full" />
+        ))}
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Skeleton key={index} className="h-12 w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The URL-filter hook reads `useSearchParams`, so the report brings its own Suspense boundary. */
 export function ReorderReport() {
-  const [windowDays, setWindowDays] = useState<number>(REORDER_DEFAULTS.windowDays);
-  const [reorderOnly, setReorderOnly] = useState(false);
+  return (
+    <Suspense fallback={<ReorderReportFallback />}>
+      <ReorderReportContent />
+    </Suspense>
+  );
+}
+
+function ReorderReportContent() {
+  // Window + filter live in the URL so a filtered view is shareable.
+  const [filters, setFilters] = useUrlFilters(URL_DEFAULTS);
+  const windowDays = parseWindowDays(filters.window);
+  const reorderOnly = filters.reorderOnly === '1';
 
   const { data, isLoading, error, refetch } = useReorderReportQuery({
     windowDays,
@@ -109,9 +152,9 @@ export function ReorderReport() {
               key={option}
               variant={windowDays === option ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setWindowDays(option)}
+              onClick={() => setFilters({ window: String(option) })}
             >
-              {option}h
+              {option} hari
             </Button>
           ))}
         </div>
@@ -120,7 +163,7 @@ export function ReorderReport() {
             <Switch
               id="needs-reorder-only"
               checked={reorderOnly}
-              onCheckedChange={setReorderOnly}
+              onCheckedChange={(checked) => setFilters({ reorderOnly: checked ? '1' : '' })}
             />
             <Label htmlFor="needs-reorder-only" className="text-sm font-normal">
               Hanya yang perlu restok
@@ -151,6 +194,13 @@ export function ReorderReport() {
             reorderOnly
               ? 'Tidak ada varian yang perlu direstok sekarang.'
               : 'Tambah produk dan catat beberapa penjualan untuk melihat saran restok.'
+          }
+          action={
+            !reorderOnly ? (
+              <Button asChild>
+                <Link href="/dashboard/products">Tambah produk</Link>
+              </Button>
+            ) : undefined
           }
         />
       ) : (
