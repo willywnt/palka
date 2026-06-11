@@ -6,10 +6,12 @@ import { APP_NAME } from '@falka/config/constants';
 import { ChevronDown, LogOut, Menu, Moon, Settings as SettingsIcon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
+import { usePathname } from 'next/navigation';
+
 import { logoutAction } from '@/modules/auth/actions/logout';
 import { useCurrentUser } from '@/modules/auth/hooks/use-current-user';
 import { BrandBadge } from '@/components/brand-mark';
-import { SidebarNav } from '@/components/layout/sidebar-nav';
+import { SidebarNav, resolveNavTitle } from '@/components/layout/sidebar-nav';
 import { useSidebar } from '@/components/layout/sidebar-provider';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -35,6 +37,8 @@ export function DashboardNavbar() {
   const { setTheme, resolvedTheme } = useTheme();
   const { user } = useCurrentUser();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const pathname = usePathname();
+  const mobileTitle = resolveNavTitle(pathname) ?? APP_NAME;
 
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 flex h-14 items-center gap-4 border-b px-4 backdrop-blur md:px-6">
@@ -72,6 +76,11 @@ export function DashboardNavbar() {
         </Button>
         {/* Reserved slot: <LocationSelector/> (multi-warehouse switcher) — backlog item E. */}
       </div>
+
+      {/* The phone chrome used to be an empty strip — give it the page context. */}
+      <p className="min-w-0 flex-1 truncate text-center text-sm font-semibold tracking-tight md:hidden">
+        {mobileTitle}
+      </p>
 
       <div className="ml-auto flex items-center gap-1.5">
         {/* Reserved slot: <NotificationBell/> (count badge → tray) — backlog item A. */}

@@ -1,5 +1,6 @@
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { DashboardNavbar } from '@/components/layout/dashboard-navbar';
+import { MobileTabBar } from '@/components/layout/mobile-tab-bar';
 import { SidebarProvider } from '@/components/layout/sidebar-provider';
 import { PanduDock } from '@/components/pandu/pandu-dock';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -39,6 +40,7 @@ export function DashboardShell({
               >
                 {children}
               </main>
+              <MobileTabBar />
             </div>
           </div>
           <PanduDock />

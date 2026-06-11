@@ -102,7 +102,7 @@ export function PanduDock() {
       {open ? (
         <section
           aria-label="Pandu — pemandu tokomu"
-          className="bg-sea-glass animate-in fade-in slide-in-from-bottom-3 ease-tide fixed inset-x-3 bottom-3 z-50 flex max-h-[75svh] flex-col overflow-hidden rounded-xl border shadow-lg duration-300 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[360px]"
+          className="bg-sea-glass animate-in fade-in slide-in-from-bottom-3 ease-tide fixed inset-x-3 bottom-20 z-50 flex max-h-[75svh] flex-col overflow-hidden rounded-xl border shadow-lg duration-300 sm:inset-x-auto sm:right-4 sm:w-[360px] md:bottom-4"
           onKeyDown={(event) => {
             if (event.key === 'Escape') setOpen(false);
           }}
@@ -196,14 +196,14 @@ export function PanduDock() {
       ) : (
         <Button
           onClick={() => setOpen(true)}
-          className="ease-tide fixed right-4 bottom-4 z-50 h-12 rounded-full pr-5 pl-4 shadow-lg transition-transform duration-200 hover:-translate-y-0.5"
+          className="ease-tide fixed right-4 bottom-20 z-50 h-12 rounded-full pr-5 pl-4 shadow-lg transition-transform duration-200 hover:-translate-y-0.5 md:bottom-4"
         >
           <span className="relative flex items-center">
             <BrandMark className="size-5" />
             {mounted && hasUrgent ? (
               <span
                 aria-hidden
-                className="bg-highlight absolute -top-1 -right-1 size-2.5 rounded-full"
+                className="bg-highlight pandu-breath absolute -top-1 -right-1 size-2.5 rounded-full"
               />
             ) : null}
           </span>

@@ -348,6 +348,23 @@
 }
 
 /*
+ * Pandu's suar dot — a slow 6s breath (a beacon, not an alarm). Frozen by the
+ * global reduced-motion guard below.
+ */
+@keyframes pandu-breath {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.pandu-breath {
+  animation: pandu-breath 6s ease-in-out infinite;
+}
+
+/*
  * Skeleton "shimmer on water" — a slow, low-contrast sea-glass sheen drifting
  * across loading surfaces; replaces the generic pulse. Static under reduced
  * motion (the global guard below freezes the animation; the tint remains).

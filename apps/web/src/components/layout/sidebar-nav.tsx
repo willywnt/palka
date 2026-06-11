@@ -82,6 +82,20 @@ export const sidebarNavSections: readonly SidebarNavSection[] = [
   },
 ];
 
+/** The active nav item's title for the given path — used by the mobile navbar chrome. */
+export function resolveNavTitle(pathname: string): string | undefined {
+  const activeHref = resolveActiveHref(pathname);
+  if (!activeHref) return undefined;
+
+  for (const section of sidebarNavSections) {
+    for (const item of section.items) {
+      if (item.href === activeHref) return item.title;
+    }
+  }
+
+  return undefined;
+}
+
 /** Highlight the most specific matching item so a parent route never lights up a child's row. */
 function resolveActiveHref(pathname: string): string | undefined {
   let best: string | undefined;
@@ -151,13 +165,20 @@ export function SidebarNav({
                       href={item.href}
                       onClick={onNavigate}
                       className={cn(
-                        'focus-visible:ring-sidebar-ring flex items-center rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                        'focus-visible:ring-sidebar-ring relative flex items-center rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
                         collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2',
                         isActive
                           ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                           : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
                       )}
                     >
+                      {/* The promised teal active marker on the sidebar edge. */}
+                      {isActive && !collapsed ? (
+                        <span
+                          aria-hidden
+                          className="bg-primary absolute inset-y-2 left-0 w-0.5 rounded-full"
+                        />
+                      ) : null}
                       <Icon className={cn('size-4 shrink-0', isActive && 'text-primary')} />
                       {collapsed ? null : item.title}
                       {collapsed ? <span className="sr-only">{item.title}</span> : null}
