@@ -66,7 +66,9 @@ light + dark via `next-themes`. Change the accent only via `--primary`/`--ring`/
   tabs sonner avatar action-tooltip. Dialog/AlertDialog scroll internally (max-h dvh); close
   buttons are padded targets labeled "Tutup"; native Select uses `text-base md:text-sm` (iOS).
 - `components/`: **PageHeader** (actions wrap) · **StatCard** (`num-display` value, `STAT_TONES`
-  icon chip, optional `delta`) · **EmptyState** · **ErrorState** (the error twin — icon + ID copy
+  icon chip, optional `delta`) · **EmptyState** (optional `art` slot — BuoyArt for first-run
+  empties, GullArt for positive-calm empties; filtered/search empties keep the plain icon) ·
+  **ErrorState** (the error twin — icon + ID copy
   + "Coba lagi" wired to `refetch`; branch order is ALWAYS loading → error → empty → data; a
   failed query must NEVER render as "Belum ada…") · **StatusBadge** · **NumberDelta** ·
   **LowStockBadge** (Popover, warn tone — keyboard/touch reachable) · **DateRangePicker** (1
@@ -112,9 +114,13 @@ light + dark via `next-themes`. Change the accent only via `--primary`/`--ring`/
 
 - `components/layout/`: AppSidebar (icon rail w/ Tooltips, Create menu ordered by real frequency,
   brand tagline footer), DashboardNavbar (controlled mobile Sheet: scrolls + closes on navigate;
-  theme toggle reads `resolvedTheme`), SidebarNav (focus-visible rings, "Rekam packing" ≠
-  "Rekaman"), dashboard shell (`h-dvh`, skip-link "Langsung ke konten", `horizon-wash` main,
-  `PanduDock` mounted; dock suppressed on thumb-zone routes).
+  theme toggle reads `resolvedTheme`; mobile center shows the page title via `resolveNavTitle`),
+  SidebarNav (focus-visible rings, teal active edge-marker, "Rekam packing" ≠ "Rekaman"),
+  **MobileTabBar** (5-slot bottom nav on phones, in normal flow, safe-area padding; SAME
+  suppression list as the Pandu dock — POS/new-PO/station own the bottom; the dock pill sits
+  `bottom-20 md:bottom-4` so they never overlap), dashboard shell (`h-dvh`, skip-link "Langsung
+  ke konten", `horizon-wash` main, `PanduDock` mounted), `(dashboard)/template.tsx` = per-page
+  ease-tide entrance (remounts on navigation; reduced-motion guard freezes it).
 - **Auth enforced already** — don't touch config/middleware/cookies (HARD CONSTRAINT #2). The
   whole funnel (pages, panel, validators, AUTH_ERROR_MESSAGES, lockout) speaks ID.
 
