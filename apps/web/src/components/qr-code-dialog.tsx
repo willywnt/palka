@@ -14,6 +14,9 @@ import { formatRelativeTime } from '@/lib/formatters';
 
 import { QrImage } from './qr-image';
 
+/** Date-only id-ID stamp for the print footer (e.g. "11 Juni 2026"). */
+const PRINT_STAMP_FORMAT = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
+
 type QrCodeDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -71,6 +74,10 @@ export function QrCodeDialog({
           <div className="text-sm font-medium text-balance">{name}</div>
           <QrImage value={value} size={208} />
           <div className="num text-muted-foreground text-sm">{sku}</div>
+          <div className="text-muted-foreground mt-3 flex w-full items-baseline justify-between gap-2 border-t pt-2 text-[10px]">
+            <span className="font-semibold">Falka</span>
+            <span suppressHydrationWarning>dicetak {PRINT_STAMP_FORMAT.format(new Date())}</span>
+          </div>
         </div>
 
         <p className="text-muted-foreground text-center text-xs" suppressHydrationWarning>

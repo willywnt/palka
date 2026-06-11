@@ -89,8 +89,8 @@ export function formatScannerSocketError(error: Error): string {
   // Production: a separate socket host is configured, reached over the internet.
   if (usesCrossOriginSocketHost()) {
     return isTransportError
-      ? 'Cannot reach the recording server. Check your connection and try again — the realtime service may be temporarily unavailable.'
-      : error.message || 'Socket connection failed';
+      ? 'Server rekaman tidak bisa dihubungi. Cek koneksi kamu dan coba lagi — layanan realtime mungkin lagi gangguan sebentar.'
+      : error.message || 'Koneksi socket gagal.';
   }
 
   // Local dev: the socket is the same-origin custom server (pnpm dev:web).
@@ -106,7 +106,7 @@ export function formatScannerSocketError(error: Error): string {
     return 'Could not reach the recording station (socket timeout). Restart with pnpm dev:web.';
   }
 
-  return error.message || 'Socket connection failed';
+  return error.message || 'Koneksi socket gagal.';
 }
 
 export function getScannerSocket(): Socket {

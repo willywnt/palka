@@ -38,7 +38,7 @@ describe('formatScannerSocketError', () => {
     it('does not leak dev hints for a polling error', () => {
       const msg = inProd(new Error('xhr poll error'));
       expect(msg).not.toMatch(DEV_HINTS);
-      expect(msg).toContain('recording server');
+      expect(msg).toContain('Server rekaman');
     });
 
     it('does not leak dev hints for a websocket error', () => {

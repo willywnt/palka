@@ -23,6 +23,9 @@ export function labelCodeFor(label: Pick<PrintableLabel, 'barcode' | 'sku'>): st
   return label.barcode?.trim() || label.sku;
 }
 
+/** Date-only id-ID stamp for the print footer (e.g. "11 Juni 2026"). */
+const PRINT_STAMP_FORMAT = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' });
+
 function LabelCell({ label, qr }: { label: PrintableLabel; qr: string | undefined }) {
   const code = labelCodeFor(label);
 
@@ -62,6 +65,10 @@ export function LabelSheet({
       {labels.map((label) => (
         <LabelCell key={label.id} label={label} qr={qrCodes.get(labelCodeFor(label))} />
       ))}
+      <div className="text-muted-foreground col-span-full mt-3 flex items-baseline justify-between gap-2 border-t pt-2 text-[10px]">
+        <span className="font-semibold">Falka</span>
+        <span suppressHydrationWarning>dicetak {PRINT_STAMP_FORMAT.format(new Date())}</span>
+      </div>
     </div>
   );
 }

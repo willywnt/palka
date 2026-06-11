@@ -73,7 +73,7 @@ export function useMobilePairingConnect({
           setConnectionState('connected');
           setPhase('ready');
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Socket connection failed';
+          const message = error instanceof Error ? error.message : 'Koneksi socket gagal.';
           if (!options?.silent) {
             setErrorMessage(message);
             setPhase('error');

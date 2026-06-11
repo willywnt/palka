@@ -65,7 +65,7 @@ describe('DomainError hierarchy', () => {
   it('preserves the narrow code type and message on subclasses', () => {
     const err = PairingError.notFound();
     expect(err.code).toBe('PAIRING_NOT_FOUND');
-    expect(err.message).toContain('not found');
+    expect(err.message).toContain('tidak ditemukan');
     expect(err.name).toBe('PairingError');
   });
 });

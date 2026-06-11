@@ -9,7 +9,7 @@ type UseMobilePairingQrAuthOptions = {
 };
 
 const CLAIM_ERROR_MESSAGE =
-  'Could not verify this QR code. Scan a fresh code from the desktop, or sign in manually.';
+  'QR ini tidak bisa diverifikasi. Scan kode baru dari desktop, atau masuk manual.';
 
 async function waitForClientSession(maxAttempts = 8): Promise<boolean> {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {

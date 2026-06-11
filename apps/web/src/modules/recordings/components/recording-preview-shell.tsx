@@ -68,9 +68,7 @@ function InspectorRow({
         <Icon className="text-muted-foreground size-3.5 sm:size-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase sm:text-xs">
-          {label}
-        </p>
+        <p className="eyebrow text-muted-foreground">{label}</p>
         <p className="mt-0.5 text-xs leading-snug font-medium break-words sm:text-sm">{value}</p>
       </div>
     </div>

@@ -22,27 +22,26 @@ export const PAIRING_ERROR_CODES = {
 export type PairingErrorCode = (typeof PAIRING_ERROR_CODES)[keyof typeof PAIRING_ERROR_CODES];
 
 export const PAIRING_ERROR_MESSAGES: Record<PairingErrorCode, string> = {
-  PAIRING_EXPIRED:
-    'This pairing session has expired. Generate a new QR code on the desktop station.',
-  PAIRING_NOT_FOUND: 'Pairing session not found. Scan a fresh QR code from the recording station.',
-  PAIRING_NOT_PENDING: 'This pairing session is no longer waiting for a mobile scanner.',
-  PAIRING_NOT_CONNECTED: 'Mobile scanner is not connected. Reconnect from your phone.',
-  PAIRING_FORBIDDEN: 'You do not have access to this pairing session.',
+  PAIRING_EXPIRED: 'Sesi pairing ini sudah kedaluwarsa. Buat kode QR baru di station desktop.',
+  PAIRING_NOT_FOUND: 'Sesi pairing tidak ditemukan. Scan kode QR baru dari station rekaman.',
+  PAIRING_NOT_PENDING: 'Sesi pairing ini sudah tidak menunggu scanner ponsel.',
+  PAIRING_NOT_CONNECTED: 'Scanner ponsel belum terhubung. Sambungkan ulang dari ponsel kamu.',
+  PAIRING_FORBIDDEN: 'Kamu tidak punya akses ke sesi pairing ini.',
   PAIRING_ALREADY_ACTIVE:
-    'A mobile scanner is already connected. Disconnect it before pairing again.',
-  SCANNER_DISCONNECTED: 'Mobile scanner disconnected. Reconnect by scanning the QR code again.',
+    'Sudah ada scanner ponsel yang terhubung. Putuskan dulu sebelum pairing lagi.',
+  SCANNER_DISCONNECTED: 'Scanner ponsel terputus. Sambungkan ulang dengan scan kode QR lagi.',
   CAMERA_PERMISSION_DENIED:
-    'Camera permission is required to scan barcodes. Allow camera access in your browser settings.',
+    'Izin kamera dibutuhkan buat scan barcode. Izinkan akses kamera di pengaturan browser kamu.',
   RECORDING_ALREADY_ACTIVE:
-    'A recording is already in progress. Stop it before scanning a new barcode.',
-  WEBCAM_UNAVAILABLE: 'Webcam is not ready. Check camera permissions on the recording station.',
+    'Masih ada perekaman yang berjalan. Hentikan dulu sebelum scan barcode baru.',
+  WEBCAM_UNAVAILABLE: 'Webcam belum siap. Cek izin kamera di station rekaman.',
   RECOVERY_MODAL_ACTIVE:
-    'Finish or dismiss pending recording recovery before auto-starting a new recording.',
-  UPLOAD_IN_PROGRESS: 'Wait for the current upload to finish before starting another recording.',
-  TAB_LOCK_CONFLICT: 'Recording is active in another browser tab on this station.',
-  DUPLICATE_SCAN: 'This barcode was just scanned. Wait a moment before scanning again.',
-  VALIDATION_ERROR: 'Invalid barcode or pairing data.',
-  UNKNOWN: 'An unexpected scanner pairing error occurred.',
+    'Selesaikan atau tutup dulu pemulihan rekaman yang tertunda sebelum perekaman baru dimulai otomatis.',
+  UPLOAD_IN_PROGRESS: 'Tunggu upload yang sedang berjalan selesai sebelum mulai perekaman baru.',
+  TAB_LOCK_CONFLICT: 'Perekaman lagi aktif di tab browser lain pada station ini.',
+  DUPLICATE_SCAN: 'Barcode ini baru saja di-scan. Tunggu sebentar sebelum scan lagi.',
+  VALIDATION_ERROR: 'Data barcode atau pairing tidak valid.',
+  UNKNOWN: 'Terjadi error tak terduga pada pairing scanner.',
 };
 
 export class PairingError extends DomainError {
