@@ -9,7 +9,7 @@ export function StorageSettingsCard() {
     <Card>
       <CardHeader>
         <CardTitle>Penyimpanan</CardTitle>
-        <CardDescription>Kuota dan pemakaian Cloudflare R2 untuk akun kamu</CardDescription>
+        <CardDescription>Kuota dan pemakaian penyimpanan cloud untuk akun kamu</CardDescription>
       </CardHeader>
       <CardContent>
         <StorageQuotaIndicator showIcon={false} />

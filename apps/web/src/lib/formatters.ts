@@ -1,27 +1,25 @@
 import { formatDistanceToNow } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 import { formatBytes, formatDate, formatDuration } from '@falka/utils/date';
 
 export { formatDate, formatDuration, formatBytes as formatFileSize };
 
-/** Human "x minutes ago" style relative time; '—' for an invalid date. */
+/** Human "x menit yang lalu" style relative time; '—' for an invalid date. */
 export function formatRelativeTime(value: string | Date): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return '—';
-  return formatDistanceToNow(date, { addSuffix: true });
+  return formatDistanceToNow(date, { addSuffix: true, locale: id });
 }
 
-const STABLE_DATETIME_FORMAT = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
+const STABLE_DATETIME_FORMAT = new Intl.DateTimeFormat('id-ID', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
 });
 
 export function formatDateTime(value: string | Date): string {
   const date = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return 'Invalid date';
+  if (Number.isNaN(date.getTime())) return '—';
   return STABLE_DATETIME_FORMAT.format(date);
 }
 

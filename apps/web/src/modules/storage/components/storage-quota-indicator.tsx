@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { AlertTriangle, HardDrive } from 'lucide-react';
 
 import { formatStoragePercent, formatStorageUsage } from '@/lib/formatters';
@@ -25,6 +26,18 @@ function WarningText({ level, message }: { level: StorageQuotaLevel; message: st
       <AlertTriangle className="mt-0.5 size-4 shrink-0" />
       {message}
     </p>
+  );
+}
+
+/** Warning copy + a direct path to act on it (delete old recordings). */
+function QuotaWarning({ level, message }: { level: StorageQuotaLevel; message: string }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+      <WarningText level={level} message={message} />
+      <Button asChild variant="outline" size="sm">
+        <Link href="/dashboard/recordings">Kelola rekaman</Link>
+      </Button>
+    </div>
   );
 }
 
@@ -89,9 +102,7 @@ export function StorageQuotaIndicator({
             · {formatStorageUsage(data.usedBytes, data.quotaBytes)} digunakan
           </span>
         </p>
-        <div className="mt-2">
-          <WarningText level={level} message={warningMessage} />
-        </div>
+        <QuotaWarning level={level} message={warningMessage} />
       </div>
     );
   }
@@ -123,11 +134,7 @@ export function StorageQuotaIndicator({
         {formatStorageUsage(data.usedBytes, data.quotaBytes)} digunakan
       </p>
 
-      {warningMessage ? (
-        <div className="mt-2">
-          <WarningText level={level} message={warningMessage} />
-        </div>
-      ) : null}
+      {warningMessage ? <QuotaWarning level={level} message={warningMessage} /> : null}
     </div>
   );
 }

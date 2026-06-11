@@ -1,15 +1,32 @@
 import type { Metadata } from 'next';
+import { Users } from 'lucide-react';
 
+import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StorageSettingsCard } from '@/modules/storage/components/storage-settings-card';
+
+import { GeneralSettings } from './general-settings';
 
 export const metadata: Metadata = {
   title: 'Pengaturan',
 };
 
-export default function SettingsPage() {
+type SettingsTab = 'general' | 'storage' | 'team';
+
+function resolveTab(value: string | string[] | undefined): SettingsTab {
+  const tab = Array.isArray(value) ? value[0] : value;
+  return tab === 'storage' || tab === 'team' ? tab : 'general';
+}
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
+  const { tab } = await searchParams;
+  const defaultTab = resolveTab(tab);
+
   return (
     <div>
       <PageHeader
@@ -18,38 +35,24 @@ export default function SettingsPage() {
         description="Kelola akun dan preferensi organisasi kamu."
       />
 
-      <Tabs defaultValue="general" className="max-w-2xl">
+      <Tabs defaultValue={defaultTab} className="max-w-2xl">
         <TabsList>
           <TabsTrigger value="general">Umum</TabsTrigger>
           <TabsTrigger value="storage">Penyimpanan</TabsTrigger>
           <TabsTrigger value="team">Tim</TabsTrigger>
         </TabsList>
         <TabsContent value="general">
-          <Card>
-            <CardHeader>
-              <CardTitle>Umum</CardTitle>
-              <CardDescription>Pengaturan organisasi dan profil</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm">
-                Preferensi profil dan organisasi segera hadir.
-              </p>
-            </CardContent>
-          </Card>
+          <GeneralSettings />
         </TabsContent>
         <TabsContent value="storage">
           <StorageSettingsCard />
         </TabsContent>
         <TabsContent value="team">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tim</CardTitle>
-              <CardDescription>Kelola pengguna dan peran</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm">Manajemen pengguna segera hadir.</p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Users}
+            title="Fitur tim lagi disiapkan — kapalnya masih di galangan"
+            description="Nanti kamu bisa mengundang pengguna lain dan mengatur perannya dari sini."
+          />
         </TabsContent>
       </Tabs>
     </div>
