@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/error-state';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { formatVariantLabel } from '@/lib/variant-label';
 import { useStockOverviewQuery } from '@/modules/inventory/hooks/use-inventory';
 
 /**
@@ -97,7 +98,11 @@ export function VariantPickerDialog({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{variant.productName}</span>
                   <span className="text-muted-foreground block truncate text-xs">
-                    {variant.variantName} · {variant.sku}
+                    {formatVariantLabel({
+                      variantGroup: variant.variantGroup,
+                      name: variant.variantName,
+                    })}{' '}
+                    · {variant.sku}
                   </span>
                 </span>
                 <span className="text-muted-foreground num shrink-0 text-xs">
