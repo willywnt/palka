@@ -11,6 +11,8 @@ export const GET = withApiRoute(
     const parsed = listOrdersQuerySchema.safeParse({
       page: searchParams.get('page') ?? undefined,
       pageSize: searchParams.get('pageSize') ?? undefined,
+      search: searchParams.get('search') ?? undefined,
+      status: searchParams.get('status') ?? undefined,
     });
     if (!parsed.success) return apiValidationError(parsed.error);
 

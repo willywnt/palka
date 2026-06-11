@@ -31,7 +31,19 @@ export class OrdersServerService {
     userId: string,
     query: ListOrdersQuery,
   ): Promise<PaginatedResult<OrderListItem>> {
-    const where: Prisma.OrderWhereInput = { userId };
+    const where: Prisma.OrderWhereInput = {
+      userId,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { externalOrderId: { contains: query.search, mode: 'insensitive' } },
+              { noResi: { contains: query.search, mode: 'insensitive' } },
+              { buyerName: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({

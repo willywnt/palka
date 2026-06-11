@@ -18,11 +18,28 @@ export type OrdersPage = {
   meta: PageMeta;
 };
 
-export function useOrdersQuery(page: number, pageSize: number) {
+export type OrdersListFilters = {
+  /** Matches order id / resi / buyer, case-insensitive. Empty = off. */
+  search?: string;
+  /** OrderStatus value; empty = all. */
+  status?: string;
+};
+
+export function useOrdersQuery(page: number, pageSize: number, filters: OrdersListFilters = {}) {
+  const search = filters.search?.trim() ?? '';
+  const status = filters.status ?? '';
+
   return useQuery({
-    queryKey: orderKeys.list(page, pageSize),
+    queryKey: orderKeys.list(page, pageSize, search, status),
     queryFn: async () => {
-      const result = await apiFetch<OrdersPage>(apiRoutes.orders, { params: { page, pageSize } });
+      const result = await apiFetch<OrdersPage>(apiRoutes.orders, {
+        params: {
+          page,
+          pageSize,
+          ...(search ? { search } : {}),
+          ...(status ? { status } : {}),
+        },
+      });
 
       if (!result.success) {
         throw new Error(formatApiErrorMessage(result.error));

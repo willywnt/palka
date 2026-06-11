@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { DownloadCloud } from 'lucide-react';
+import { DownloadCloud, SearchX } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -20,13 +21,28 @@ import { ErrorState } from '@/components/error-state';
 import { BuoyArt } from '@/components/maritime-art';
 import { StatusBadge } from '@/components/status-badge';
 import { TablePagination } from '@/components/table-pagination';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePagination } from '@/hooks/use-pagination';
+import { useUrlFilters } from '@/hooks/use-url-filters';
 import { formatDateTime } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
 
 import { useOrdersQuery } from '../hooks/use-orders';
 import type { OrderListItem } from '../types';
 import { OrderStatusBadge } from './order-status-badge';
 import { PullOrdersDialog } from './pull-orders-dialog';
+
+/* Labels match OrderStatusBadge so the filter chips and badges speak as one. */
+const STATUS_FILTERS = [
+  { value: '', label: 'Semua' },
+  { value: 'PENDING', label: 'Menunggu' },
+  { value: 'PAID', label: 'Dibayar' },
+  { value: 'SHIPPED', label: 'Terkirim' },
+  { value: 'COMPLETED', label: 'Selesai' },
+  { value: 'CANCELLED', label: 'Dibatalkan' },
+] as const;
+
+const URL_DEFAULTS = { search: '', status: '', page: '1' };
 
 /** Stock-sync state — shared by the sm+ table cell and the <sm card line. */
 function StockSyncState({ order, placeholder }: { order: OrderListItem; placeholder?: boolean }) {
@@ -36,38 +52,94 @@ function StockSyncState({ order, placeholder }: { order: OrderListItem; placehol
   return placeholder ? <span className="text-muted-foreground text-xs">—</span> : null;
 }
 
+function OrdersTableSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-xl border">
+      <Skeleton className="h-10 w-full rounded-none" />
+      <div className="divide-y">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="flex items-center gap-4 px-4 py-3.5">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="ml-auto h-4 w-24" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The URL-filter hook reads `useSearchParams`, so the list brings its own boundary. */
 export function OrdersDashboard() {
-  const { page, setPage, pageSize, setPageSize } = usePagination();
-  const { data, isLoading, error, refetch } = useOrdersQuery(page, pageSize);
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <Skeleton className="h-9 w-full max-w-sm" />
+          <OrdersTableSkeleton />
+        </div>
+      }
+    >
+      <OrdersDashboardContent />
+    </Suspense>
+  );
+}
+
+function OrdersDashboardContent() {
+  const [filters, setFilters] = useUrlFilters(URL_DEFAULTS);
+  const [searchInput, setSearchInput] = useState(filters.search);
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const { pageSize, setPageSize } = usePagination();
   const [pullOpen, setPullOpen] = useState(false);
+
+  // Push the debounced search into the URL-synced filters (resetting paging).
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) setFilters({ search: debouncedSearch, page: '1' });
+  }, [debouncedSearch, filters.search, setFilters]);
+
+  const page = Math.max(1, Number.parseInt(filters.page, 10) || 1);
+  const { data, isLoading, isFetching, error, refetch } = useOrdersQuery(page, pageSize, {
+    search: filters.search,
+    status: filters.status,
+  });
 
   const orders = data?.items ?? [];
   const total = data?.meta.total ?? 0;
   const isEmpty = !isLoading && total === 0;
+  const isFiltered = Boolean(filters.search || filters.status);
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button onClick={() => setPullOpen(true)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Input
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Cari no. pesanan, resi, atau pembeli…"
+          aria-label="Cari pesanan"
+          className="sm:max-w-xs"
+        />
+        <Button onClick={() => setPullOpen(true)} className="sm:shrink-0">
           <DownloadCloud className="size-4" />
           Tarik pesanan
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5">
+        {STATUS_FILTERS.map((option) => (
+          <Button
+            key={option.value}
+            size="sm"
+            variant={filters.status === option.value ? 'default' : 'outline'}
+            onClick={() => setFilters({ status: option.value, page: '1' })}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+
       {isLoading ? (
-        <div className="overflow-hidden rounded-xl border">
-          <Skeleton className="h-10 w-full rounded-none" />
-          <div className="divide-y">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="flex items-center gap-4 px-4 py-3.5">
-                <Skeleton className="h-4 w-1/4" />
-                <Skeleton className="h-5 w-16" />
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="ml-auto h-4 w-24" />
-              </div>
-            ))}
-          </div>
-        </div>
+        <OrdersTableSkeleton />
       ) : error ? (
         <ErrorState
           title="Gagal memuat pesanan"
@@ -75,19 +147,27 @@ export function OrdersDashboard() {
           onRetry={() => void refetch()}
         />
       ) : isEmpty ? (
-        <EmptyState
-          art={<BuoyArt />}
-          title="Pelabuhan masih sepi"
-          description="Tarik pesanan dari toko kamu yang terhubung biar stoknya ikut kekelola di sini."
-          action={
-            <Button onClick={() => setPullOpen(true)}>
-              <DownloadCloud className="size-4" />
-              Tarik pesanan
-            </Button>
-          }
-        />
+        isFiltered ? (
+          <EmptyState
+            icon={SearchX}
+            title="Tidak ada pesanan yang cocok"
+            description="Coba ubah kata kunci atau filter statusnya."
+          />
+        ) : (
+          <EmptyState
+            art={<BuoyArt />}
+            title="Pelabuhan masih sepi"
+            description="Tarik pesanan dari toko kamu yang terhubung biar stoknya ikut kekelola di sini."
+            action={
+              <Button onClick={() => setPullOpen(true)}>
+                <DownloadCloud className="size-4" />
+                Tarik pesanan
+              </Button>
+            }
+          />
+        )
       ) : (
-        <div className="space-y-3">
+        <div className={cn('space-y-3', isFetching && 'opacity-60 transition-opacity')}>
           <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <Table>
               <TableHeader>
@@ -202,8 +282,11 @@ export function OrdersDashboard() {
             page={page}
             pageSize={pageSize}
             total={total}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
+            onPageChange={(nextPage) => setFilters({ page: String(nextPage) })}
+            onPageSizeChange={(nextSize) => {
+              setPageSize(nextSize);
+              setFilters({ page: '1' });
+            }}
           />
         </div>
       )}
