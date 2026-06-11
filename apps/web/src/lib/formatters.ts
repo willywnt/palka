@@ -28,7 +28,8 @@ export function formatStorageUsage(usedBytes: number, quotaBytes: number): strin
 }
 
 export function formatStoragePercent(usedBytes: number, quotaBytes: number): string {
-  if (quotaBytes === 0) return '100%';
+  // 0 quota = not provisioned — never render a false "100%" full state.
+  if (quotaBytes === 0) return '0%';
   return `${Math.min(100, Math.round((usedBytes / quotaBytes) * 100))}%`;
 }
 

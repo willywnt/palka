@@ -23,7 +23,11 @@ export function parseStorageKeyFromUrl(url: string, baseUrl: string): string | n
   return url.slice(normalizedBase.length + 1);
 }
 
-export function isWithinQuota(usedBytes: number, quotaBytes: number, additionalBytes: number): boolean {
+export function isWithinQuota(
+  usedBytes: number,
+  quotaBytes: number,
+  additionalBytes: number,
+): boolean {
   return usedBytes + additionalBytes <= quotaBytes;
 }
 
@@ -32,6 +36,8 @@ export function remainingQuotaBytes(usedBytes: number, quotaBytes: number): numb
 }
 
 export function quotaUsagePercent(usedBytes: number, quotaBytes: number): number {
-  if (quotaBytes === 0) return 100;
+  // 0 quota = not provisioned yet — display as empty, not as an alarming "full"
+  // (upload enforcement goes through isWithinQuota, which still blocks at 0).
+  if (quotaBytes === 0) return 0;
   return Math.min(100, Math.round((usedBytes / quotaBytes) * 100));
 }

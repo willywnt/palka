@@ -134,6 +134,12 @@ export function StorageQuotaIndicator({
         {formatStorageUsage(data.usedBytes, data.quotaBytes)} digunakan
       </p>
 
+      {data.quotaBytes === 0 ? (
+        <p className="text-muted-foreground mt-2 text-xs">
+          Kuota penyimpanan belum diatur — hubungi admin kamu untuk mengaktifkan upload.
+        </p>
+      ) : null}
+
       {warningMessage ? <QuotaWarning level={level} message={warningMessage} /> : null}
     </div>
   );
