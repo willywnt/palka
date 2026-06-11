@@ -22,11 +22,14 @@ import { resolveMobilePairingOrigin } from '../utils/resolve-public-origin';
 import { clearScanDebounce, isDuplicateScan } from '../utils/scan-debounce';
 import type { ConnectPairingInput } from '../validators/pairing';
 
-function buildConnectUrl(pairingId: string, pairingCode: string): string {
+function buildConnectUrl(pairingId: string, pairingCode: string, purpose: PairingPurpose): string {
   const origin = resolveMobilePairingOrigin();
+  // `purpose` is display-only on the phone (the right "connecting…" label before
+  // the session loads); the authoritative purpose still comes from the session.
   const params = new URLSearchParams({
     pairing: pairingId,
     code: pairingCode,
+    purpose,
   });
   return `${origin}/mobile/connect?${params.toString()}`;
 }
@@ -81,7 +84,7 @@ export class PairingService {
       expiresAt,
     });
 
-    const connectUrl = buildConnectUrl(id, pairingCode);
+    const connectUrl = buildConnectUrl(id, pairingCode, purpose);
 
     pairingLogger.info('pairing.created', {
       userId,
@@ -107,7 +110,7 @@ export class PairingService {
     }
 
     const summary = toPairingSessionSummary(session);
-    const connectUrl = buildConnectUrl(session.id, session.pairingCode);
+    const connectUrl = buildConnectUrl(session.id, session.pairingCode, session.purpose);
     return { session: summary, connectUrl };
   }
 

@@ -5,6 +5,7 @@ import type { Route } from 'next';
 import { useCallback, useRef } from 'react';
 import { Loader2, ScanLine, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
+import type { PairingPurpose } from '@prisma/client';
 
 import { Button } from '@/components/ui/button';
 import { BarcodeDetectionOverlay } from './barcode-detection-overlay';
@@ -21,6 +22,8 @@ import { getSuggestedSecureOrigin } from '../utils/camera-environment';
 type MobileScannerViewProps = {
   pairingId: string | null;
   pairingCode: string | null;
+  /** Station purpose from the scanned QR — shows the right copy before the session loads. */
+  purpose: PairingPurpose | null;
   loginHref: string;
 };
 
@@ -47,7 +50,12 @@ function CenteredMessage({
   );
 }
 
-export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileScannerViewProps) {
+export function MobileScannerView({
+  pairingId,
+  pairingCode,
+  purpose,
+  loginHref,
+}: MobileScannerViewProps) {
   const { isAuthenticated, isAuthLoading, isClaiming, claimError, retryClaim } =
     useMobilePairingQrAuth({
       pairingId,
@@ -70,9 +78,11 @@ export function MobileScannerView({ pairingId, pairingCode, loginHref }: MobileS
   const stationBusy = stationPhase !== 'idle';
   const canScan = isSessionConnected && !stationBusy;
 
-  // Copy follows the station the phone is paired to (recordings vs POS). A ref
-  // keeps the scan handler stable so the camera isn't restarted when it resolves.
-  const meta = stationPurposeMeta(session?.purpose);
+  // Copy follows the station the phone is paired to. Until the session loads we
+  // fall back to the QR's purpose, so "Menghubungkan…" reads the right station
+  // instead of flashing the recordings default. A ref keeps the scan handler
+  // stable so the camera isn't restarted when it resolves.
+  const meta = stationPurposeMeta(session?.purpose ?? purpose);
   const metaRef = useRef(meta);
   metaRef.current = meta;
 

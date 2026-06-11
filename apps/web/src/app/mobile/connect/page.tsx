@@ -4,12 +4,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
+import type { PairingPurpose } from '@prisma/client';
+
 import { MobileScannerView } from '@/modules/scanner-pairing/components/mobile-scanner-view';
-import { pairingCodeSchema, pairingIdSchema } from '@/modules/scanner-pairing/validators/pairing';
+import {
+  pairingCodeSchema,
+  pairingIdSchema,
+  pairingPurposeSchema,
+} from '@/modules/scanner-pairing/validators/pairing';
 import { isMobileScannerEnabled } from '@/modules/scanner-pairing/config';
 
 const PAIRING_STORAGE_KEY = 'falka-mobile-pairing-id';
 const PAIRING_CODE_STORAGE_KEY = 'falka-mobile-pairing-code';
+const PAIRING_PURPOSE_STORAGE_KEY = 'falka-mobile-pairing-purpose';
 
 function parseCodeParam(raw: string): string {
   try {
@@ -23,10 +30,22 @@ export default function MobileConnectPage() {
   const searchParams = useSearchParams();
   const pairingParam = searchParams.get('pairing') ?? '';
   const codeParam = searchParams.get('code') ?? '';
+  const purposeParam = searchParams.get('purpose') ?? '';
   const [pairingId, setPairingId] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [purpose, setPurpose] = useState<PairingPurpose | null>(null);
 
   useEffect(() => {
+    const fromUrlPurpose = pairingPurposeSchema.safeParse(purposeParam.trim());
+    if (fromUrlPurpose.success) {
+      sessionStorage.setItem(PAIRING_PURPOSE_STORAGE_KEY, fromUrlPurpose.data);
+      setPurpose(fromUrlPurpose.data);
+    } else {
+      const stored = sessionStorage.getItem(PAIRING_PURPOSE_STORAGE_KEY);
+      const parsed = stored ? pairingPurposeSchema.safeParse(stored) : null;
+      if (parsed?.success) setPurpose(parsed.data);
+    }
+
     const fromUrlId = pairingIdSchema.safeParse(pairingParam.trim());
     const fromUrlCode = pairingCodeSchema.safeParse(parseCodeParam(codeParam));
 
@@ -70,7 +89,7 @@ export default function MobileConnectPage() {
       setPairingId(null);
       setPairingCode(null);
     }
-  }, [codeParam, pairingParam]);
+  }, [codeParam, pairingParam, purposeParam]);
 
   const loginHref = useMemo(() => {
     const id = pairingId ?? pairingParam;
@@ -102,6 +121,11 @@ export default function MobileConnectPage() {
   }
 
   return (
-    <MobileScannerView pairingId={pairingId} pairingCode={pairingCode} loginHref={loginHref} />
+    <MobileScannerView
+      pairingId={pairingId}
+      pairingCode={pairingCode}
+      purpose={purpose}
+      loginHref={loginHref}
+    />
   );
 }
