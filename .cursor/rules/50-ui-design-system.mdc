@@ -1,97 +1,130 @@
 ---
-description: UI/UX design system — theme "Ombak", shared primitives, filter/form/list patterns. Reuse these; don't rebuild.
+description: UI/UX design system — theme "Suar Dermaga" (Ombak v2), shared primitives, Pandu pattern, filter/form/list/mobile patterns. Reuse these; don't rebuild.
 globs: apps/web/src/components/**,apps/web/src/app/**,apps/web/src/styles/**,apps/web/src/hooks/**,apps/web/src/modules/**/components/**
 alwaysApply: false
 ---
 
 # UI / Design system
 
-Single locked theme **"Ombak — Ledger on Paper"**: a faintly-**warm paper** canvas, **hairline**
-structure (borders over shadows), the **teal** brand accent kept verbatim, a neutral charcoal sidebar
-whose brand mark + active markers pick up the accent, **Plus Jakarta Sans** font
-(`@fontsource-variable/plus-jakarta-sans`), `--radius: 0.875rem`. Tokens (OKLch) live in
-`apps/web/src/styles/globals.css` — light + dark via `next-themes`. There is **no palette switcher**
-(removed); change the accent only by editing `--primary`/`--ring`/`--sidebar-*`.
+Single locked theme **"Suar Dermaga" (Ombak v2 — harbor light over the ledger)**: the warm-paper
+"Ledger on Paper" base kept verbatim (hairline structure, borders over shadows, teal accent,
+Plus Jakarta Sans + Geist Mono), evolved with a **sea-glass horizon wash**, a **navy "hull at
+dusk" sidebar** (hue locked ≤252 — never purple), an amber **suar/beacon** attention system, and
+the **Pandu** assistant pattern. Tokens (OKLCH) live in `apps/web/src/styles/globals.css` —
+light + dark via `next-themes`. Change the accent only via `--primary`/`--ring`/`--sidebar-*`.
 
-**Ledger on Paper specifics (the look that makes it not generic):**
+**Suar Dermaga specifics (on top of Ledger on Paper):**
 
-- **Neutrals are split** — `--secondary` (chips/secondary btn), `--muted` (zebra/subtle bg), `--accent`
-  (hover/active) are three distinct warm paper-greys; `--border` (hairline) ≠ `--input` (a notch darker,
-  recessed wells). Don't collapse them back.
-- **Signed numerics**: `--signed-up` (calm green) / `--signed-down` (ember, hue-separated from
-  `--destructive` red so a negative delta ≠ an error) → `text-signed-up`/`text-signed-down`,
-  `bg-signed-*`. Use the **`NumberDelta`** component for every signed +/- value, never ad-hoc
-  emerald/destructive coloring.
-- **`num` utility** (`@utility` in globals.css = Geist Mono + tabular figures): put it on EVERY number
-  the user reads — stock, qty, price, money, counts, KPI values. Replaces `tabular-nums`.
-- **`eyebrow` utility**: micro-caps "instrument" label (section eyebrows, StatCard labels, sidebar
-  section headings). Don't pair it with a conflicting `text-*` size on the same element.
-- **Elevation = hairline**: cards are `rounded-lg` + border, **no shadow**; reserve shadows for true
-  overlays (popover/dialog/dropdown/sheet). Tables get a warm muted header band + gentle zebra.
+- **`--sea-glass`** is the ONLY "water" fill: the dashboard `horizon-wash` utility (shell `<main>`
+  only; cards stay pure white) and Pandu surfaces. Never a card/table background.
+- **Split neutrals stay**: `--secondary`/`--muted`/`--accent` distinct; `--border` ≠ `--input`.
+- **Signed numerics**: `--signed-up`/`--signed-down` via **`NumberDelta`**; losses/negative
+  margins use `text-signed-down`, NEVER `text-destructive` (destructive = app failure only).
+- **Status colors come ONLY from `StatusBadge`/`STATUS_BADGE_TONES`** (`components/status-badge.tsx`):
+  tones ok/info/warn/urgent/danger/neutral over `--status-ok/info/warn`, `--highlight(+-strong)`,
+  `--destructive`. No raw Tailwind palette (emerald/amber/sky/rose) for status — dark mode comes
+  free from tokens. Warn callout trio: `border-highlight/40 bg-highlight/15 text-status-warn`;
+  ok trio: `border-status-ok/30 bg-status-ok/10 text-status-ok`. Exception: permanent dark camera
+  surfaces (mobile scanner overlay, video stage) may keep their raw dark-surface colors.
+- **`num`** (mono+tabular) on EVERY number/code the user reads — stock, money, qty, resi, SKU
+  codes, counts. **`num-display`** (mono 28px w700) = hero numerals (StatCard value, POS total).
+- **`eyebrow`** micro-caps for section/stat/nav labels (never paired with another `text-*` size).
+- **Elevation = hairline**: no shadows on cards; shadows only on true overlays.
+- **Motion**: `--ease-tide` for entrances/dock; skeleton = `shimmer-water` (not pulse); a GLOBAL
+  `prefers-reduced-motion` guard lives in globals.css; JS-driven motion (recharts) must also gate
+  via **`useReducedMotion`** → `isAnimationActive={!reducedMotion}`.
+- **Maritime budget**: `WaveHairline` (riak divider) ONLY at hero/landing/auth section breaks;
+  `LighthouseArt` + "Suar" voice only on error/404 routes; maritime words appear as eyebrows
+  ("Anjungan") — primary nav labels stay functional. Tables/badges/forms are motif-free.
+
+## Brand chrome
+
+- **`BrandMark`/`BrandBadge`** (`components/brand-mark.tsx`) — the falcon-eye-over-riak mark; the
+  ONLY brand mark (never an inline letter chip). Favicon `app/icon.svg`, `apple-icon.tsx`,
+  `opengraph-image.tsx` (+ data-free variant for `/share/[token]` — resi must never leak into
+  link previews), `manifest.ts`, `robots.ts`, `<html lang="id">`, `metadataBase` from
+  `NEXT_PUBLIC_APP_URL`, viewport themeColor pair.
+- **Branded failure routes**: `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx`,
+  `app/(dashboard)/error.tsx` (keeps the shell frame), route `loading.tsx` (incl. the share
+  page). Calm "Suar" voice + lighthouse art + a way back. Never ship a route that can fall
+  through to an unbranded Next default.
+
+## Pandu (assistant) pattern — honesty is a hard rule
+
+- **`PanduDock`** (`components/pandu/`): bottom-right pill → sea-glass card; suppressed on
+  `/recordings`, `/dashboard/sales/new`, `/dashboard/purchasing/new`. Hero NL bar on the
+  dashboard only. Both route through **`routePanduQuery`** (keyword → existing URL filters).
+- **Stub contract (jujur)**: nudges (`usePanduNudges`) are deterministic rules over queries that
+  already exist — real numbers, rule-ranked, max 3, labeled "otomatis"; the card carries a
+  permanent "Pratinjau" label; no generated prose, EVER, until the real AI lands. Dismissals
+  persist per nudge-id (`store/pandu-store.ts`) and re-arm when the datum changes.
 
 ## Reuse these primitives — don't rebuild
-- `components/ui/`: `button card input textarea label select(native, styled) switch popover calendar
-  number-input badge skeleton table dialog alert-dialog dropdown-menu tooltip sheet separator tabs
-  sonner avatar`.
-- `components/`: **`PageHeader`** (`eyebrow`/title/description/`children` actions), **`StatCard`**
-  (KPI + tinted icon chip via `tone`, palette `STAT_TONES`), **`EmptyState`**, **`LowStockBadge`**
-  (tooltip shows the threshold), **`DateRangePicker`** (single popover, commits on an **Apply**
-  button — not on each day click), **`TablePagination`** (rows-per-page select + page nav),
-  **`QrImage`** (client PNG QR) + **`QrCodeDialog`** (enlarged, printable label),
-  **`NumberDelta`** (signed +/- in green/ember, mono — the reusable signed-number unit),
-  **`VariantPickerDialog`** (search→pick an internal variant; used by order-item + listing mapping —
-  pass the mutation via `onSelect`), **`ImageUploadPopover`** (thumbnail→upload/replace/remove popover;
-  pass `onUpload`/`onRemove`/`busy` — VariantImage + BundleImage are thin wrappers over it).
-- `hooks/`: **`useUrlFilters`** (flat string filters ↔ URL query; defaults dropped),
-  **`useDebouncedValue`**, **`usePagination`** (`page`/`pageSize`, resets to 1 on size change;
-  `PAGE_SIZE_OPTIONS` 10/20/50/100, `PageMeta`), **`useSoundUnlock`** + **`useScanSoundPref`**
-  (scanner beeps via `@/lib/scan-sound`, browser-only + per-station mute).
+
+- `components/ui/`: button card input textarea label select(native) switch popover calendar
+  number-input badge skeleton table dialog alert-dialog dropdown-menu tooltip sheet separator
+  tabs sonner avatar action-tooltip. Dialog/AlertDialog scroll internally (max-h dvh); close
+  buttons are padded targets labeled "Tutup"; native Select uses `text-base md:text-sm` (iOS).
+- `components/`: **PageHeader** (actions wrap) · **StatCard** (`num-display` value, `STAT_TONES`
+  icon chip, optional `delta`) · **EmptyState** · **ErrorState** (the error twin — icon + ID copy
+  + "Coba lagi" wired to `refetch`; branch order is ALWAYS loading → error → empty → data; a
+  failed query must NEVER render as "Belum ada…") · **StatusBadge** · **NumberDelta** ·
+  **LowStockBadge** (Popover, warn tone — keyboard/touch reachable) · **DateRangePicker** (1
+  month <sm + preset chips Hari ini/7 hari/30 hari/Bulan ini) · **TablePagination** ·
+  **QrImage** (Skeleton loading + distinct failed state) + **QrCodeDialog** ·
+  **VariantPickerDialog** · **ImageUploadPopover** · **BrandMark** · **WaveHairline** ·
+  **maritime-art** · **error-screen** · charts: **ChartLegend** (every multi-series chart shows a
+  visible legend — touch has no hover), chart wrappers carry `role="img"` + ID aria-label.
+- `hooks/`: **useUrlFilters** · **useDebouncedValue** · **usePagination** · **useMediaQuery** ·
+  **useReducedMotion** · **useSoundUnlock**/**useScanSoundPref** (per-station keys — a global
+  sound pref needs deliberate design, don't fake one in settings).
 
 ## Patterns (copy these)
-- **List filters**: hold filter state in `useUrlFilters({ ... })`; debounce the search box (300ms)
-  via `useDebouncedValue` and push the debounced value into the URL filter; reset `page` to `'1'` on
-  any filter change. The page must wrap the client list in `<Suspense>` (it uses `useSearchParams`).
-  Reference: `stock-activity.tsx`, `products-dashboard.tsx`, `inventory-overview.tsx`.
-- **Pagination**: `const { page, setPage, pageSize, setPageSize } = usePagination()` + render
-  `<TablePagination page pageSize total onPageChange onPageSizeChange />` (pass the server `meta.total`
-  or the client array length). Reset `page` to 1 when filters change. Server-paginated lists feed `page`/
-  `pageSize` into the query (key + params) and read back `{ items, meta }`; client-paginated lists slice
-  the fetched array. Reference: `label-studio.tsx`, `po-form.tsx` (server), `inventory-overview.tsx` (client).
-- **Forms** (react-hook-form + zod): `<FormLabel required>` adds a red `*`; `<FormDescription>` is a
-  small hint with an info icon; numeric fields use `<NumberInput {...field} />` (blank box for 0,
-  strips leading zeros); two-column field grids use CSS grid so an error/hint never misaligns the
-  columns. Keep create/add forms short; defer advanced settings to an Edit dialog.
-- **Row actions**: one primary button (e.g. Adjust) + a `⋯` `DropdownMenu` for the rest; icon-only
-  actions get a `Tooltip` (no bare `title`).
-- **Toggles**: boolean filters/settings use `<Switch>` + `<Label htmlFor>`, never a toggle-button.
-- **Detail pages**: two columns — `lg:grid-cols-3`, main content `lg:col-span-2`, summary/status
-  `<aside>` on the right. Cross-module composition stays at the app/page layer.
-- **Dynamic inputs**: make dependent choices follow each other (adjust-stock modal: Add/Remove →
-  reason options change; live "current → result" preview).
-- **Colour variety**: vary KPI/action chips with `STAT_TONES` (primary/amber/rose/sky/violet/emerald)
-  — don't render a wall of one colour.
-- **Wording**: user-facing copy is **Bahasa Indonesia** (informal seller idiom, "kamu"); **code stays
-  English** (identifiers, enums, routes, logger events, comments). No i18n framework — strings are
-  hardcoded ID (single market). Plain language, no internal jargon. Canonical glossary (use verbatim):
-  Stok/Tersedia/Dipesan/Rusak/Akan datang · Inventaris · Produk/Varian/Bundel · Pesanan/Pembeli/Toko/
-  No. resi/Terkirim/Batalkan · Penjualan(Kasir)/Keranjang/Tunai · Pembelian(PO)/Pemasok/Terima/Modal ·
-  Retur/Restok · Rekaman/video packing · Laporan/Omzet/Laba/Margin/HPP · Pengaturan/Akun/Masuk/Keluar/
-  Cari/Simpan/Batal/Buat/Tambah/Ubah/Hapus · Aktif/Nonaktif/opsional/wajib. Keep verbatim: SKU, barcode,
-  codes (S00001), brand "Falka", "marketplace", provider names (Shopee/Tokopedia/Lazada).
+
+- **List filters**: `useUrlFilters` + 300ms debounced search; reset `page` to `'1'` on change;
+  the component using `useSearchParams` must sit under `<Suspense>` (in-file boundary is fine —
+  see `bundles-dashboard.tsx`); Suspense fallbacks are Skeleton blocks matching the page rhythm,
+  NEVER `null`.
+- **Mobile card-list pattern**: data tables keep the table for sm+ (`hidden sm:block`) and render
+  stacked cards under sm (`sm:hidden`) with the SAME data + actions (share row-action renderers
+  so they can't drift); touch targets ≥36px. Reference: `inventory-overview.tsx`,
+  `products-dashboard.tsx`, `purchase-order-detail.tsx` (receive flow).
+- **Sticky mobile action bar**: POS pins Total (`num-display`) + "Bayar" under sm; content gets
+  `pb-24 sm:pb-0` clearance. Same recipe for any commit-action below the fold.
+- **Forms** (RHF+zod): `FormLabel required`, iconed `FormDescription`, `NumberInput`; every
+  Label has `htmlFor` to its input.
+- **Row actions**: one primary button + a `⋯` DropdownMenu; icon-only actions get Tooltip +
+  sr-only (NEVER bare `title=`). **Destructive confirms** (delete/cancel/reject/void) always go
+  through an AlertDialog with destructive-styled action + consequence copy — no one-tap
+  irreversibles.
+- **Detail pages**: two columns (`lg:grid-cols-3`); header = eyebrow (section name) + title at
+  PageHeader rhythm; loading skeletons MIRROR the real layout (no generic bars).
+- **Toggles** `Switch`+`Label`; **dynamic inputs** live current→result previews; **colour
+  variety** via `STAT_TONES`.
+- **Wording**: user-facing copy is **Bahasa Indonesia** (informal "kamu"), sentence case; code
+  stays English; no i18n framework. Canonical glossary as before plus: Bayar (checkout) ·
+  payment labels via `paymentMethodLabel` (Tunai/QRIS/Transfer…) · "Rekam packing" (nav) ·
+  "Laporan" (section) · "Fulfillment" badge label stays (user-approved) · sinkronisasi ·
+  Terhubung/Terputus/Token kedaluwarsa. Dates/relative times go through `lib/formatters` (id-ID;
+  date-fns `id` locale) — never `en-US` formatting.
 
 ## Shell & auth
-- `components/layout/`: `AppSidebar` (collapses to a 64px **icon rail** via `useUiStore.sidebarOpen`;
-  brand mark + a Create menu), `DashboardNavbar` (avatar menu + theme toggle), `SidebarNav`. The
-  mobile nav is a `Sheet` themed like the sidebar.
-- **Auth is already enforced** (middleware + `authorized()` in `auth.config.ts` → redirect to
-  `/login` with `callbackUrl`). Do NOT touch auth config / middleware / cookies without confirming
-  (HARD CONSTRAINT #2). The login form already round-trips `callbackUrl`.
+
+- `components/layout/`: AppSidebar (icon rail w/ Tooltips, Create menu ordered by real frequency,
+  brand tagline footer), DashboardNavbar (controlled mobile Sheet: scrolls + closes on navigate;
+  theme toggle reads `resolvedTheme`), SidebarNav (focus-visible rings, "Rekam packing" ≠
+  "Rekaman"), dashboard shell (`h-dvh`, skip-link "Langsung ke konten", `horizon-wash` main,
+  `PanduDock` mounted; dock suppressed on thumb-zone routes).
+- **Auth enforced already** — don't touch config/middleware/cookies (HARD CONSTRAINT #2). The
+  whole funnel (pages, panel, validators, AUTH_ERROR_MESSAGES, lockout) speaks ID.
 
 ## Gotchas
-- Production `next build` and `tsx watch server.ts` share `.next` → never build while the dev server
-  runs (corrupts the dev session). Stop dev, build, restart.
-- `useSearchParams` (incl. via `useUrlFilters`) forces a `<Suspense>` boundary on the page or the
-  build errors.
-- Typed routes are on: a computed href passed to `router.replace` needs `as Route`.
-- Deps added for this system: `geist`, `@fontsource-variable/plus-jakarta-sans`, `react-day-picker`,
-  `@radix-ui/react-popover`, `@radix-ui/react-switch`.
+
+- Never `next build` while the dev server runs (shared `.next`). Build BEFORE typecheck after
+  adding routes/changing page props (typed routes regenerate in `.next/types`).
+- `useSearchParams` (incl. via `useUrlFilters`) needs a `<Suspense>` boundary or the build fails.
+- Typed routes: computed hrefs need `as Route`.
+- PowerShell commits: never put double quotes inside `git commit -m` here-strings (PS 5.1
+  re-quoting splits the args).
+- Deps for this system: `geist`, `@fontsource-variable/plus-jakarta-sans`, `react-day-picker`,
+  `@radix-ui/react-popover`, `@radix-ui/react-switch`, `zustand` (persist for Pandu dismissals).

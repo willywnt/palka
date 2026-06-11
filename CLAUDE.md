@@ -258,15 +258,22 @@ triggered` fires ONLY for RECORDING — contracts unchanged, HARD CONSTRAINT #4 
 
 ## 13. UI / design system
 
-Single locked theme **"Ombak"** (teal accent, Plus Jakarta Sans, charcoal sidebar). **REUSE** the
-shared primitives + patterns — see `.cursor/rules/50-ui-design-system.mdc`. Key: list filters via
-`useUrlFilters` + debounced search (page wrapped in `<Suspense>`); forms via RHF+zod with
-`FormLabel required` / iconed `FormDescription` / `NumberInput`; `Switch` for toggles; a `⋯`
-DropdownMenu + `Tooltip` for row actions; two-column detail pages; `StatCard` / `EmptyState` /
-`DateRangePicker` / `LowStockBadge`. Paginated tables: `usePagination` + `TablePagination`
-(rows-per-page 10/20/50/100, resets to page 1 on size change). QR: `QrImage` + `QrCodeDialog`.
-Truncated cells: `EllipsisTooltip` (max-width, not width). Per-variant photo: `VariantImage` popover
-(client-compressed WebP via `utils/compress-image.ts`). Scanner sound: `@/lib/scan-sound` +
-`useSoundUnlock` + `useScanSoundPref` (browser-only, mute toggle).
-**Never run `next build` while the dev server is up** (shared
+Single locked theme **"Suar Dermaga" (Ombak v2)** — warm-paper ledger base + sea-glass horizon
+wash, navy "hull" sidebar, suar attention tokens, teal accent, Plus Jakarta Sans + Geist Mono.
+**REUSE** the shared primitives + patterns — see `.cursor/rules/50-ui-design-system.mdc`. Key:
+status colors ONLY via `StatusBadge`/status tokens (never raw palette); query failures render
+`ErrorState` w/ retry (loading → error → empty → data, no silent empties); list filters via
+`useUrlFilters` + debounced search (under `<Suspense>`, skeleton fallback never null); forms via
+RHF+zod with `FormLabel required` / iconed `FormDescription` / `NumberInput`; `Switch` for
+toggles; a `⋯` DropdownMenu + `Tooltip` for row actions (no bare `title=`); destructive actions
+always behind an AlertDialog confirm; two-column detail pages w/ eyebrow headers + layout-mirror
+skeletons; data tables collapse to card lists under `sm` (table stays `sm+`); `StatCard`
+(num-display) / `EmptyState` / `DateRangePicker` (1 month <sm + presets) / `LowStockBadge`
+(popover) / `BrandMark` / `WaveHairline` (hero/auth only) / `ChartLegend` + `useReducedMotion`.
+Paginated tables: `usePagination` + `TablePagination`. QR: `QrImage` + `QrCodeDialog`. Truncated
+cells: `EllipsisTooltip`. Per-variant photo: `VariantImage` popover. Scanner sound:
+`@/lib/scan-sound` + `useSoundUnlock` + `useScanSoundPref` (per-station keys). **Pandu**
+assistant = honest stub (`components/pandu/`): deterministic nudges over existing queries +
+keyword router, permanent "Pratinjau" label — never fake AI answers. Copy = informal ID "kamu";
+dates id-ID via `lib/formatters`. **Never run `next build` while the dev server is up** (shared
 `.next`). Auth is already enforced — don't touch config/middleware/cookies (HARD CONSTRAINT #2).
