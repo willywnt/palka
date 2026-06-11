@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Boxes,
   ClipboardList,
+  Minus,
   PackagePlus,
   Plus,
   ScanLine,
@@ -712,6 +713,52 @@ function BundleResults({
   );
 }
 
+/**
+ * − / + buttons flanking the qty input. Both paths go through the SAME clamped
+ * (≥1) update the input itself reports — typing still works.
+ */
+function QtyStepper({
+  id,
+  quantity,
+  onQuantityChange,
+}: {
+  id: string;
+  quantity: number;
+  onQuantityChange: (quantity: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className="shrink-0"
+        onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
+        disabled={quantity <= 1}
+        aria-label="Kurangi jumlah"
+      >
+        <Minus className="size-4" />
+      </Button>
+      <NumberInput
+        id={id}
+        className="w-16 text-center"
+        value={quantity}
+        onChange={(value) => onQuantityChange(Math.max(1, value))}
+      />
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className="shrink-0"
+        onClick={() => onQuantityChange(quantity + 1)}
+        aria-label="Tambah jumlah"
+      >
+        <Plus className="size-4" />
+      </Button>
+    </div>
+  );
+}
+
 /** A standalone-variant PO row. */
 function VariantPoRow({
   line,
@@ -741,16 +788,16 @@ function VariantPoRow({
           <Trash2 className="size-4" />
         </Button>
       </div>
-      <div className="mt-2 grid grid-cols-[5rem_1fr_auto] items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <div className="space-y-1.5">
           <Label htmlFor={`po-line-qty-${line.variantId}`}>Qty</Label>
-          <NumberInput
+          <QtyStepper
             id={`po-line-qty-${line.variantId}`}
-            value={line.quantity}
-            onChange={(value) => onPatch({ quantity: Math.max(1, value) })}
+            quantity={line.quantity}
+            onQuantityChange={(quantity) => onPatch({ quantity })}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="min-w-28 flex-1 space-y-1.5">
           <Label htmlFor={`po-line-cost-${line.variantId}`}>Modal satuan</Label>
           <NumberInput
             id={`po-line-cost-${line.variantId}`}
@@ -758,7 +805,7 @@ function VariantPoRow({
             onChange={(value) => onPatch({ unitCost: Math.max(0, value) })}
           />
         </div>
-        <div className="text-right">
+        <div className="ml-auto text-right">
           <div className="text-muted-foreground text-xs">Total</div>
           <div className="num font-medium">{formatCurrency(line.unitCost * line.quantity)}</div>
         </div>
@@ -813,16 +860,16 @@ function BundlePoRow({
         ))}
       </ul>
 
-      <div className="mt-2 grid grid-cols-[5rem_1fr_auto] items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <div className="space-y-1.5">
           <Label htmlFor={`po-bundle-qty-${line.bundleId}`}>Qty</Label>
-          <NumberInput
+          <QtyStepper
             id={`po-bundle-qty-${line.bundleId}`}
-            value={line.quantity}
-            onChange={(value) => onPatch({ quantity: Math.max(1, value) })}
+            quantity={line.quantity}
+            onQuantityChange={(quantity) => onPatch({ quantity })}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="min-w-28 flex-1 space-y-1.5">
           <Label htmlFor={`po-bundle-cost-${line.bundleId}`}>Modal bundel</Label>
           <NumberInput
             id={`po-bundle-cost-${line.bundleId}`}
@@ -830,7 +877,7 @@ function BundlePoRow({
             onChange={(value) => onPatch({ unitCost: Math.max(0, value) })}
           />
         </div>
-        <div className="text-right">
+        <div className="ml-auto text-right">
           <div className="text-muted-foreground text-xs">Total</div>
           <div className="num font-medium">{formatCurrency(line.unitCost * line.quantity)}</div>
         </div>
