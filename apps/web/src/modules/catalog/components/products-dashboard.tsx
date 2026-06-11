@@ -65,6 +65,30 @@ export function ProductsDashboard() {
   const products = data ?? [];
   const isEmpty = !isLoading && products.length === 0;
 
+  // Row actions (the ⋯ menu) — shared by the sm+ table and the <sm card list.
+  function renderRowActions(product: ProductListItem) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <MoreHorizontal className="size-4" />
+            <span className="sr-only">Buka aksi</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            disabled={deleteMutation.isPending}
+            className="text-destructive focus:text-destructive"
+            onClick={() => setDeleteTarget(product)}
+          >
+            <Trash2 className="size-4" />
+            Hapus
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -81,10 +105,18 @@ export function ProductsDashboard() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Skeleton key={index} className="h-12 w-full" />
-          ))}
+        <div className="overflow-hidden rounded-xl border">
+          <Skeleton className="h-10 w-full rounded-none" />
+          <div className="divide-y">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-4 px-4 py-3.5">
+                <Skeleton className="h-4 w-2/5" />
+                <Skeleton className="ml-auto h-4 w-10" />
+                <Skeleton className="h-4 w-10" />
+                <Skeleton className="h-5 w-16" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : error ? (
         <ErrorState title="Gagal memuat produk" onRetry={() => void refetch()} />
@@ -107,71 +139,98 @@ export function ProductsDashboard() {
           }
         />
       ) : (
-        <div className="rounded-xl border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produk</TableHead>
-                <TableHead className="text-right">Varian</TableHead>
-                <TableHead className="text-right">Tersedia</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
+        <>
+          <div className="hidden rounded-xl border sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produk</TableHead>
+                  <TableHead className="text-right">Varian</TableHead>
+                  <TableHead className="text-right">Tersedia</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <Link
+                        href={`/dashboard/products/${product.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {product.name}
+                      </Link>
+                      {product.category ? (
+                        <div className="text-muted-foreground text-xs">{product.category}</div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {product.variantCount === 0 ? (
+                        <StatusBadge tone="warn" className="font-normal">
+                          Tanpa varian
+                        </StatusBadge>
+                      ) : (
+                        <span className="num">{product.variantCount}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="num text-right">{product.totalAvailableStock}</TableCell>
+                    <TableCell>
+                      <Badge variant={product.isActive ? 'default' : 'secondary'}>
+                        {product.isActive ? 'Aktif' : 'Nonaktif'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{renderRowActions(product)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="space-y-3 sm:hidden">
+            {products.map((product) => (
+              <div key={product.id} className="bg-card rounded-xl border p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
                     <Link
                       href={`/dashboard/products/${product.id}`}
-                      className="font-medium hover:underline"
+                      className="font-medium break-words hover:underline"
                     >
                       {product.name}
                     </Link>
                     {product.category ? (
-                      <div className="text-muted-foreground text-xs">{product.category}</div>
+                      <p className="text-muted-foreground text-xs">{product.category}</p>
                     ) : null}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {product.variantCount === 0 ? (
-                      <StatusBadge tone="warn" className="font-normal">
-                        Tanpa varian
-                      </StatusBadge>
-                    ) : (
-                      <span className="num">{product.variantCount}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="num text-right">{product.totalAvailableStock}</TableCell>
-                  <TableCell>
-                    <Badge variant={product.isActive ? 'default' : 'secondary'}>
-                      {product.isActive ? 'Aktif' : 'Nonaktif'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="size-4" />
-                          <span className="sr-only">Buka aksi</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          disabled={deleteMutation.isPending}
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteTarget(product)}
-                        >
-                          <Trash2 className="size-4" />
-                          Hapus
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                  </div>
+                  <div className="-mt-1.5 -mr-1.5 shrink-0">{renderRowActions(product)}</div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+                  {product.variantCount === 0 ? (
+                    <StatusBadge tone="warn" className="font-normal">
+                      Tanpa varian
+                    </StatusBadge>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      Varian{' '}
+                      <span className="num text-foreground font-medium">
+                        {product.variantCount}
+                      </span>
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">
+                    Tersedia{' '}
+                    <span className="num text-foreground font-medium">
+                      {product.totalAvailableStock}
+                    </span>
+                  </span>
+                  <Badge variant={product.isActive ? 'default' : 'secondary'}>
+                    {product.isActive ? 'Aktif' : 'Nonaktif'}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <ProductFormDialog open={createOpen} onOpenChange={setCreateOpen} />

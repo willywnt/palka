@@ -93,9 +93,36 @@ export function ProductDetail({
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full" />
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-44" />
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-8 w-64 max-w-full" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-3 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-8 w-36" />
+            </div>
+            <div className="overflow-hidden rounded-xl border">
+              <Skeleton className="h-10 w-full rounded-none" />
+              <div className="divide-y">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="flex items-center gap-4 px-4 py-3.5">
+                    <Skeleton className="size-9 shrink-0 rounded-md" />
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="ml-auto h-4 w-14" />
+                    <Skeleton className="h-4 w-10" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <aside>
+            <Skeleton className="h-56 w-full rounded-xl" />
+          </aside>
+        </div>
       </div>
     );
   }
@@ -121,11 +148,95 @@ export function ProductDetail({
   // under one group header (placed where the group first appears).
   const variantBlocks = buildVariantBlocks(data.variants);
 
-  function renderVariantRow(variant: ProductVariantItem, grouped: boolean) {
-    // A variant can map to several listings in the same shop — show each connection once.
-    const connections = Array.from(
+  // A variant can map to several listings in the same shop — show each connection once.
+  function dedupeConnections(variant: ProductVariantItem) {
+    return Array.from(
       new Map(variant.mappings.map((mapping) => [mapping.connectionId, mapping])).values(),
     );
+  }
+
+  // The per-variant ⋯ menu — shared by the sm+ table rows and the <sm cards.
+  function renderVariantMenu(variant: ProductVariantItem, grouped: boolean) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <MoreHorizontal className="size-4" />
+            <span className="sr-only">Aksi lainnya</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setQrTarget(variant)}>
+            <QrCode className="size-4" />
+            Tampilkan QR code
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEditTarget(variant)}>
+            <Pencil className="size-4" />
+            {grouped ? 'Ubah subvarian' : 'Ubah varian'}
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}>
+              <ScrollText className="size-4" />
+              Lihat aktivitas
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() =>
+              setDeleteTarget({
+                variantIds: [variant.id],
+                kind: grouped ? 'subvariant' : 'variant',
+                label: formatVariantLabel(variant),
+              })
+            }
+          >
+            <Trash2 className="size-4" />
+            {grouped ? 'Hapus subvarian' : 'Hapus varian'}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  // The group ⋯ menu — shared by the table band row and the mobile group header.
+  function renderGroupMenu(
+    name: string,
+    variants: ProductVariantItem[],
+    triggerClassName?: string,
+  ) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className={triggerClassName}>
+            <MoreHorizontal className="size-4" />
+            <span className="sr-only">Aksi grup</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setAddSubGroup(name)}>
+            <Plus className="size-4" />
+            Tambah subvarian
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() =>
+              setDeleteTarget({
+                variantIds: variants.map((variant) => variant.id),
+                kind: 'variant',
+                label: name,
+              })
+            }
+          >
+            <Trash2 className="size-4" />
+            Hapus varian
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  function renderVariantRow(variant: ProductVariantItem, grouped: boolean) {
+    const connections = dedupeConnections(variant);
     return (
       <TableRow key={variant.id}>
         <TableCell className={grouped ? 'max-w-[220px] pl-10' : 'max-w-[220px]'}>
@@ -158,48 +269,53 @@ export function ProductDetail({
               <SlidersHorizontal className="size-4" />
               Sesuaikan
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="size-4" />
-                  <span className="sr-only">Aksi lainnya</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setQrTarget(variant)}>
-                  <QrCode className="size-4" />
-                  Tampilkan QR code
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setEditTarget(variant)}>
-                  <Pencil className="size-4" />
-                  {grouped ? 'Ubah subvarian' : 'Ubah varian'}
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link
-                    href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}
-                  >
-                    <ScrollText className="size-4" />
-                    Lihat aktivitas
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() =>
-                    setDeleteTarget({
-                      variantIds: [variant.id],
-                      kind: grouped ? 'subvariant' : 'variant',
-                      label: formatVariantLabel(variant),
-                    })
-                  }
-                >
-                  <Trash2 className="size-4" />
-                  {grouped ? 'Hapus subvarian' : 'Hapus varian'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {renderVariantMenu(variant, grouped)}
           </div>
         </TableCell>
       </TableRow>
+    );
+  }
+
+  // Mobile (<sm) stand-in for a table row — the same data and actions, stacked.
+  function renderVariantCard(variant: ProductVariantItem, grouped: boolean) {
+    const connections = dedupeConnections(variant);
+    return (
+      <div key={variant.id} className="bg-card rounded-xl border p-4">
+        <div className="flex items-start gap-3">
+          <VariantImage
+            productId={productId}
+            variantId={variant.id}
+            imageUrl={variant.imageUrl}
+            label={formatVariantLabel(variant)}
+          />
+          <div className="min-w-0 flex-1">
+            <EllipsisTooltip text={variant.name} className="font-medium" />
+            <EllipsisTooltip text={variant.sku} className="text-muted-foreground text-xs" />
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+          <span className="text-muted-foreground">
+            Harga{' '}
+            <span className="num text-foreground font-medium">{formatCurrency(variant.price)}</span>
+          </span>
+          <span className="text-muted-foreground">
+            Tersedia{' '}
+            <span className="num text-foreground font-medium">{variant.availableStock}</span>
+          </span>
+          {variant.isLowStock ? <LowStockBadge threshold={variant.lowStockThreshold} /> : null}
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-muted-foreground text-xs">Koneksi</span>
+          <ConnectionBadges connections={connections} />
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => onAdjustVariant(variant)}>
+            <SlidersHorizontal className="size-4" />
+            Sesuaikan
+          </Button>
+          {renderVariantMenu(variant, grouped)}
+        </div>
+      </div>
     );
   }
 
@@ -212,11 +328,14 @@ export function ProductDetail({
         </Link>
       </Button>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold tracking-tight">{data.name}</h2>
-        <Badge variant={data.isActive ? 'default' : 'secondary'}>
-          {data.isActive ? 'Aktif' : 'Nonaktif'}
-        </Badge>
+      <div className="space-y-1">
+        <p className="eyebrow text-primary">Katalog</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-2xl font-semibold tracking-tight text-balance">{data.name}</h2>
+          <Badge variant={data.isActive ? 'default' : 'secondary'}>
+            {data.isActive ? 'Aktif' : 'Nonaktif'}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -243,78 +362,85 @@ export function ProductDetail({
               }
             />
           ) : (
-            <div className="rounded-xl border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Varian</TableHead>
-                    <TableHead className="text-right">Harga</TableHead>
-                    <TableHead className="text-right">Tersedia</TableHead>
-                    <TableHead>Koneksi</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {variantBlocks.map((block) =>
-                    block.kind === 'single' ? (
-                      renderVariantRow(block.variant, false)
-                    ) : (
-                      <Fragment key={`group-${block.name}`}>
-                        <TableRow className="bg-muted/40 hover:bg-muted/40">
-                          <TableCell colSpan={5} className="py-2.5">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex min-w-0 items-center gap-2">
-                                <Layers className="text-muted-foreground size-3.5 shrink-0" />
-                                <EllipsisTooltip text={block.name} className="font-semibold" />
+            <>
+              <div className="hidden rounded-xl border sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Varian</TableHead>
+                      <TableHead className="text-right">Harga</TableHead>
+                      <TableHead className="text-right">Tersedia</TableHead>
+                      <TableHead>Koneksi</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {variantBlocks.map((block) =>
+                      block.kind === 'single' ? (
+                        renderVariantRow(block.variant, false)
+                      ) : (
+                        <Fragment key={`group-${block.name}`}>
+                          <TableRow className="bg-muted/40 hover:bg-muted/40">
+                            <TableCell colSpan={5} className="py-2.5">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <Layers className="text-muted-foreground size-3.5 shrink-0" />
+                                  <EllipsisTooltip text={block.name} className="font-semibold" />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-muted-foreground num text-xs">
+                                    {block.variants.length}{' '}
+                                    {block.variants.length === 1 ? 'subvarian' : 'subvarian'} ·{' '}
+                                    {block.variants.reduce(
+                                      (sum, variant) => sum + variant.availableStock,
+                                      0,
+                                    )}{' '}
+                                    tersedia
+                                  </span>
+                                  {renderGroupMenu(block.name, block.variants, 'size-7')}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground num text-xs">
-                                  {block.variants.length}{' '}
-                                  {block.variants.length === 1 ? 'subvarian' : 'subvarian'} ·{' '}
-                                  {block.variants.reduce(
-                                    (sum, variant) => sum + variant.availableStock,
-                                    0,
-                                  )}{' '}
-                                  tersedia
-                                </span>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="size-7">
-                                      <MoreHorizontal className="size-4" />
-                                      <span className="sr-only">Aksi grup</span>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => setAddSubGroup(block.name)}>
-                                      <Plus className="size-4" />
-                                      Tambah subvarian
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={() =>
-                                        setDeleteTarget({
-                                          variantIds: block.variants.map((variant) => variant.id),
-                                          kind: 'variant',
-                                          label: block.name,
-                                        })
-                                      }
-                                    >
-                                      <Trash2 className="size-4" />
-                                      Hapus varian
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        {block.variants.map((variant) => renderVariantRow(variant, true))}
-                      </Fragment>
-                    ),
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                            </TableCell>
+                          </TableRow>
+                          {block.variants.map((variant) => renderVariantRow(variant, true))}
+                        </Fragment>
+                      ),
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="space-y-4 sm:hidden">
+                {variantBlocks.map((block) =>
+                  block.kind === 'single' ? (
+                    renderVariantCard(block.variant, false)
+                  ) : (
+                    <div key={`group-${block.name}`} className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Layers className="text-muted-foreground size-3.5 shrink-0" />
+                          <EllipsisTooltip text={block.name} className="text-sm font-semibold" />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground num text-xs">
+                            {block.variants.length} subvarian ·{' '}
+                            {block.variants.reduce(
+                              (sum, variant) => sum + variant.availableStock,
+                              0,
+                            )}{' '}
+                            tersedia
+                          </span>
+                          {renderGroupMenu(block.name, block.variants)}
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        {block.variants.map((variant) => renderVariantCard(variant, true))}
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+            </>
           )}
         </div>
 
