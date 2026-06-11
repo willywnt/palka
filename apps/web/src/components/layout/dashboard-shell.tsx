@@ -1,6 +1,7 @@
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { DashboardNavbar } from '@/components/layout/dashboard-navbar';
 import { SidebarProvider } from '@/components/layout/sidebar-provider';
+import { PanduDock } from '@/components/pandu/pandu-dock';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { GlobalRecordingReliability } from '@/modules/recordings/recovery/components/global-recording-reliability';
 import { PendingUploadProvider } from '@/modules/recordings/recovery/components/pending-upload-center';
@@ -28,6 +29,7 @@ export function DashboardShell({
               <main className="horizon-wash flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
             </div>
           </div>
+          <PanduDock />
         </SidebarProvider>
         <PendingUploadProvider />
       </GlobalRecordingReliability>
