@@ -5,6 +5,7 @@ import { enqueuePropagateInventoryStock } from '@falka/queue';
 import type { Prisma } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
+import { retryOnCodeCollision } from '@/lib/db-retry';
 import { inventoryServerService } from '@/modules/inventory/services/inventory-server.service';
 import { catalogServerService } from '@/modules/catalog/services/catalog-server.service';
 import { allocateBundleUnitAmounts } from '@/modules/catalog/utils/bundle-allocation';
@@ -352,45 +353,47 @@ export class SalesServerService {
 
     const totalAmount = Math.round(lines.reduce((sum, line) => sum + line.amount, 0) * 100) / 100;
 
-    const created = await prisma.$transaction(async (tx) => {
-      const count = await tx.saleRefund.count({ where: { organizationId } });
-      const code = `RF${(count + 1).toString().padStart(5, '0')}`;
+    const created = await retryOnCodeCollision(() =>
+      prisma.$transaction(async (tx) => {
+        const count = await tx.saleRefund.count({ where: { organizationId } });
+        const code = `RF${(count + 1).toString().padStart(5, '0')}`;
 
-      const refund = await tx.saleRefund.create({
-        data: {
-          userId: actorUserId,
-          organizationId,
-          saleId: sale.id,
-          code,
-          totalAmount,
-          note: input.note ?? null,
-          items: {
-            create: lines.map((line) => ({
-              saleItemId: line.item.id,
-              productVariantId: line.item.productVariantId,
-              sku: line.item.sku,
-              name: line.item.name,
-              quantity: line.quantity,
-              amount: line.amount,
-            })),
+        const refund = await tx.saleRefund.create({
+          data: {
+            userId: actorUserId,
+            organizationId,
+            saleId: sale.id,
+            code,
+            totalAmount,
+            note: input.note ?? null,
+            items: {
+              create: lines.map((line) => ({
+                saleItemId: line.item.id,
+                productVariantId: line.item.productVariantId,
+                sku: line.item.sku,
+                name: line.item.name,
+                quantity: line.quantity,
+                amount: line.amount,
+              })),
+            },
           },
-        },
-      });
-
-      for (const line of lines) {
-        await inventoryServerService.applyOfflineSaleReversalTx(tx, {
-          organizationId,
-          actorUserId,
-          variantId: line.item.productVariantId,
-          quantity: line.quantity,
-          saleId: sale.id,
-          note: `Refund ${code}`,
         });
-      }
 
-      await tx.sale.update({ where: { id: sale.id }, data: { status: 'PARTIALLY_REFUNDED' } });
-      return refund;
-    });
+        for (const line of lines) {
+          await inventoryServerService.applyOfflineSaleReversalTx(tx, {
+            organizationId,
+            actorUserId,
+            variantId: line.item.productVariantId,
+            quantity: line.quantity,
+            saleId: sale.id,
+            note: `Refund ${code}`,
+          });
+        }
+
+        await tx.sale.update({ where: { id: sale.id }, data: { status: 'PARTIALLY_REFUNDED' } });
+        return refund;
+      }),
+    );
 
     appLogger.info('sales.refunded', {
       organizationId,
@@ -467,40 +470,42 @@ export class SalesServerService {
       line.discountAmount = lineDiscounts[index] ?? 0;
     });
 
-    const created = await prisma.$transaction(async (tx) => {
-      const count = await tx.sale.count({ where: { organizationId } });
-      const code = `S${(count + 1).toString().padStart(5, '0')}`;
+    const created = await retryOnCodeCollision(() =>
+      prisma.$transaction(async (tx) => {
+        const count = await tx.sale.count({ where: { organizationId } });
+        const code = `S${(count + 1).toString().padStart(5, '0')}`;
 
-      const sale = await tx.sale.create({
-        data: {
-          userId: actorUserId,
-          organizationId,
-          code,
-          customerName: input.customerName ?? null,
-          paymentMethod: input.paymentMethod,
-          subtotalAmount: totals.subtotal,
-          discountAmount: totals.discountAmount,
-          taxRate: input.taxRate ?? 0,
-          taxAmount: totals.taxAmount,
-          taxInclusive: input.taxInclusive ?? false,
-          totalAmount: totals.totalAmount,
-          note: input.note ?? null,
-          items: { create: lines },
-        },
-      });
-
-      for (const line of lines) {
-        await inventoryServerService.applyOfflineSaleTx(tx, {
-          organizationId,
-          actorUserId,
-          variantId: line.productVariantId,
-          quantity: line.quantity,
-          saleId: sale.id,
+        const sale = await tx.sale.create({
+          data: {
+            userId: actorUserId,
+            organizationId,
+            code,
+            customerName: input.customerName ?? null,
+            paymentMethod: input.paymentMethod,
+            subtotalAmount: totals.subtotal,
+            discountAmount: totals.discountAmount,
+            taxRate: input.taxRate ?? 0,
+            taxAmount: totals.taxAmount,
+            taxInclusive: input.taxInclusive ?? false,
+            totalAmount: totals.totalAmount,
+            note: input.note ?? null,
+            items: { create: lines },
+          },
         });
-      }
 
-      return sale;
-    });
+        for (const line of lines) {
+          await inventoryServerService.applyOfflineSaleTx(tx, {
+            organizationId,
+            actorUserId,
+            variantId: line.productVariantId,
+            quantity: line.quantity,
+            saleId: sale.id,
+          });
+        }
+
+        return sale;
+      }),
+    );
 
     appLogger.info('sales.created', {
       organizationId,

@@ -101,9 +101,6 @@ export class AuthService {
           email: normalizedEmail,
           passwordHash,
           displayName,
-          // Deprecated per-user quota — kept in sync until the org sweep
-          // removes the column (the org row below is the real quota).
-          storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
         },
         select: { id: true, email: true, role: true, displayName: true },
       });

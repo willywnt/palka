@@ -37,16 +37,14 @@ enum MarketplaceProvider {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  passwordHash      String
-  displayName       String?
-  role              UserRole  @default(USER)
-  storageQuotaBytes BigInt    @default(524288000)
-  storageUsedBytes  BigInt    @default(0)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  displayName  String?
+  role         UserRole  @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
   recordings                 Recording[]
   pairingSessions            PairingSession[]
@@ -208,8 +206,8 @@ model Recording {
    */
   userId            String
   user              User            @relation(fields: [userId], references: [id])
-  organizationId    String?
-  organization      Organization?   @relation(fields: [organizationId], references: [id])
+  organizationId    String
+  organization      Organization    @relation(fields: [organizationId], references: [id])
   noResi            String
   generatedFilename String
   storageProvider   String
@@ -231,8 +229,8 @@ model Recording {
 
   shareLinks RecordingShareLink[]
 
-  @@index([userId])
-  @@index([noResi])
+  @@index([organizationId])
+  @@index([organizationId, noResi])
   @@index([status])
   @@map("recordings")
 }
@@ -241,8 +239,8 @@ model RecordingShareLink {
   id             String        @id @default(cuid())
   userId         String
   user           User          @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
   recordingId    String
   recording      Recording     @relation(fields: [recordingId], references: [id], onDelete: Cascade)
   // Opaque share token, stored hashed (sha256) — the raw token lives only in the URL.
@@ -254,7 +252,7 @@ model RecordingShareLink {
   createdAt      DateTime      @default(now())
 
   @@index([recordingId])
-  @@index([userId])
+  @@index([organizationId])
   @@map("recording_share_links")
 }
 
@@ -262,8 +260,8 @@ model MarketplaceConnection {
   id                    String              @id @default(cuid())
   userId                String
   user                  User                @relation(fields: [userId], references: [id])
-  organizationId        String?
-  organization          Organization?       @relation(fields: [organizationId], references: [id])
+  organizationId        String
+  organization          Organization        @relation(fields: [organizationId], references: [id])
   provider              MarketplaceProvider
   shopId                String
   shopName              String
@@ -282,7 +280,7 @@ model MarketplaceConnection {
   syncJobs            MarketplaceSyncJob[]
   orders              Order[]
 
-  @@index([userId])
+  @@index([organizationId])
   @@index([provider])
   @@map("marketplace_connections")
 }
@@ -341,8 +339,8 @@ model Product {
   id             String        @id @default(cuid())
   userId         String
   user           User          @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
   name           String
   description    String?
   category       String?
@@ -353,7 +351,7 @@ model Product {
 
   variants ProductVariant[]
 
-  @@index([userId])
+  @@index([organizationId])
   @@map("products")
 }
 
@@ -361,8 +359,8 @@ model ProductVariant {
   id                String        @id @default(cuid())
   userId            String
   user              User          @relation(fields: [userId], references: [id])
-  organizationId    String?
-  organization      Organization? @relation(fields: [organizationId], references: [id])
+  organizationId    String
+  organization      Organization  @relation(fields: [organizationId], references: [id])
   productId         String
   product           Product       @relation(fields: [productId], references: [id])
   sku               String
@@ -398,8 +396,8 @@ model ProductVariant {
   bundleItems         BundleItem[]
   stockOpnameItems    StockOpnameItem[]
 
-  @@unique([userId, sku])
-  @@index([userId])
+  @@unique([organizationId, sku])
+  @@index([organizationId])
   @@index([productId])
   @@index([barcode])
   @@map("product_variants")
@@ -416,8 +414,8 @@ model Bundle {
   id             String        @id @default(cuid())
   userId         String
   user           User          @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
   sku            String
   barcode        String?
   name           String
@@ -428,14 +426,14 @@ model Bundle {
   labelPrintedAt DateTime? // when a QR/barcode label was last printed; null = never
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  // Soft-delete (archive). The @@unique([userId, sku]) spans archived rows, so the
+  // Soft-delete (archive). The @@unique([organizationId, sku]) spans archived rows, so the
   // SKU is mangled on archive (see archivedSku) to free the original for reuse.
   deletedAt      DateTime?
 
   items BundleItem[]
 
-  @@unique([userId, sku])
-  @@index([userId])
+  @@unique([organizationId, sku])
+  @@index([organizationId])
   @@index([barcode])
   @@map("bundles")
 }
@@ -479,8 +477,8 @@ model StockLedger {
    */
   userId         String
   user           User              @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization?     @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id])
   variantId      String
   variant        ProductVariant    @relation(fields: [variantId], references: [id])
   delta          Int
@@ -492,10 +490,10 @@ model StockLedger {
   createdAt      DateTime          @default(now())
 
   // Serves the reorder report's per-bucket demand sums (userId + reason IN + createdAt range).
-  @@index([userId, reason, createdAt])
+  @@index([organizationId, reason, createdAt])
   // Serves the stock-activity log: userId-scoped, newest-first, no reason filter. The
   // reason-prefixed index above can't satisfy this ordering (Postgres has no skip scan).
-  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
   @@index([variantId])
   @@index([createdAt])
   @@map("stock_ledger_entries")
@@ -510,8 +508,8 @@ model MarketplaceProduct {
   id                      String                @id @default(cuid())
   userId                  String
   user                    User                  @relation(fields: [userId], references: [id])
-  organizationId          String?
-  organization            Organization?         @relation(fields: [organizationId], references: [id])
+  organizationId          String
+  organization            Organization          @relation(fields: [organizationId], references: [id])
   marketplaceConnectionId String
   connection              MarketplaceConnection @relation(fields: [marketplaceConnectionId], references: [id], onDelete: Cascade)
   provider                MarketplaceProvider
@@ -532,7 +530,7 @@ model MarketplaceProduct {
   mapping MarketplaceProductMapping?
 
   @@unique([marketplaceConnectionId, externalProductId, externalVariantId])
-  @@index([userId])
+  @@index([organizationId])
   @@index([marketplaceConnectionId])
   @@index([externalSku])
   @@map("marketplace_products")
@@ -542,8 +540,8 @@ model MarketplaceProductMapping {
   id                      String                   @id @default(cuid())
   userId                  String
   user                    User                     @relation(fields: [userId], references: [id])
-  organizationId          String?
-  organization            Organization?            @relation(fields: [organizationId], references: [id])
+  organizationId          String
+  organization            Organization             @relation(fields: [organizationId], references: [id])
   marketplaceConnectionId String
   connection              MarketplaceConnection    @relation(fields: [marketplaceConnectionId], references: [id], onDelete: Cascade)
   marketplaceProductId    String                   @unique
@@ -563,7 +561,7 @@ model MarketplaceProductMapping {
 
   syncJobs MarketplaceSyncJob[]
 
-  @@index([userId])
+  @@index([organizationId])
   @@index([marketplaceConnectionId])
   @@index([productVariantId])
   @@map("marketplace_product_mappings")
@@ -591,8 +589,8 @@ model MarketplaceSyncJob {
    */
   userId                      String
   user                        User                      @relation(fields: [userId], references: [id])
-  organizationId              String?
-  organization                Organization?             @relation(fields: [organizationId], references: [id])
+  organizationId              String
+  organization                Organization              @relation(fields: [organizationId], references: [id])
   marketplaceConnectionId     String
   connection                  MarketplaceConnection     @relation(fields: [marketplaceConnectionId], references: [id], onDelete: Cascade)
   marketplaceProductMappingId String
@@ -609,7 +607,7 @@ model MarketplaceSyncJob {
   createdAt                   DateTime                  @default(now())
   updatedAt                   DateTime                  @updatedAt
 
-  @@index([userId])
+  @@index([organizationId])
   @@index([marketplaceProductMappingId])
   @@index([syncStatus])
   @@map("marketplace_sync_jobs")
@@ -627,8 +625,8 @@ model Order {
   id                      String                @id @default(cuid())
   userId                  String
   user                    User                  @relation(fields: [userId], references: [id])
-  organizationId          String?
-  organization            Organization?         @relation(fields: [organizationId], references: [id])
+  organizationId          String
+  organization            Organization          @relation(fields: [organizationId], references: [id])
   marketplaceConnectionId String
   connection              MarketplaceConnection @relation(fields: [marketplaceConnectionId], references: [id], onDelete: Cascade)
   provider                MarketplaceProvider
@@ -670,7 +668,7 @@ model Order {
   returns Return[]
 
   @@unique([marketplaceConnectionId, externalOrderId])
-  @@index([userId])
+  @@index([organizationId])
   @@index([status])
   @@map("orders")
 }
@@ -716,8 +714,8 @@ model Return {
   id             String        @id @default(cuid())
   userId         String
   user           User          @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
   orderId        String
   order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   status         ReturnStatus  @default(PENDING)
@@ -736,7 +734,7 @@ model Return {
 
   items ReturnItem[]
 
-  @@index([userId])
+  @@index([organizationId])
   @@index([orderId])
   @@index([status])
   @@map("returns")
@@ -785,8 +783,8 @@ model Sale {
    */
   userId         String
   user           User              @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization?     @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id])
   /**
    * Readable reference (e.g. S00001), generated per-organization at create.
    */
@@ -825,8 +823,8 @@ model Sale {
   items   SaleItem[]
   refunds SaleRefund[]
 
-  @@index([userId])
-  @@index([code])
+  @@index([organizationId])
+  @@unique([organizationId, code])
   @@map("sales")
 }
 
@@ -870,8 +868,8 @@ model SaleRefund {
   id             String        @id @default(cuid())
   userId         String
   user           User          @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
   saleId         String
   sale           Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
   /**
@@ -887,7 +885,8 @@ model SaleRefund {
 
   items SaleRefundItem[]
 
-  @@index([userId])
+  @@index([organizationId])
+  @@unique([organizationId, code])
   @@index([saleId])
   @@map("sale_refunds")
 }
@@ -927,8 +926,8 @@ model PurchaseOrder {
   id             String              @id @default(cuid())
   userId         String
   user           User                @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization?       @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id])
   /**
    * Readable reference (e.g. PO00001), generated per-user at create.
    */
@@ -944,8 +943,8 @@ model PurchaseOrder {
 
   items PurchaseOrderItem[]
 
-  @@index([userId])
-  @@index([code])
+  @@index([organizationId])
+  @@unique([organizationId, code])
   @@index([status])
   @@map("purchase_orders")
 }
@@ -990,8 +989,8 @@ model StockOpname {
   id             String            @id @default(cuid())
   userId         String
   user           User              @relation(fields: [userId], references: [id])
-  organizationId String?
-  organization   Organization?     @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id])
   /**
    * Readable reference (e.g. OP00001), generated per-user at create.
    */
@@ -1005,8 +1004,8 @@ model StockOpname {
 
   items StockOpnameItem[]
 
-  @@index([userId])
-  @@index([code])
+  @@index([organizationId])
+  @@unique([organizationId, code])
   @@index([status])
   @@map("stock_opnames")
 }

@@ -5,6 +5,7 @@ import { enqueuePropagateInventoryStock } from '@falka/queue';
 import type { Prisma } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
+import { retryOnCodeCollision } from '@/lib/db-retry';
 import { inventoryServerService } from '@/modules/inventory/services/inventory-server.service';
 import { catalogServerService } from '@/modules/catalog/services/catalog-server.service';
 import { allocateBundleUnitAmounts } from '@/modules/catalog/utils/bundle-allocation';
@@ -237,33 +238,35 @@ export class PurchasingServerService {
     const lines = this.buildPurchaseOrderLines(variantItems, bundleItems, variantById, bundles);
     const totalCost = lines.reduce((sum, line) => sum + Number(line.unitCost) * line.quantity, 0);
 
-    const created = await prisma.$transaction(async (tx) => {
-      const count = await tx.purchaseOrder.count({ where: { organizationId } });
-      const code = `PO${(count + 1).toString().padStart(5, '0')}`;
+    const created = await retryOnCodeCollision(() =>
+      prisma.$transaction(async (tx) => {
+        const count = await tx.purchaseOrder.count({ where: { organizationId } });
+        const code = `PO${(count + 1).toString().padStart(5, '0')}`;
 
-      const order = await tx.purchaseOrder.create({
-        data: {
-          userId: actorUserId,
-          organizationId,
-          code,
-          supplierName: input.supplierName ?? null,
-          note: input.note ?? null,
-          totalCost,
-          items: { create: lines },
-        },
-      });
-
-      for (const line of lines) {
-        await inventoryServerService.adjustIncomingTx(tx, {
-          organizationId,
-          actorUserId,
-          variantId: line.productVariantId,
-          delta: line.quantity,
+        const order = await tx.purchaseOrder.create({
+          data: {
+            userId: actorUserId,
+            organizationId,
+            code,
+            supplierName: input.supplierName ?? null,
+            note: input.note ?? null,
+            totalCost,
+            items: { create: lines },
+          },
         });
-      }
 
-      return order;
-    });
+        for (const line of lines) {
+          await inventoryServerService.adjustIncomingTx(tx, {
+            organizationId,
+            actorUserId,
+            variantId: line.productVariantId,
+            delta: line.quantity,
+          });
+        }
+
+        return order;
+      }),
+    );
 
     appLogger.info('purchasing.created', {
       organizationId,

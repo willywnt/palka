@@ -161,8 +161,6 @@ async function main() {
       passwordHash: adminPasswordHash,
       displayName: 'System Admin',
       role: UserRole.ADMIN,
-      storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
-      storageUsedBytes: BigInt(0),
     },
   });
   await ensureOwnOrganization(admin);
@@ -181,7 +179,6 @@ async function main() {
       passwordHash: demoPasswordHash,
       displayName: 'Demo User',
       role: UserRole.USER,
-      storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
     },
   });
   const demoOrg = await ensureOwnOrganization(demoUser);
@@ -201,7 +198,6 @@ async function main() {
       passwordHash: staffPasswordHash,
       displayName: 'Demo Staf',
       role: UserRole.USER,
-      storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
     },
   });
   await prisma.organizationMember.upsert({

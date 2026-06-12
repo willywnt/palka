@@ -5,6 +5,7 @@ import { enqueuePropagateInventoryStock } from '@falka/queue';
 import type { Prisma } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
+import { retryOnCodeCollision } from '@/lib/db-retry';
 
 import { inventoryServerService } from './inventory-server.service';
 import { StockOpnameError } from '../errors/stock-opname-errors';
@@ -225,13 +226,15 @@ export class StockOpnameService {
     actorUserId: string,
     input: CreateStockOpnameInput,
   ): Promise<StockOpnameDetail> {
-    const created = await prisma.$transaction(async (tx) => {
-      const count = await tx.stockOpname.count({ where: { organizationId } });
-      const code = `OP${(count + 1).toString().padStart(5, '0')}`;
-      return tx.stockOpname.create({
-        data: { userId: actorUserId, organizationId, code, note: input.note ?? null },
-      });
-    });
+    const created = await retryOnCodeCollision(() =>
+      prisma.$transaction(async (tx) => {
+        const count = await tx.stockOpname.count({ where: { organizationId } });
+        const code = `OP${(count + 1).toString().padStart(5, '0')}`;
+        return tx.stockOpname.create({
+          data: { userId: actorUserId, organizationId, code, note: input.note ?? null },
+        });
+      }),
+    );
 
     appLogger.info('inventory.opname.created', {
       organizationId,
