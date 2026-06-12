@@ -350,8 +350,10 @@ model StockLedger {
   createdAt    DateTime          @default(now())
 
   // Serves the reorder report's per-bucket demand sums (userId + reason IN + createdAt range).
-  // Its userId prefix also covers plain userId lookups, so no separate @@index([userId]).
   @@index([userId, reason, createdAt])
+  // Serves the stock-activity log: userId-scoped, newest-first, no reason filter. The
+  // reason-prefixed index above can't satisfy this ordering (Postgres has no skip scan).
+  @@index([userId, createdAt])
   @@index([variantId])
   @@index([createdAt])
   @@map("stock_ledger_entries")
