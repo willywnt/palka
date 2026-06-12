@@ -11,7 +11,6 @@ import { ErrorState } from '@/components/error-state';
 import { StatusBadge } from '@/components/status-badge';
 import { TablePagination } from '@/components/table-pagination';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -115,41 +114,33 @@ function OpnameListContent() {
       ) : isLoading || !data ? (
         <Skeleton className="h-64 w-full" />
       ) : data.items.length === 0 ? (
-        <Card>
-          <CardContent className="py-2">
-            {isFiltered ? (
-              <EmptyState
-                icon={SearchX}
-                title="Tidak ada opname yang cocok"
-                description="Coba ubah kata kunci pencariannya."
-              />
-            ) : (
-              <EmptyState
-                icon={ClipboardList}
-                title="Belum ada opname"
-                description="Mulai opname buat menghitung stok fisik dan menyamakannya dengan sistem."
-              />
-            )}
-          </CardContent>
-        </Card>
+        isFiltered ? (
+          <EmptyState
+            icon={SearchX}
+            title="Tidak ada opname yang cocok"
+            description="Coba ubah kata kunci pencariannya."
+          />
+        ) : (
+          <EmptyState
+            icon={ClipboardList}
+            title="Belum ada opname"
+            description="Mulai opname buat menghitung stok fisik dan menyamakannya dengan sistem."
+          />
+        )
       ) : (
-        <Card>
-          <CardContent className="pt-6">
-            <OpnameTable items={data.items} />
-            <div className="mt-4">
-              <TablePagination
-                page={data.meta.page}
-                pageSize={pageSize}
-                total={data.meta.total}
-                onPageChange={(nextPage) => setFilters({ page: String(nextPage) })}
-                onPageSizeChange={(nextSize) => {
-                  setPageSize(nextSize);
-                  setFilters({ page: '1' });
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <OpnameTable items={data.items} />
+          <TablePagination
+            page={data.meta.page}
+            pageSize={pageSize}
+            total={data.meta.total}
+            onPageChange={(nextPage) => setFilters({ page: String(nextPage) })}
+            onPageSizeChange={(nextSize) => {
+              setPageSize(nextSize);
+              setFilters({ page: '1' });
+            }}
+          />
+        </div>
       )}
     </div>
   );
@@ -182,7 +173,7 @@ function OpnameTable({ items }: { items: StockOpnameListItem[] }) {
         })}
       </ul>
 
-      <div className="hidden overflow-x-auto sm:block">
+      <div className="hidden overflow-x-auto rounded-xl border sm:block">
         <Table>
           <TableHeader>
             <TableRow>

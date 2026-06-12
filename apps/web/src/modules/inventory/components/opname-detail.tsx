@@ -34,7 +34,6 @@ import { NumberDelta } from '@/components/number-delta';
 import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NumberInput } from '@/components/ui/number-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -187,22 +186,24 @@ function OpnameContent({ data }: { data: StockOpnameData }) {
 
       {isDraft ? <OpnameAddItem opnameId={data.id} countedVariantIds={countedVariantIds} /> : null}
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{isDraft ? 'Hitungan' : 'Hasil opname'}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {data.items.length === 0 ? (
-            <EmptyState
-              icon={ClipboardCheck}
-              title="Belum ada item"
-              description="Tambahkan produk lewat scan atau pencarian di atas buat mulai menghitung."
-            />
-          ) : (
-            <OpnameItemsTable opnameId={data.id} items={data.items} editable={isDraft} />
-          )}
-        </CardContent>
-      </Card>
+      {/* Items in the shared detail-table dress (see sale-detail): label + bordered table. */}
+      <div className="space-y-3">
+        <p className="text-sm font-medium">
+          {isDraft ? 'Hitungan' : 'Hasil opname'}{' '}
+          <span className="text-muted-foreground">
+            · <span className="num">{data.items.length}</span>
+          </span>
+        </p>
+        {data.items.length === 0 ? (
+          <EmptyState
+            icon={ClipboardCheck}
+            title="Belum ada item"
+            description="Tambahkan produk lewat scan atau pencarian di atas buat mulai menghitung."
+          />
+        ) : (
+          <OpnameItemsTable opnameId={data.id} items={data.items} editable={isDraft} />
+        )}
+      </div>
 
       <AlertDialog open={confirmPost} onOpenChange={setConfirmPost}>
         <AlertDialogContent>
@@ -268,7 +269,7 @@ function OpnameItemsTable({
         ))}
       </ul>
 
-      <div className="hidden overflow-x-auto sm:block">
+      <div className="hidden overflow-x-auto rounded-xl border sm:block">
         <Table>
           <TableHeader>
             <TableRow>
