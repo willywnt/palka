@@ -229,6 +229,10 @@ additions), final mobile pass on POS/scanner/inventory.
 
 ## 5. Separate suggestions (need explicit approval — new behavior, not redesign)
 
+> Update 2026-06-12: items **1** (orders search + status filters), **2** (kembalian calculator +
+> struk print), and **7** (products list pagination) have since shipped. The follow-up UX work
+> lives in `docs/roadmap/ux-overhaul-2026-06.md` (§5 there tracks shipped vs still-open).
+
 1. Orders list search + status filters (hook/service take new params today: page/pageSize only).
 2. POS kembalian (cash-received) calculator; struk print/share on sale detail.
 3. Marketplace reconnect path for disconnected stores (UI promise currently unkept).

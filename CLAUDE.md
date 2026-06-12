@@ -204,7 +204,10 @@ Detail: `.cursor/rules/40-inventory-marketplace.mdc` + `docs/roadmap/inventory-m
 - **Fulfillment (Phase 5)**: orders ↔ packing videos (recordings) join by **`noResi`** (no FK,
   **case-insensitive**). A completed packing video best-effort stamps `Order.fulfilledAt`; the
   recording **station shows a pack view** (the matched order's items), and orders/returns show the
-  packing video as **dispute evidence**. Links work both ways.
+  packing video as **dispute evidence**. Links work both ways. A read-only **packing departure
+  board** (`/dashboard/orders/board`, standard table dress + back button) polls PAID/SHIPPED every
+  20s via `useOrdersBoardQuery` — **no socket** (contracts untouched); the route is
+  shell-suppressed. Orders list rows open a read-only **peek Sheet** (`order-peek.tsx`).
 - **Offline sales / POS** (`sales` module — `Sale`/`SaleItem`, `SalePaymentMethod` CASH/QRIS/TRANSFER,
   `SaleStatus` COMPLETED/VOID/**PARTIALLY_REFUNDED**): a counter sale **decrements the SoT immediately**
   (`available−`, ledger reason `SALE` / source `POS`, ref = saleId) in one tx, then propagates to **all**
@@ -222,7 +225,10 @@ taxAmount` in BOTH modes** (exclusive PPN adds on top; inclusive PPN is carved o
     flips status to `PARTIALLY_REFUNDED`; cash valued at the line's NET unit (`refundLineAmount`). **VOID
     is refused once a refund exists** (it would double-restock). Refunds enter the profit report as
     negative-qty net lines (revenue + COGS reverse) at refund time. **Receipt (struk)**: 58mm printable
-    via the shared `[data-print-root]` isolation on sale detail; CASH checkout has a kembalian calculator.
+    via the shared `[data-print-root]` isolation on sale detail; CASH checkout has a kembalian calculator
+    **with quick-tender buttons** (Uang pas + the smallest covering notes). POS extras: **pinned
+    favorites** (`store/pos-favorites.store.ts`, ids-only UI state, capped 12) render a "Favorit"
+    quick-add strip while search is empty; desktop shortcuts `/` (focus search) and `F8` (jump to pay).
 - **Purchasing / restock** (`purchasing` module — `PurchaseOrder`/`PurchaseOrderItem`,
   `PurchaseOrderStatus` ORDERED→PARTIALLY_RECEIVED→RECEIVED/CANCELLED): lights up the **`incomingStock`**
   bucket. Create a PO → `adjustIncomingTx(+qty)` per line (forecast bucket, **no ledger row**, available
@@ -254,6 +260,9 @@ taxAmount` in BOTH modes** (exclusive PPN adds on top; inclusive PPN is carved o
 - **Reorder + activity**: reorder report (velocity → days-of-cover → suggested qty, honours per-variant
   `leadTimeDays`/`minOrderQty`); stock activity log (filter + paginate + CSV); variant editing. Demand
   velocity sums `ORDER_RESERVE`+`ORDER_RELEASE`+`RETURN` (net), excludes the delta-0 `ORDER_SHIP`.
+  The inventory table surfaces a per-row **days-of-cover gauge** (reorder report joined client-side,
+  enhancement-only) + a **"Buat PO"** row action → `/dashboard/purchasing/new?variant=<id>` (PoForm
+  appends that line from its reorder suggestions, ref-guarded one-shot).
 - **Stock opname / cycle count** (`inventory`): `StockOpname`/`StockOpnameItem` + `StockOpnameStatus`
   (DRAFT/COMPLETED/CANCELLED), code `OP00001` per-user. A session at `/dashboard/inventory/opname`: add
   lines (system qty snapshotted ONCE at add) via search-to-add or **scan-to-count** (a phone on an
@@ -262,6 +271,8 @@ taxAmount` in BOTH modes** (exclusive PPN adds on top; inclusive PPN is carved o
   line's variance writes a `RECONCILE`/source `MANUAL` ledger row via the new
   `inventoryServerService.applyReconcileTx` and corrects the Inventory cache (then propagates), or cancel.
   **No new ledger reason** (`RECONCILE` already existed). Posted/cancelled = read-only variance report.
+  The opname list takes `?search=` (code/note contains, case-insensitive) end-to-end (validator →
+  service where → hook key → URL-synced search box).
 - **Reporting** (`reporting` module, read-only, under "Insights"): profit/margin, per-channel performance,
   inventory valuation, and **dead-stock & ABC**. Dead-stock = in-stock variants idle ≥ N days (REAL
   days-since-last-sale from the `SALE`/`ORDER_RESERVE` ledger) valued at moving-avg cost; ABC = Pareto by
@@ -315,14 +326,25 @@ status colors ONLY via `StatusBadge`/status tokens (never raw palette); query fa
 RHF+zod with `FormLabel required` / iconed `FormDescription` / `NumberInput`; `Switch` for
 toggles; a `⋯` DropdownMenu + `Tooltip` for row actions (no bare `title=`); destructive actions
 always behind an AlertDialog confirm; two-column detail pages w/ eyebrow headers + layout-mirror
-skeletons; data tables collapse to card lists under `sm` (table stays `sm+`); `StatCard`
+skeletons; data tables collapse to card lists under `sm` (table stays `sm+`); **one table dress**:
+list tables bare in `overflow-x-auto rounded-xl border` (never inside a Card), detail item tables =
+small count label over the same bordered table; `StatCard`
 (num-display) / `EmptyState` / `DateRangePicker` (1 month <sm + presets) / `LowStockBadge`
 (popover) / `BrandMark` / `WaveHairline` (hero/auth only) / `ChartLegend` + `useReducedMotion`.
 Paginated tables: `usePagination` + `TablePagination`. QR: `QrImage` + `QrCodeDialog` (prints one
 label via an isolated iframe — always one centered page — with a Kecil/Sedang/Besar size dropdown;
 the labels-studio sheet picks 1–4 columns). Truncated cells: `EllipsisTooltip`. Per-variant photo: `VariantImage` popover. Scanner sound:
-`@/lib/scan-sound` + `useSoundUnlock` + `useScanSoundPref` (per-station keys). **Pandu**
-assistant = honest stub (`components/pandu/`): deterministic nudges over existing queries +
-keyword router, permanent "Pratinjau" label — never fake AI answers. Copy = informal ID "kamu";
-dates id-ID via `lib/formatters`. **Never run `next build` while the dev server is up** (shared
-`.next`). Auth is already enforced — don't touch config/middleware/cookies (HARD CONSTRAINT #2).
+`@/lib/scan-sound` + `useSoundUnlock` + `useScanSoundPref` (per-station keys). **Shell**:
+`components/layout/nav-config.tsx` is the SINGLE nav source (job-based groups Jualan/Stok/Katalog/
+Kirim & retur/Laporan; CREATE_ACTIONS; MOBILE_TABS; SHELL_SUPPRESSED_ROUTES — page eyebrows match
+the group names); `use-ops-pulse` badges nav counts from existing queries. **Command palette**
+(Ctrl+K, `components/command-palette.tsx`): deterministic nav + create + Pandu router, **entity
+jump** for S…/PO…/OP…/resi/SKU codes (`use-entity-jump.ts`) and a **scan-wedge** listener (a scan
+gun burst opens it pre-filled); affordance copy advertises kode/resi/SKU. Dashboard home leads
+with the **"Antrian kerja" briefing**; "Tutup hari" dialog = today-vs-yesterday + WA text recap.
+**Pandu** assistant = honest stub (`components/pandu/`): deterministic nudges over existing
+queries + keyword router, permanent "Pratinjau" label — never fake AI answers; the dock pill is
+icon-only, draggable along the right edge and collapsible to an edge tab (persisted). Copy =
+informal ID "kamu"; dates id-ID via `lib/formatters`. **Never run `next build` while the dev
+server is up** (shared `.next`). Auth is already enforced — don't touch config/middleware/cookies
+(HARD CONSTRAINT #2).

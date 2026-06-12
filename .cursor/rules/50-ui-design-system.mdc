@@ -97,6 +97,12 @@ light + dark via `next-themes`. Change the accent only via `--primary`/`--ring`/
   stacked cards under sm (`sm:hidden`) with the SAME data + actions (share row-action renderers
   so they can't drift); touch targets ≥36px. Reference: `inventory-overview.tsx`,
   `products-dashboard.tsx`, `purchase-order-detail.tsx` (receive flow).
+- **Table dress (ONE look everywhere)**: list tables sit bare in an
+  `overflow-x-auto rounded-xl border` wrapper — NOT inside a Card — with default Table cell
+  sizing (no per-surface big text/padding) and `TablePagination` below, outside the border
+  (reference: `orders-dashboard.tsx`); detail-page item tables = a small count label
+  (`Item · <span class=num>N</span>`) over the same bordered table (reference: `sale-detail.tsx`,
+  `opname-detail.tsx`). Empty states render bare (no Card shell).
 - **Sticky mobile action bar**: POS pins Total (`num-display`) + "Bayar" under sm; content gets
   `pb-24 sm:pb-0` clearance. Same recipe for any commit-action below the fold.
 - **Forms** (RHF+zod): `FormLabel required`, iconed `FormDescription`, `NumberInput`; every
@@ -150,7 +156,9 @@ light + dark via `next-themes`. Change the accent only via `--primary`/`--ring`/
 - **`components/command-palette.tsx`**: `CommandPaletteProvider` (global Ctrl/⌘+K, mounted once
   in DashboardShell) + `useCommandPalette()` + `CommandPaletteTrigger` (the navbar "search box"
   — sellers know search boxes; the kbd hint teaches the shortcut). Built on the ui/Dialog
-  primitive, zero new deps.
+  primitive, zero new deps. The affordances ADVERTISE the entity lookup — trigger copy
+  "Cari menu, resi, SKU…", input placeholder "Cari menu, kode (S…/PO…), resi, atau SKU…" —
+  don't water them back down to a generic "Cari…".
 - Results = nav-config items + CREATE_ACTIONS filtered by token match over title/keywords; free
   text falls through **`routePanduQuery`** (same honest keyword router as the dock) labeled
   "Pandu · Pratinjau"; no match → `PANDU_SUGGESTIONS` chips. Every result is a REAL route —
@@ -199,9 +207,11 @@ light + dark via `next-themes`. Change the accent only via `--primary`/`--ring`/
   rows, and a PLAIN-TEXT WhatsApp recap (`wa.me/?text=`) + copy button. No invented metrics; the
   footer credits the profit report. No streaks/gamification — the recap IS the reward.
 - **Papan keberangkatan** (`/dashboard/orders/board`): a packing-station status board — PAID
-  rows (TEREKAM when `fulfilledAt`, else MENUNGGU DIKEMAS) then recent SHIPPED, mono `num`
-  columns, live clock, 20s polling via `useOrdersBoardQuery` (NO socket, NO flip animation);
-  route lives in `SHELL_SUPPRESSED_ROUTES`.
+  rows ("Terekam — siap kirim" when `fulfilledAt`, else "Menunggu dikemas") then recent SHIPPED
+  ("Dikirim"), in the STANDARD table dress (default cell sizing, sentence-case StatusBadge — the
+  board is NOT special-cased big), `num` on resi/counts, live clock, the shared ghost back
+  button, 20s polling via `useOrdersBoardQuery` (NO socket, NO flip animation); route lives in
+  `SHELL_SUPPRESSED_ROUTES`.
 
 ## Landing & marketing surfaces
 

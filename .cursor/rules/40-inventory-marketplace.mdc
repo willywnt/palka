@@ -73,7 +73,9 @@ Per-user scoped (internal-first, multi-tenant-ready). Roadmap + locked decisions
   variance), then **post** writes each line's variance as a `RECONCILE`/source `MANUAL` ledger row via the
   new `applyReconcileTx(tx,{delta})` (no new ledger reason — RECONCILE existed) + propagates; cancel for a
   draft. Posted/cancelled = read-only variance report. Code `OP00001` per-user. Endpoints under
-  `/inventory/opname` (list/create/detail, items upsert/delete, scan, complete, cancel, variants[/resolve]).
+  `/inventory/opname` (list/create/detail, items upsert/delete, scan, complete, cancel, variants[/resolve]);
+  the list endpoint takes optional `search` (code/note contains, case-insensitive) — validator → service
+  `where OR` → hook key → URL-synced search box on the list page.
 - **reporting** (read-only, "Insights") — profit/margin, per-channel performance, inventory valuation, and
   **dead-stock & ABC**. Dead-stock = in-stock variants idle ≥ a threshold by REAL days-since-last-sale (max
   `SALE`/`ORDER_RESERVE` ledger row) valued at moving-avg cost; ABC = Pareto by net revenue (A/B/C, cumulative
@@ -106,7 +108,10 @@ Per-user scoped (internal-first, multi-tenant-ready). Roadmap + locked decisions
   completed videos for a resi (order/return **evidence**, via `useRecordingsByResiQuery`). Links work
   **both ways**: order/return → packing video, and the recording detail modal + pack view → order.
   Services stay decoupled — composition is at the route/page/hook layer. Endpoints:
-  `GET /api/v1/orders/by-resi`, `GET /api/v1/recordings/by-resi`.
+  `GET /api/v1/orders/by-resi`, `GET /api/v1/recordings/by-resi`. The **packing departure board**
+  (`/dashboard/orders/board`) is a read-only view over the same data: PAID rows ("Terekam — siap
+  kirim" when `fulfilledAt`, else "Menunggu dikemas") + recent SHIPPED, polled every 20s by
+  `useOrdersBoardQuery` (pageSize 50, shared `orderKeys.list` key) — **NO socket events involved**.
 - **returns** — RMA flow (`Return` + `ReturnItem`). A return opens (PENDING) for an order whose goods
   shipped — auto on a detected post-ship cancellation, or manually from the order page — then is
   processed once goods arrive: each line routed to **RESTOCK** (`applyReturnRestockTx`, available+) or
@@ -296,3 +301,10 @@ vitest (engine is gate-checked only).
 > dropdown; the labels-studio A4 sheet picks **1–4 columns** (fewer = bigger); bundle dialog now shows
 > `labelPrintedAt`. **Pairing fixes**: phone re-auths as the session owner on scan, release-on-navigate,
 > purpose-gated "connected", connect-URL `purpose` for the right connecting label (see `30-scanner-pairing.mdc`).
+>
+> **Daily-ops batch (2026-06-12)**: opname list **`search`** param (code/note, end-to-end); inventory rows
+> gain a **days-of-cover gauge** (client-side join on the reorder report) + **"Buat PO"** → PO form prefill
+> via `?variant=`; POS **quick-tender** + **pinned favorites** (`pos-favorites.store.ts`) + `/`/`F8`
+> shortcuts; orders list **peek Sheet**; **packing departure board** `/dashboard/orders/board` (20s poll,
+> no socket); command palette **entity jump** (S…/PO…/OP…/resi/SKU) + **scan-wedge** open. UI patterns in
+> `50-ui-design-system.mdc` ("Daily-ops patterns").
