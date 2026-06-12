@@ -11,6 +11,7 @@ import { inventoryKeys } from '@/modules/inventory/hooks/inventory-keys';
 import { compressImage } from '../utils/compress-image';
 import { catalogKeys } from './catalog-keys';
 import type {
+  ArchivedVariantItem,
   DeletionBlockers,
   LabelVariant,
   ProductDetail,
@@ -211,6 +212,49 @@ export function useDeletionBlockersQuery(
       return result.data;
     },
     enabled,
+  });
+}
+
+/** The product's soft-deleted variants (with the original SKU + whether it's free to restore). */
+export function useArchivedVariantsQuery(productId: string, enabled = true) {
+  return useQuery({
+    queryKey: catalogKeys.archivedVariants(productId),
+    queryFn: async () => {
+      const result = await apiFetch<ArchivedVariantItem[]>(
+        `${apiRoutes.products}/${productId}/variants/archived`,
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    enabled,
+  });
+}
+
+/** Restore a soft-deleted variant (reinstates its original SKU) and refresh views. */
+export function useRestoreVariantMutation(productId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variantId: string) => {
+      const result = await apiFetch<ProductVariantItem>(
+        `${apiRoutes.products}/${productId}/variants/${variantId}/restore`,
+        { method: 'POST' },
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+    },
   });
 }
 

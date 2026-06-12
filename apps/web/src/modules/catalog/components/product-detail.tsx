@@ -49,6 +49,7 @@ import { formatCurrency } from '../utils/format';
 import { buildVariantBlocks, formatVariantLabel } from '../utils/variants';
 import { AddSubvariantsDialog } from './add-subvariants-dialog';
 import { AddVariantDialog } from './add-variant-dialog';
+import { ArchivedVariants } from './archived-variants';
 import { ConnectionBadges } from './connection-badges';
 import { DeleteVariantDialog } from './delete-variant-dialog';
 import { EditVariantDialog } from './edit-variant-dialog';
@@ -442,6 +443,8 @@ export function ProductDetail({
               </div>
             </>
           )}
+
+          <ArchivedVariants productId={productId} />
         </div>
 
         <aside className="space-y-4">

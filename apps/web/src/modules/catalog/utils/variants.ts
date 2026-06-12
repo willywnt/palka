@@ -64,13 +64,27 @@ export function suggestVariantSku(...parts: string[]): string {
   return parts.map(compactSkuPart).filter(Boolean).join('-');
 }
 
+/** The separator that brands a soft-deleted variant's SKU (see {@link archivedSku}). */
+const ARCHIVED_SKU_MARKER = '::deleted::';
+
 /**
  * The SKU to store on a soft-deleted variant. The `@@unique([userId, sku])` index
  * spans archived rows too, so we mangle the SKU on delete to free the original for
  * reuse. The variant id keeps it unique; archived rows are never shown live.
  */
 export function archivedSku(sku: string, variantId: string): string {
-  return `${sku}::deleted::${variantId}`;
+  return `${sku}${ARCHIVED_SKU_MARKER}${variantId}`;
+}
+
+/**
+ * Recover a soft-deleted variant's original SKU by stripping the exact
+ * `::deleted::<variantId>` suffix {@link archivedSku} appended. Keyed by the
+ * variant id so it stays correct even if the original SKU itself contains the
+ * marker; returns the stored value unchanged if the suffix is absent.
+ */
+export function unarchiveSku(storedSku: string, variantId: string): string {
+  const suffix = `${ARCHIVED_SKU_MARKER}${variantId}`;
+  return storedSku.endsWith(suffix) ? storedSku.slice(0, -suffix.length) : storedSku;
 }
 
 /** Stock/pricing fields shared by a standalone variant and a subvariant row. */

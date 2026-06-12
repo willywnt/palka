@@ -10,6 +10,7 @@ export const catalogKeys = {
   products: ['catalog', 'products'] as const,
   list: (query: ListProductsQuery) => ['catalog', 'products', 'list', query] as const,
   detail: (id: string) => ['catalog', 'products', 'detail', id] as const,
+  archivedVariants: (id: string) => ['catalog', 'products', 'archived-variants', id] as const,
   deletionBlockers: (id: string, variantIds: string[] | null) =>
     ['catalog', 'products', 'deletion-blockers', id, variantIds ?? 'all'] as const,
   labelVariants: (q: string, page: number, pageSize: number) =>

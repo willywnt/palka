@@ -11,6 +11,7 @@ import { storageService } from '@/modules/storage/services/storage.service';
 
 import { CatalogError } from '../errors/catalog-errors';
 import type {
+  ArchivedVariantItem,
   BundleComponentLine,
   BundleDetail,
   BundleLabel,
@@ -25,7 +26,7 @@ import type {
   VariantMappingRef,
 } from '../types';
 import { computeBuildableQty } from '../utils/bundle';
-import { archivedSku } from '../utils/variants';
+import { archivedSku, unarchiveSku } from '../utils/variants';
 import type { CreateBundleInput, ListBundlesQuery, UpdateBundleInput } from '../validators/bundle';
 import type { CreateProductInput } from '../validators/create-product';
 import type { LabelVariantsQuery } from '../validators/label-variants';
@@ -948,6 +949,97 @@ export class CatalogServerService {
     await prisma.$transaction((tx) => this.archiveVariantRows(tx, variants, now));
 
     appLogger.info('catalog.variants.deleted', { userId, productId, count: variants.length });
+  }
+
+  /**
+   * The soft-deleted variants of a product, newest-archived first, each with the
+   * original SKU restore would reinstate and whether that SKU is still free.
+   */
+  async listArchivedVariants(userId: string, productId: string): Promise<ArchivedVariantItem[]> {
+    await this.assertProductOwned(userId, productId);
+
+    const rows = await prisma.productVariant.findMany({
+      where: { productId, userId, deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      select: { id: true, sku: true, name: true, variantGroup: true, deletedAt: true },
+    });
+
+    const taken = await this.takenSkus(
+      userId,
+      rows.map((row) => unarchiveSku(row.sku, row.id)),
+    );
+
+    return rows.flatMap((row) => {
+      if (!row.deletedAt) return [];
+      const sku = unarchiveSku(row.sku, row.id);
+      const restorable = !taken.has(sku);
+      return [
+        {
+          id: row.id,
+          sku,
+          name: row.name,
+          variantGroup: row.variantGroup,
+          restorable,
+          blockReason: restorable ? null : `SKU "${sku}" sudah dipakai varian atau bundel lain.`,
+          deletedAt: row.deletedAt.toISOString(),
+        },
+      ];
+    });
+  }
+
+  /**
+   * Bring a soft-deleted variant back: reinstate its original SKU and clear
+   * `deletedAt`. Refused when another live variant or bundle now owns that SKU
+   * (the shared scan namespace must stay unique) — the unique index is the final
+   * guard against a race. The variant's Inventory row survived the soft-delete.
+   */
+  async restoreVariant(
+    userId: string,
+    productId: string,
+    variantId: string,
+  ): Promise<ProductVariantItem> {
+    await this.assertProductOwned(userId, productId);
+
+    const archived = await prisma.productVariant.findFirst({
+      where: { id: variantId, productId, userId, deletedAt: { not: null } },
+      select: { id: true, sku: true },
+    });
+    if (!archived) throw CatalogError.notFound('Archived variant not found.');
+
+    const sku = unarchiveSku(archived.sku, archived.id);
+    if ((await this.takenSkus(userId, [sku])).has(sku)) throw CatalogError.duplicateSku(sku);
+
+    let restored: VariantWithInventory;
+    try {
+      restored = await prisma.productVariant.update({
+        where: { id: variantId },
+        data: { deletedAt: null, sku },
+        include: { inventory: true },
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) throw CatalogError.duplicateSku(sku);
+      throw error;
+    }
+
+    appLogger.info('catalog.variant.restored', { userId, productId, variantId });
+
+    return mapVariant(restored);
+  }
+
+  /** The subset of `skus` currently owned by a live variant or a bundle (shared scan namespace). */
+  private async takenSkus(userId: string, skus: string[]): Promise<Set<string>> {
+    if (skus.length === 0) return new Set();
+    const [variants, bundles] = await Promise.all([
+      prisma.productVariant.findMany({
+        where: { userId, sku: { in: skus }, deletedAt: null },
+        select: { sku: true },
+      }),
+      prisma.bundle.findMany({
+        where: { userId, sku: { in: skus } },
+        select: { sku: true },
+      }),
+    ]);
+    return new Set([...variants, ...bundles].map((row) => row.sku));
   }
 
   /**

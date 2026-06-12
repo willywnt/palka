@@ -4,6 +4,7 @@ import {
   archivedSku,
   buildVariantBlocks,
   suggestVariantSku,
+  unarchiveSku,
   variantBlockToLeaves,
   variantBlocksToLeaves,
 } from '@/modules/catalog/utils/variants';
@@ -75,6 +76,22 @@ describe('archivedSku', () => {
 
   it('is unique per variant even for the same SKU', () => {
     expect(archivedSku('DUP', 'a')).not.toBe(archivedSku('DUP', 'b'));
+  });
+});
+
+describe('unarchiveSku', () => {
+  it('recovers the original SKU (round-trips with archivedSku)', () => {
+    expect(unarchiveSku(archivedSku('IPH16-BLK', 'cuid_123'), 'cuid_123')).toBe('IPH16-BLK');
+  });
+
+  it('stays correct when the original SKU itself contains the marker', () => {
+    const weird = 'A::deleted::B';
+    expect(unarchiveSku(archivedSku(weird, 'id1'), 'id1')).toBe(weird);
+  });
+
+  it('returns the value unchanged when the id-keyed suffix is absent', () => {
+    expect(unarchiveSku('PLAIN-SKU', 'id1')).toBe('PLAIN-SKU');
+    expect(unarchiveSku('SKU::deleted::other', 'id1')).toBe('SKU::deleted::other');
   });
 });
 

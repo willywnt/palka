@@ -73,10 +73,11 @@ order actions (mark-shipped / edit resi / cancel-with-reason) · DAMAGE write-of
 ## ⚡ Quick wins (sub-hour)
 
 - `@@index([userId, createdAt])` on `StockLedger` (activity-log scans) — index-only migration 🟡.
-- Archived-variant view + restore on product detail 🟢 (needs a new unarchive service+route — SKU
-  un-mangle + collision check; not a true sub-hour, scope before picking up).
 - _(shipped 2026-06-11: marketplace sync-health badge · below-cost alert at sale-create ·
   `grup · subvarian` picker label.)_
+- _(shipped 2026-06-12: archived-variant view + restore on product detail — a collapsible
+  "Varian terarsip" section lists soft-deleted variants; restore un-mangles the original SKU and
+  is refused when a live variant/bundle now owns it.)_
 
 ## Locked decisions (don't relitigate without a reason)
 
