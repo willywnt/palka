@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Boxes,
   ClipboardList,
@@ -132,6 +132,8 @@ function useResolveBundleDetail() {
 
 export function PoForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillVariantId = searchParams.get('variant');
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput.trim(), 300);
   const { page, setPage, pageSize, setPageSize } = usePagination(10);
@@ -171,6 +173,44 @@ export function PoForm() {
     targetCoverDays: REORDER_DEFAULTS.targetCoverDays,
   });
   const createPo = useCreatePurchaseOrderMutation();
+
+  // One-click PO from the inventory table: ?variant=<id> appends that variant's
+  // reorder suggestion as a line once the report is in. The ref keeps it a
+  // one-shot (strict-mode double effects, report refetches).
+  const prefillHandled = useRef(false);
+  useEffect(() => {
+    if (!prefillVariantId || prefillHandled.current) return;
+    const report = reorder.data;
+    if (!report) return;
+    prefillHandled.current = true;
+
+    const item = report.items.find((entry) => entry.variantId === prefillVariantId);
+    if (!item) {
+      toast.info('Varian tidak ditemukan di laporan restok.');
+      return;
+    }
+    setLines((prev) => {
+      if (prev.some((line) => line.kind === 'variant' && line.variantId === item.variantId)) {
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          kind: 'variant',
+          variantId: item.variantId,
+          sku: item.sku,
+          name: item.variantName,
+          productName: item.productName,
+          variantGroup: null,
+          quantity: Math.max(item.suggestedReorderQty, item.minOrderQty ?? 0, 1),
+          unitCost: 0,
+          availableStock: item.availableStock,
+          incomingStock: item.incomingStock,
+          imageUrl: item.imageUrl,
+        },
+      ];
+    });
+  }, [prefillVariantId, reorder.data]);
 
   const [scannerOpen, setScannerOpen] = useState(false);
   const { soundOn, toggleSound } = useScanSoundPref('falka-purchasing-scan-sound');

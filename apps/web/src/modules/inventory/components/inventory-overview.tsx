@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   MoreHorizontal,
@@ -9,6 +9,7 @@ import {
   ScrollText,
   SlidersHorizontal,
   Trash2,
+  Truck,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -45,9 +46,11 @@ import { cn } from '@/lib/utils';
 import { formatVariantLabel } from '@/lib/variant-label';
 import { useMarkLabelsPrintedMutation } from '@/modules/catalog/hooks/use-products';
 
-import { useStockOverviewQuery } from '../hooks/use-inventory';
-import type { StockOverviewItem } from '../types';
+import { REORDER_DEFAULTS } from '../config';
+import { useReorderReportQuery, useStockOverviewQuery } from '../hooks/use-inventory';
+import type { ReorderItem, StockOverviewItem } from '../types';
 import { AdjustStockDialog } from './adjust-stock-dialog';
+import { DaysCoverGauge } from './days-cover-gauge';
 import { WriteOffDamagedDialog } from './write-off-damaged-dialog';
 
 const STOCK_HINTS = {
@@ -113,6 +116,12 @@ function RowActionsMenu({
             Lihat aktivitas
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/dashboard/purchasing/new?variant=${item.variantId}`}>
+            <Truck className="size-4" />
+            Buat PO
+          </Link>
+        </DropdownMenuItem>
         {item.damagedStock > 0 ? (
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
@@ -165,6 +174,21 @@ export function InventoryOverview() {
     filters.search.trim() || undefined,
     lowStockOnly,
   );
+
+  // Reorder intelligence is an enhancement layered onto the stock table — the
+  // same cached report Pandu and the sidebar already warm. While it loads or
+  // errors, the gauge shows "—"; the table itself never blocks on it.
+  const reorder = useReorderReportQuery({
+    windowDays: REORDER_DEFAULTS.windowDays,
+    leadTimeDays: REORDER_DEFAULTS.leadTimeDays,
+    targetCoverDays: REORDER_DEFAULTS.targetCoverDays,
+  });
+  const reorderByVariant = useMemo(() => {
+    const map = new Map<string, ReorderItem>();
+    for (const entry of reorder.data?.items ?? []) map.set(entry.variantId, entry);
+    return map;
+  }, [reorder.data]);
+  const targetCoverDays = reorder.data?.summary.targetCoverDays ?? REORDER_DEFAULTS.targetCoverDays;
 
   const { page, setPage, pageSize, setPageSize } = usePagination(10);
 
@@ -231,69 +255,88 @@ export function InventoryOverview() {
         <>
           {/* Mobile: stacked cards — same data + actions as the table. */}
           <div className="space-y-3 sm:hidden">
-            {pageItems.map((item) => (
-              <article key={item.variantId} className="space-y-3 rounded-xl border p-4">
-                <div className="flex items-start gap-3">
-                  <ImageThumb src={item.imageUrl} alt={item.variantName} />
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      href={`/dashboard/products/${item.productId}`}
-                      className="block truncate font-medium hover:underline"
-                    >
-                      {item.productName}
-                    </Link>
-                    <div className="text-muted-foreground truncate text-xs">
-                      {formatVariantLabel({
-                        variantGroup: item.variantGroup,
-                        name: item.variantName,
-                      })}{' '}
-                      · {item.sku}
+            {pageItems.map((item) => {
+              const reorderItem = reorderByVariant.get(item.variantId);
+              return (
+                <article key={item.variantId} className="space-y-3 rounded-xl border p-4">
+                  <div className="flex items-start gap-3">
+                    <ImageThumb src={item.imageUrl} alt={item.variantName} />
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/dashboard/products/${item.productId}`}
+                        className="block truncate font-medium hover:underline"
+                      >
+                        {item.productName}
+                      </Link>
+                      <div className="text-muted-foreground truncate text-xs">
+                        {formatVariantLabel({
+                          variantGroup: item.variantGroup,
+                          name: item.variantName,
+                        })}{' '}
+                        · {item.sku}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-baseline justify-between gap-3">
-                  <div className="flex items-baseline gap-2">
-                    <span className="num text-2xl font-semibold">{item.availableStock}</span>
-                    <span className="text-muted-foreground text-xs">Tersedia</span>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-baseline gap-2">
+                      <span className="num text-2xl font-semibold">{item.availableStock}</span>
+                      <span className="text-muted-foreground text-xs">Tersedia</span>
+                    </div>
+                    {item.isLowStock ? <LowStockBadge threshold={item.lowStockThreshold} /> : null}
                   </div>
-                  {item.isLowStock ? <LowStockBadge threshold={item.lowStockThreshold} /> : null}
-                </div>
 
-                <dl className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <StockChip label="Dipesan" value={item.reservedStock} />
-                  <StockChip
-                    label="Rusak"
-                    value={item.damagedStock}
-                    valueClassName="text-status-warn"
-                  />
-                  <StockChip
-                    label="Akan datang"
-                    value={item.incomingStock}
-                    valueClassName="text-status-info"
-                  />
-                </dl>
+                  <dl className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <StockChip label="Dipesan" value={item.reservedStock} />
+                    <StockChip
+                      label="Rusak"
+                      value={item.damagedStock}
+                      valueClassName="text-status-warn"
+                    />
+                    <StockChip
+                      label="Akan datang"
+                      value={item.incomingStock}
+                      valueClassName="text-status-info"
+                    />
+                  </dl>
 
-                {item.lastUpdatedAt ? (
-                  <p className="text-muted-foreground text-xs">
-                    Diperbarui{' '}
-                    <span suppressHydrationWarning>{formatDateTime(item.lastUpdatedAt)}</span>
-                  </p>
-                ) : null}
+                  {reorderItem ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-muted-foreground text-xs">Cukup untuk</span>
+                      <DaysCoverGauge
+                        daysOfCover={reorderItem.daysOfCover}
+                        targetCoverDays={targetCoverDays}
+                        status={reorderItem.status}
+                        className="w-28"
+                      />
+                    </div>
+                  ) : null}
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setAdjustTarget(item)}
-                  >
-                    <SlidersHorizontal className="size-4" />
-                    Sesuaikan
-                  </Button>
-                  <RowActionsMenu item={item} onShowQr={setQrTarget} onDispose={setDisposeTarget} />
-                </div>
-              </article>
-            ))}
+                  {item.lastUpdatedAt ? (
+                    <p className="text-muted-foreground text-xs">
+                      Diperbarui{' '}
+                      <span suppressHydrationWarning>{formatDateTime(item.lastUpdatedAt)}</span>
+                    </p>
+                  ) : null}
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setAdjustTarget(item)}
+                    >
+                      <SlidersHorizontal className="size-4" />
+                      Sesuaikan
+                    </Button>
+                    <RowActionsMenu
+                      item={item}
+                      onShowQr={setQrTarget}
+                      onDispose={setDisposeTarget}
+                    />
+                  </div>
+                </article>
+              );
+            })}
           </div>
 
           {/* Desktop table — the Table primitive scrolls itself. */}
@@ -304,6 +347,7 @@ export function InventoryOverview() {
                   <TableHead>Varian</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead className="text-right">Tersedia</TableHead>
+                  <TableHead className="hidden md:table-cell">Cukup untuk</TableHead>
                   <TableHead className="text-right">Dipesan</TableHead>
                   <TableHead className="text-right">Rusak</TableHead>
                   <TableHead className="text-right">Akan datang</TableHead>
@@ -312,81 +356,95 @@ export function InventoryOverview() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pageItems.map((item) => (
-                  <TableRow key={item.variantId}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <ImageThumb src={item.imageUrl} alt={item.variantName} />
-                        <div className="min-w-0">
-                          <Link
-                            href={`/dashboard/products/${item.productId}`}
-                            className="font-medium hover:underline"
-                          >
-                            {item.productName}
-                          </Link>
-                          <div className="text-muted-foreground text-xs">
-                            {formatVariantLabel({
-                              variantGroup: item.variantGroup,
-                              name: item.variantName,
-                            })}
+                {pageItems.map((item) => {
+                  const reorderItem = reorderByVariant.get(item.variantId);
+                  return (
+                    <TableRow key={item.variantId}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <ImageThumb src={item.imageUrl} alt={item.variantName} />
+                          <div className="min-w-0">
+                            <Link
+                              href={`/dashboard/products/${item.productId}`}
+                              className="font-medium hover:underline"
+                            >
+                              {item.productName}
+                            </Link>
+                            <div className="text-muted-foreground text-xs">
+                              {formatVariantLabel({
+                                variantGroup: item.variantGroup,
+                                name: item.variantName,
+                              })}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{item.sku}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <span className="num font-medium">{item.availableStock}</span>
-                      {item.isLowStock ? (
-                        <LowStockBadge threshold={item.lowStockThreshold} className="ml-2" />
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="num text-right whitespace-nowrap">
-                      {item.reservedStock > 0 ? (
-                        <StockHint hint={STOCK_HINTS.reserved}>{item.reservedStock}</StockHint>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="num text-right whitespace-nowrap">
-                      {item.damagedStock > 0 ? (
-                        <StockHint hint={STOCK_HINTS.damaged} className="text-status-warn">
-                          {item.damagedStock}
-                        </StockHint>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="num text-right whitespace-nowrap">
-                      {item.incomingStock > 0 ? (
-                        <StockHint hint={STOCK_HINTS.incoming} className="text-status-info">
-                          {item.incomingStock}
-                        </StockHint>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                      {item.lastUpdatedAt ? (
-                        <span suppressHydrationWarning>{formatDateTime(item.lastUpdatedAt)}</span>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setAdjustTarget(item)}>
-                          <SlidersHorizontal className="size-4" />
-                          Sesuaikan
-                        </Button>
-                        <RowActionsMenu
-                          item={item}
-                          onShowQr={setQrTarget}
-                          onDispose={setDisposeTarget}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{item.sku}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <span className="num font-medium">{item.availableStock}</span>
+                        {item.isLowStock ? (
+                          <LowStockBadge threshold={item.lowStockThreshold} className="ml-2" />
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {reorderItem ? (
+                          <DaysCoverGauge
+                            daysOfCover={reorderItem.daysOfCover}
+                            targetCoverDays={targetCoverDays}
+                            status={reorderItem.status}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="num text-right whitespace-nowrap">
+                        {item.reservedStock > 0 ? (
+                          <StockHint hint={STOCK_HINTS.reserved}>{item.reservedStock}</StockHint>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="num text-right whitespace-nowrap">
+                        {item.damagedStock > 0 ? (
+                          <StockHint hint={STOCK_HINTS.damaged} className="text-status-warn">
+                            {item.damagedStock}
+                          </StockHint>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="num text-right whitespace-nowrap">
+                        {item.incomingStock > 0 ? (
+                          <StockHint hint={STOCK_HINTS.incoming} className="text-status-info">
+                            {item.incomingStock}
+                          </StockHint>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                        {item.lastUpdatedAt ? (
+                          <span suppressHydrationWarning>{formatDateTime(item.lastUpdatedAt)}</span>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setAdjustTarget(item)}>
+                            <SlidersHorizontal className="size-4" />
+                            Sesuaikan
+                          </Button>
+                          <RowActionsMenu
+                            item={item}
+                            onShowQr={setQrTarget}
+                            onDispose={setDisposeTarget}
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
