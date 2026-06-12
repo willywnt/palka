@@ -155,6 +155,16 @@ light + dark via `next-themes`. Change the accent only via `--primary`/`--ring`/
   text falls through **`routePanduQuery`** (same honest keyword router as the dock) labeled
   "Pandu · Pratinjau"; no match → `PANDU_SUGGESTIONS` chips. Every result is a REAL route —
   never a generated answer. Footer carries the kbd hints + the honesty line.
+- **Entity jump** (`components/use-entity-jump.ts`): a code-looking query (no spaces, 3–64
+  chars, not a menu word) resolves to real records under a "Lompat ke" group — S…/PO… via the
+  full-list caches (shared query keys), OP… via the opname list `search` (hit verified
+  client-side), ≥6 chars via orders by-resi, any code via the POS variant/bundle resolver
+  (variant → inventory `?search=<sku>`; the resolver has no productId). Lookups are
+  enabled-gated + debounced; in-flight shows a muted "Mencari kode…" row.
+- **Scan-wedge**: CommandPaletteProvider buffers document keydowns (<50ms inter-key gap); a
+  ≥6-char burst ending in Enter, when focus is NOT in an editable element and the route is not
+  shell-suppressed, opens the palette pre-filled with the code — a USB scan gun navigates the
+  app with zero pairing. Only the triggering Enter is swallowed.
 - The dashboard-home hero NL bar was retired in favor of this (the dock keeps its own input);
   don't reintroduce per-page ask-bars.
 
@@ -167,6 +177,31 @@ light + dark via `next-themes`. Change the accent only via `--primary`/`--ring`/
   ONLY when count > 0; all-clear renders the calm "Laut tenang" row. Branch order is loading →
   all-failed ErrorState → all-clear → rows; a partially-failed source shows the muted "Sebagian
   antrian gagal dimuat — Coba lagi" line, NEVER a silent zero.
+
+## Daily-ops patterns (shipped — reuse, don't rebuild)
+
+- **Peek panel** (`modules/orders/components/order-peek.tsx`): list rows open a READ-ONLY right
+  Sheet (`sm:max-w-md`) — meta rows, compact items, packing-video link, "Buka halaman penuh";
+  mutations stay on the full page. Rows are keyboard-actionable (tabIndex + Enter/Space guarded
+  by `event.target === event.currentTarget`); inner links `stopPropagation`. Copy this shape for
+  other triage lists (returns next).
+- **Days-of-cover gauge** (`modules/inventory/components/days-cover-gauge.tsx`): thin depletion
+  bar colored URGENT→signed-down / SOON→highlight / else status-ok, fed by the reorder report
+  joined client-side (same query key Pandu warms); it's an ENHANCEMENT — the table never blocks
+  on it. Row action "Buat PO" → `/dashboard/purchasing/new?variant=<id>` (PoForm appends that
+  line from its reorder report, ref-guarded one-shot).
+- **POS ergonomics**: quick-tender row (Uang pas + 3 smallest covering notes) feeds the
+  kembalian calculator; `pos-favorites.store.ts` (ids only, capped 12) pins variants/bundles to
+  a "Favorit" strip shown when search is empty; desktop shortcuts `/` (focus search) and `F8`
+  (jump to pay) with kbd hint chips. Don't add more shortcuts ad hoc.
+- **Tutup hari** (`app/(dashboard)/dashboard/tutup-hari-dialog.tsx`): end-of-day dialog —
+  today-vs-yesterday from the profit report (queries mount only while open), carried-over work
+  rows, and a PLAIN-TEXT WhatsApp recap (`wa.me/?text=`) + copy button. No invented metrics; the
+  footer credits the profit report. No streaks/gamification — the recap IS the reward.
+- **Papan keberangkatan** (`/dashboard/orders/board`): a packing-station status board — PAID
+  rows (TEREKAM when `fulfilledAt`, else MENUNGGU DIKEMAS) then recent SHIPPED, mono `num`
+  columns, live clock, 20s polling via `useOrdersBoardQuery` (NO socket, NO flip animation);
+  route lives in `SHELL_SUPPRESSED_ROUTES`.
 
 ## Landing & marketing surfaces
 

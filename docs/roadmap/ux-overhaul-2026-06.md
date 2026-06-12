@@ -109,16 +109,34 @@ dua happy-flow — tidak tersentuh.
 
 ---
 
-## 5. Saran lanjutan dari riset (BELUM diimplementasikan — butuh persetujuan)
+## 5. Saran lanjutan dari riset — status (update 2026-06-12, batch kedua)
 
-1. **Papan Keberangkatan** — mode layar penuh stasiun packing (resi/status real-time via socket).
-2. **Peek panel** list→detail (pesanan/varian) tanpa kehilangan scroll/filter; **"Jual cepat"**
-   overlay global.
-3. **Palette sadar-scan**: wedge listener global → resi/SKU/kode dokumen (S00001/PO00001) loncat
-   ke detail; entity search di palette.
-4. **Rekap WA / Tutup Hari**: kartu rekap harian/bulanan ukuran WA-Status dari modul reporting.
-5. **Gauge days-of-cover** di baris tabel inventaris + "Buat PO" satu klik.
-6. **Quick-tender kasir** (uang pas / 50rb / 100rb) + peta shortcut keyboard POS.
-7. **Density toggle + sticky kolom identitas** untuk tabel-tabel padat.
-8. **Onboarding stok-dulu** ("catat stok kamu dulu", marketplace belakangan) saat onboarding
+**✅ Diimplementasikan** (semua gate hijau, branch yang sama):
+
+1. **Papan Keberangkatan** — `/dashboard/orders/board`: papan status stasiun packing (PAID →
+   TEREKAM/MENUNGGU DIKEMAS, lalu DIKIRIM), jam hidup, polling 20 dtk (tanpa socket — kontrak
+   event tak tersentuh), rute masuk daftar suppression shell.
+2. **Peek panel pesanan** — baris daftar pesanan membuka Sheet kanan read-only (meta, item,
+   video packing, "Buka halaman penuh"); scroll/filter list tidak hilang.
+3. **Palette sadar-entitas & sadar-scan** — kode S…/PO…/OP…/resi/SKU/barcode di Ctrl+K loncat ke
+   record nyata ("Lompat ke"); scan gun USB di halaman mana pun membuka palette terisi kode.
+4. **Tutup Hari + Rekap WA** — dialog tutup buku di home: omzet/margin hari ini vs kemarin (dari
+   laporan laba), antrian terbawa, share teks ke WhatsApp (wa.me) + salin. Kartu IMAGE WA-Status
+   (render-to-image) belum — teks dulu, tanpa dependensi baru.
+5. **Gauge days-of-cover** di tabel inventaris (kolom "Cukup untuk", md+ & kartu mobile) +
+   aksi baris "Buat PO" → form PO prefill via `?variant=`.
+6. **Quick-tender kasir** (Uang pas + 3 pecahan terkecil yang menutup total) + favorit POS
+   (pin varian/bundel, strip "Favorit") + shortcut `/` dan `F8`.
+7. Utang kecil: pencarian daftar opname (API+UI), pagination produk (ternyata sudah beres —
+   diverifikasi), STAT_TONES → token tema (dark mode otomatis).
+
+**Masih terbuka (butuh keputusan produk):**
+
+8. **Density toggle + sticky kolom identitas** untuk tabel-tabel padat.
+9. **Onboarding stok-dulu** ("catat stok kamu dulu", marketplace belakangan) saat onboarding
    wizard dibangun.
+10. **Settings "Tim" + Riwayat aktivitas** — modul users belum punya endpoint list dan modul
+    audit masih stub murni (service mengembalikan []); butuh fondasi backend + keputusan model
+    org/role (backlog big-bet G) sebelum UI-nya jujur untuk dibangun.
+11. **Rekap WA versi gambar** (render kartu ke PNG) — butuh dependensi render-to-image atau
+    renderer canvas manual; teks WA sudah jalan.
