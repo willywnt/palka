@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { DownloadCloud, SearchX } from 'lucide-react';
 
@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 
 import { useOrdersQuery } from '../hooks/use-orders';
 import type { OrderListItem } from '../types';
+import { OrderPeek } from './order-peek';
 import { OrderStatusBadge } from './order-status-badge';
 import { PullOrdersDialog } from './pull-orders-dialog';
 
@@ -92,6 +93,22 @@ function OrdersDashboardContent() {
   const debouncedSearch = useDebouncedValue(searchInput, 300);
   const { pageSize, setPageSize } = usePagination();
   const [pullOpen, setPullOpen] = useState(false);
+  // Peek panel: orderId sticks around while the sheet animates closed (no content flash).
+  const [peekOrderId, setPeekOrderId] = useState<string | null>(null);
+  const [peekOpen, setPeekOpen] = useState(false);
+
+  function openPeek(orderId: string) {
+    setPeekOrderId(orderId);
+    setPeekOpen(true);
+  }
+
+  /** Enter/Space on the row itself (not on inner links/buttons) opens the peek. */
+  function handleRowKeyDown(event: KeyboardEvent<HTMLElement>, orderId: string) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openPeek(orderId);
+  }
 
   // Push the debounced search into the URL-synced filters (resetting paging).
   useEffect(() => {
@@ -183,11 +200,18 @@ function OrdersDashboardContent() {
               </TableHeader>
               <TableBody>
                 {orders.map((order) => (
-                  <TableRow key={order.id}>
+                  <TableRow
+                    key={order.id}
+                    tabIndex={0}
+                    onClick={() => openPeek(order.id)}
+                    onKeyDown={(event) => handleRowKeyDown(event, order.id)}
+                    className="focus-visible:ring-ring/50 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                  >
                     <TableCell>
                       <Link
                         href={`/dashboard/orders/${order.id}`}
                         className="num font-medium hover:underline"
+                        onClick={(event) => event.stopPropagation()}
                       >
                         {order.externalOrderId}
                       </Link>
@@ -232,12 +256,19 @@ function OrdersDashboardContent() {
           {/* Mobile: stacked cards — same data as the table rows. */}
           <div className="space-y-3 sm:hidden">
             {orders.map((order) => (
-              <article key={order.id} className="bg-card space-y-3 rounded-xl border p-4">
+              <article
+                key={order.id}
+                tabIndex={0}
+                onClick={() => openPeek(order.id)}
+                onKeyDown={(event) => handleRowKeyDown(event, order.id)}
+                className="bg-card hover:bg-muted/50 focus-visible:ring-ring/50 cursor-pointer space-y-3 rounded-xl border p-4 transition-colors outline-none focus-visible:ring-2"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link
                       href={`/dashboard/orders/${order.id}`}
                       className="num block truncate py-1 font-medium hover:underline"
+                      onClick={(event) => event.stopPropagation()}
                     >
                       {order.externalOrderId}
                     </Link>
@@ -290,6 +321,8 @@ function OrdersDashboardContent() {
           />
         </div>
       )}
+
+      <OrderPeek orderId={peekOrderId} open={peekOpen} onOpenChange={setPeekOpen} />
 
       <PullOrdersDialog open={pullOpen} onOpenChange={setPullOpen} />
     </div>
