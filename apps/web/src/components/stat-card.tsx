@@ -5,14 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { NumberDelta } from '@/components/number-delta';
 import { cn } from '@/lib/utils';
 
-/** Tinted icon-chip palettes, so a row of stats/actions isn't one flat colour. */
+/**
+ * Tinted icon-chip palettes, so a row of stats/actions isn't one flat colour.
+ * Decorative tones resolve through theme tokens (chart ramp + suar + signed
+ * pair) — dark mode comes free, and no raw Tailwind palette survives. The
+ * legacy tone names stay so call sites don't churn.
+ */
 export const STAT_TONES = {
   primary: 'bg-primary/10 text-primary',
-  amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  rose: 'bg-rose-500/10 text-rose-600 dark:text-rose-400',
-  sky: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
-  violet: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
-  emerald: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+  amber: 'bg-highlight/15 text-highlight-strong',
+  rose: 'bg-chart-5/10 text-chart-5',
+  sky: 'bg-chart-4/10 text-chart-4',
+  violet: 'bg-chart-2/10 text-chart-2',
+  emerald: 'bg-signed-up/10 text-signed-up',
   muted: 'bg-muted text-muted-foreground',
 } as const;
 
