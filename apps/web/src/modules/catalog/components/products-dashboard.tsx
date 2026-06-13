@@ -32,7 +32,7 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePagination } from '@/hooks/use-pagination';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { cn } from '@/lib/utils';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import { useDeleteProductMutation, useProductsQuery } from '../hooks/use-products';
 import type { ProductListItem } from '../types';
@@ -46,7 +46,7 @@ export function ProductsDashboard() {
   const { pageSize, setPageSize } = usePagination();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProductListItem | null>(null);
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canDelete } = useHasPermission('catalog.delete');
 
   useEffect(() => {
     if (debouncedSearch !== filters.search) setFilters({ search: debouncedSearch, page: '1' });
@@ -81,7 +81,7 @@ export function ProductsDashboard() {
   // Row actions (the ⋯ menu) — shared by the sm+ table and the <sm card list.
   // Delete is its only entry, so STAFF gets no menu at all (cosmetic; server guards).
   function renderRowActions(product: ProductListItem) {
-    if (!isAdmin) return null;
+    if (!canDelete) return null;
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

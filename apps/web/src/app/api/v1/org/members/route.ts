@@ -9,7 +9,7 @@ export const GET = withApiRoute(
     const members = await teamService.listMembers(org.id, user.id);
     return apiSuccess(members);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'team.manage' },
 );
 
 export function OPTIONS() {

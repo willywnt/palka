@@ -23,8 +23,8 @@ export function MobileTabBar() {
     return null;
   }
 
-  // Same cosmetic role gate as the sidebar (no tab is gated today — wired so they can't drift).
-  const tabs = visibleNavItems(MOBILE_TABS, org?.role ?? null);
+  // Same cosmetic gate as the sidebar (no tab is gated today — wired so they can't drift).
+  const tabs = visibleNavItems(MOBILE_TABS, org?.role ?? null, org?.permissions ?? null);
   const activeHref = resolveActiveHref(pathname, tabs);
 
   return (

@@ -27,7 +27,7 @@ import { NumberInput } from '@/components/ui/number-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/stat-card';
 import { formatCurrency } from '@/lib/formatters';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import {
   useBundleQuery,
@@ -41,7 +41,7 @@ import { BundleImage } from './bundle-image';
 export function BundleDetailEditor({ bundleId }: { bundleId: string }) {
   const router = useRouter();
   const { data, isLoading, error } = useBundleQuery(bundleId);
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canDelete } = useHasPermission('catalog.delete');
   const updateBundle = useUpdateBundleMutation(bundleId);
   const deleteBundle = useDeleteBundleMutation();
 
@@ -256,8 +256,8 @@ export function BundleDetailEditor({ bundleId }: { bundleId: string }) {
             hint="Jumlah maksimal yang bisa kamu jual, dari stok komponen. Diperbarui setelah kamu simpan."
           />
 
-          {/* The whole card exists for the archive action — STAFF doesn't get an empty shell. */}
-          {isAdmin ? (
+          {/* The whole card exists for the archive action — without the permission, no empty shell. */}
+          {canDelete ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Arsipkan bundel</CardTitle>

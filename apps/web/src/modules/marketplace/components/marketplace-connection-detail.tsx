@@ -32,7 +32,7 @@ import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
 import { VariantPickerDialog } from '@/components/variant-picker-dialog';
 import { formatDateTime } from '@/lib/formatters';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import { useMarketplaceConnectionQuery } from '../hooks/use-marketplace-connections';
 import {
@@ -74,7 +74,7 @@ function SyncStatusBadge({ mapping }: { mapping: MarketplaceListingMapping }) {
 
 export function MarketplaceConnectionDetail({ connectionId }: { connectionId: string }) {
   const [mapTarget, setMapTarget] = useState<string | null>(null);
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canManage } = useHasPermission('marketplace.manage');
 
   const connectionQuery = useMarketplaceConnectionQuery(connectionId);
   const listingsQuery = useMarketplaceListingsQuery(connectionId);
@@ -199,9 +199,9 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
   }
 
   // Row actions (sync switch + icon buttons, or the map buttons) — shared by table & cards.
-  // Mapping/sync controls are ADMIN-only, so STAFF sees no actions here (cosmetic; server guards).
+  // Mapping/sync controls need marketplace.manage, so without it no actions show (cosmetic; server guards).
   function renderListingActions(listing: MarketplaceListingItem) {
-    if (!isAdmin) return null;
+    if (!canManage) return null;
     const mapping = listing.mapping;
     const suggested = listing.suggestedVariant;
 
@@ -337,8 +337,8 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
             <Skeleton className="h-8 w-48" />
           )}
         </div>
-        {/* Both header actions are ADMIN-only — drop the whole strip, not an empty box. */}
-        {isAdmin ? (
+        {/* Both header actions need marketplace.manage — drop the whole strip, not an empty box. */}
+        {canManage ? (
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -396,7 +396,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
           title="Belum ada listing diimpor"
           description="Impor listing toko ini, lalu kaitkan satu per satu ke produk."
           action={
-            isAdmin ? (
+            canManage ? (
               <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
                 <DownloadCloud className="size-4" />
                 Impor listing

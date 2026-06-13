@@ -10,7 +10,7 @@ export const DELETE = withApiRoute<{ id: string }>(
     await teamService.revokeInvite(org.id, user.id, id);
     return apiSuccess({ ok: true });
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'team.manage' },
 );
 
 export function OPTIONS() {

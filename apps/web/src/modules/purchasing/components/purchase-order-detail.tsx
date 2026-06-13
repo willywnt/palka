@@ -29,7 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import {
   useCancelPurchaseOrderMutation,
@@ -78,7 +78,7 @@ function BundleGroupLabel({ bundleName }: { bundleName: string }) {
 
 export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: string }) {
   const { data, isLoading, error } = usePurchaseOrderQuery(purchaseOrderId);
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canCancel } = useHasPermission('purchasing.cancel');
   const receiveMutation = useReceivePurchaseOrderMutation(purchaseOrderId);
   const cancelMutation = useCancelPurchaseOrderMutation(purchaseOrderId);
   // itemId → qty to receive this round (defaults to each line's outstanding).
@@ -337,7 +337,7 @@ export function PurchaseOrderDetail({ purchaseOrderId }: { purchaseOrderId: stri
                 <PackageCheck className="size-4" />
                 {receiveMutation.isPending ? 'Menerima...' : 'Terima stok'}
               </Button>
-              {isAdmin ? (
+              {canCancel ? (
                 <Button variant="outline" onClick={() => setCancelOpen(true)} disabled={busy}>
                   <XCircle className="size-4" />
                   Batalkan pembelian

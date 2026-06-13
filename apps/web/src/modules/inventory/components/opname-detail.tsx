@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/formatters';
 import { formatProductVariantLabel } from '@/lib/variant-label';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import { OpnameAddItem } from './opname-add-item';
 import {
@@ -79,7 +79,7 @@ export function OpnameDetail({ opnameId }: { opnameId: string }) {
 
 function OpnameContent({ data }: { data: StockOpnameData }) {
   const router = useRouter();
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canPost } = useHasPermission('opname.post');
   const completeMutation = useCompleteOpnameMutation(data.id);
   const cancelMutation = useCancelOpnameMutation(data.id);
   const [confirmPost, setConfirmPost] = useState(false);
@@ -147,7 +147,7 @@ function OpnameContent({ data }: { data: StockOpnameData }) {
               <XCircle className="size-4" />
               Batalkan
             </Button>
-            {isAdmin ? (
+            {canPost ? (
               <Button
                 onClick={() => setConfirmPost(true)}
                 disabled={busy || data.items.length === 0}

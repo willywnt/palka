@@ -8,6 +8,7 @@ import { apiRoutes } from '@/lib/api/routes';
 import { orgRoleAtLeast } from '@/lib/org-role';
 
 import { orgKeys } from './org-keys';
+import type { PermissionKey } from '../permissions/catalog';
 import type { OrgSummary } from '../types';
 
 /**
@@ -41,6 +42,20 @@ export function useIsOrgAdmin(): { isAdmin: boolean; isLoading: boolean } {
   const { org, isLoading } = useOrg();
   return {
     isAdmin: org !== null && orgRoleAtLeast(org.role, 'ADMIN'),
+    isLoading,
+  };
+}
+
+/**
+ * Cosmetic PERMISSION gate for hiding privileged UI — the configurable matrix
+ * replacement for `useIsOrgAdmin` at action sites. While the org is loading (or
+ * missing) it reads as NOT allowed, so gated controls never flash. Server-side
+ * guards remain the real boundary. OWNER carries every key from the server.
+ */
+export function useHasPermission(key: PermissionKey): { allowed: boolean; isLoading: boolean } {
+  const { org, isLoading } = useOrg();
+  return {
+    allowed: org !== null && org.permissions.includes(key),
     isLoading,
   };
 }

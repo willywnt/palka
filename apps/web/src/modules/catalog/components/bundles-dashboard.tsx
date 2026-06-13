@@ -43,7 +43,7 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useUrlFilters } from '@/hooks/use-url-filters';
 import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import {
   useBundlesQuery,
@@ -110,7 +110,7 @@ function BundlesDashboardContent() {
   const markPrinted = useMarkBundleLabelsPrintedMutation();
   const [qrTarget, setQrTarget] = useState<BundleListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BundleListItem | null>(null);
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canDelete } = useHasPermission('catalog.delete');
 
   const bundles = data?.items ?? [];
   const meta = data?.meta;
@@ -292,7 +292,7 @@ function BundlesDashboardContent() {
                             <QrCode className="size-4" />
                             Tampilkan QR code
                           </DropdownMenuItem>
-                          {isAdmin ? (
+                          {canDelete ? (
                             <DropdownMenuItem
                               variant="destructive"
                               onClick={() => setDeleteTarget(bundle)}

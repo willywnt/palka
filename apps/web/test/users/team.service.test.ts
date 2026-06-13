@@ -21,6 +21,11 @@ vi.mock('@/lib/db-retry', () => ({
 vi.mock('@/modules/audit/services/audit.service', () => ({
   auditService: { log: vi.fn() },
 }));
+// Capacity has its own dedicated test (member-capacity.test.ts); no-op here so
+// createInvite tests focus on the authority rules.
+vi.mock('@/modules/users/services/member-capacity', () => ({
+  assertMemberCapacity: vi.fn(async () => undefined),
+}));
 
 const { TeamService } = await import('@/modules/users/services/team.service');
 

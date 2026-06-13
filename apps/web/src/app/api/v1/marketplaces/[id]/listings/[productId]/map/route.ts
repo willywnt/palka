@@ -28,7 +28,7 @@ export const POST = withApiRoute<RouteParams>(
     );
     return apiSuccess(listing);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'marketplace.manage' },
 );
 
 export const DELETE = withApiRoute<RouteParams>(
@@ -43,7 +43,7 @@ export const DELETE = withApiRoute<RouteParams>(
     );
     return apiSuccess(listing);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'marketplace.manage' },
 );
 
 export function OPTIONS() {

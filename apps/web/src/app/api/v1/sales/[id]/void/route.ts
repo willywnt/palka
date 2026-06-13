@@ -15,7 +15,7 @@ export const POST = withApiRoute<RouteParams>(
     const sale = await salesServerService.voidSale(org.id, user.id, parsed.data.id);
     return apiSuccess(sale);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'sales.refund' },
 );
 
 export function OPTIONS() {

@@ -10,7 +10,7 @@ export const GET = withApiRoute(
     const invites = await teamService.listInvites(org.id);
     return apiSuccess(invites);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'team.manage' },
 );
 
 // ADMIN may create invites, but the service refuses an ADMIN-role invite unless
@@ -28,7 +28,7 @@ export const POST = withApiRoute(
     );
     return apiSuccess(invite, 201);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'team.manage' },
 );
 
 export function OPTIONS() {

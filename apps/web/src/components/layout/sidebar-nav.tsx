@@ -47,8 +47,8 @@ export function SidebarNav({
   const { collapsedSections, toggleSection } = useSidebar();
   const pulse = useOpsPulse();
   const { org } = useOrg();
-  // While the org is loading the role reads as STAFF — gated items never flash.
-  const sections = visibleNavSections(org?.role ?? null);
+  // While the org is loading the role/permissions read as none — gated items never flash.
+  const sections = visibleNavSections(org?.role ?? null, org?.permissions ?? null);
 
   return (
     <nav

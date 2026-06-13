@@ -17,7 +17,10 @@ export const apiRoutes = {
   marketplace: `${API_BASE_PATH}/marketplaces`,
   storage: `${API_BASE_PATH}/storage`,
   org: `${API_BASE_PATH}/org`,
+  orgPermissions: `${API_BASE_PATH}/org/permissions`,
   audit: `${API_BASE_PATH}/audit`,
+  adminOps: `${API_BASE_PATH}/admin/ops`,
+  adminOrganizations: `${API_BASE_PATH}/admin/organizations`,
 } as const;
 
 export type ApiRouteKey = keyof typeof apiRoutes;

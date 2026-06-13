@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import { orgRoleAtLeast } from '@/lib/org-role';
+import type { PermissionKey } from '@/modules/users/permissions/catalog';
 
 /*
  * Single source of truth for shell navigation: the sidebar IA, the mobile tab
@@ -49,6 +50,8 @@ export type NavItem = {
   keywords?: readonly string[];
   /** Minimum org role to SEE this item — cosmetic hiding only; the server still guards. */
   minRole?: 'ADMIN' | 'OWNER';
+  /** Permission key the effective set must include to SEE this item — cosmetic; server still guards. */
+  permission?: PermissionKey;
 };
 
 export type NavSection = {
@@ -183,21 +186,21 @@ export const sidebarNavSections: readonly NavSection[] = [
         href: '/dashboard/reports/profit',
         icon: LineChart,
         keywords: ['laba', 'profit', 'omzet', 'margin', 'channel', 'laporan'],
-        minRole: 'ADMIN',
+        permission: 'reports.view',
       },
       {
         title: 'Nilai stok',
         href: '/dashboard/reports/inventory-value',
         icon: Coins,
         keywords: ['nilai', 'valuasi', 'modal', 'aset'],
-        minRole: 'ADMIN',
+        permission: 'reports.view',
       },
       {
         title: 'Stok mati & ABC',
         href: '/dashboard/reports/dead-stock',
         icon: TrendingDown,
         keywords: ['stok mati', 'dead stock', 'abc', 'pareto', 'mengendap'],
-        minRole: 'ADMIN',
+        permission: 'reports.view',
       },
     ],
   },
@@ -286,26 +289,39 @@ export function resolveActiveHref(pathname: string, items: readonly NavItem[]): 
 }
 
 /**
- * Cosmetic role gate shared by the sidebar, the mobile tabs, and the command
- * palette — `null` (org still loading / unknown) reads as STAFF so gated items
- * never flash. Server guards remain the real boundary.
+ * Cosmetic visibility gate shared by the sidebar, the mobile tabs, and the
+ * command palette — an item shows when its role floor is met (`null` org, still
+ * loading / unknown, reads as STAFF) AND its permission (if any) is in the
+ * effective set (`null` permissions reads as none). Both gates default to
+ * HIDING so privileged items never flash. Server guards remain the real boundary.
  */
-export function navRoleAllows(role: OrgRole | null, minRole?: NavItem['minRole']): boolean {
-  return !minRole || (role !== null && orgRoleAtLeast(role, minRole));
+export function navItemAllowed(
+  item: Pick<NavItem, 'minRole' | 'permission'>,
+  role: OrgRole | null,
+  permissions: readonly PermissionKey[] | null,
+): boolean {
+  const roleOk = !item.minRole || (role !== null && orgRoleAtLeast(role, item.minRole));
+  const permissionOk =
+    !item.permission || (permissions !== null && permissions.includes(item.permission));
+  return roleOk && permissionOk;
 }
 
-/** The items the given role may see. */
+/** The items the given role + permission set may see. */
 export function visibleNavItems(
   items: readonly NavItem[],
   role: OrgRole | null,
+  permissions: readonly PermissionKey[] | null,
 ): readonly NavItem[] {
-  return items.filter((item) => navRoleAllows(role, item.minRole));
+  return items.filter((item) => navItemAllowed(item, role, permissions));
 }
 
-/** Sidebar sections for the given role — sections left with no items are dropped. */
-export function visibleNavSections(role: OrgRole | null): readonly NavSection[] {
+/** Sidebar sections for the given role + permissions — sections left with no items are dropped. */
+export function visibleNavSections(
+  role: OrgRole | null,
+  permissions: readonly PermissionKey[] | null,
+): readonly NavSection[] {
   return sidebarNavSections
-    .map((section) => ({ ...section, items: visibleNavItems(section.items, role) }))
+    .map((section) => ({ ...section, items: visibleNavItems(section.items, role, permissions) }))
     .filter((section) => section.items.length > 0);
 }
 

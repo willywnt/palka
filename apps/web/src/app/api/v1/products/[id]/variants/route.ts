@@ -48,7 +48,7 @@ export const DELETE = withApiRoute<RouteParams>(
     );
     return apiSuccess({ ok: true });
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'catalog.delete' },
 );
 
 export function OPTIONS() {

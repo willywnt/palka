@@ -38,7 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import {
   useDeleteVariantsMutation,
@@ -75,7 +75,7 @@ export function ProductDetail({
   const [addSubGroup, setAddSubGroup] = useState<string | null>(null);
   const markPrinted = useMarkLabelsPrintedMutation();
   const deleteVariants = useDeleteVariantsMutation(productId);
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canDelete } = useHasPermission('catalog.delete');
 
   async function handleDeleteConfirm() {
     if (!deleteTarget) return;
@@ -183,7 +183,7 @@ export function ProductDetail({
               Lihat aktivitas
             </Link>
           </DropdownMenuItem>
-          {isAdmin ? (
+          {canDelete ? (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() =>
@@ -222,7 +222,7 @@ export function ProductDetail({
             <Plus className="size-4" />
             Tambah subvarian
           </DropdownMenuItem>
-          {isAdmin ? (
+          {canDelete ? (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() =>

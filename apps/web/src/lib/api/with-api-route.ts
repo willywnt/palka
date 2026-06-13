@@ -15,6 +15,7 @@ import { orgRoleAtLeast } from '@/lib/org-role';
 import { resolveOrgContext, type OrgContext } from '@/modules/auth/services/org-context';
 import { getCurrentUser } from '@/modules/auth/services/session';
 import type { AuthUser } from '@/modules/auth/types';
+import type { PermissionKey } from '@/modules/users/permissions/catalog';
 
 type RouteParams = Record<string, string>;
 
@@ -47,6 +48,13 @@ type ApiHandler<TParams extends RouteParams> = (
 export type ApiRouteOptions = {
   rateLimit?: RateLimitScope;
   minOrgRole?: 'ADMIN' | 'OWNER';
+  /**
+   * Require a configurable permission key. OWNER always passes; ADMIN/STAFF are
+   * checked against the org's permission matrix. Use this (not minOrgRole) for
+   * actions the owner can delegate; reserve minOrgRole: 'OWNER' for the few
+   * owner-only routes (team role-change/remove, the matrix editor itself).
+   */
+  requirePermission?: PermissionKey;
 } & ({ requireAuth: true; requireAdmin?: never } | { requireAdmin: true; requireAuth?: never });
 
 /**
@@ -88,6 +96,13 @@ export function withApiRoute<TParams extends RouteParams = RouteParams>(
         if (options.minOrgRole && !orgRoleAtLeast(org.role, options.minOrgRole)) {
           return handleApiError(
             AppError.forbidden('Aksi ini butuh peran yang lebih tinggi di organisasimu.'),
+            requestId,
+          );
+        }
+
+        if (options.requirePermission && !org.permissions.has(options.requirePermission)) {
+          return handleApiError(
+            AppError.forbidden('Peranmu tidak diizinkan melakukan aksi ini di organisasi ini.'),
             requestId,
           );
         }

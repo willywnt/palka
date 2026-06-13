@@ -85,6 +85,17 @@ model Organization {
    */
   storageQuotaBytes BigInt    @default(524288000)
   storageUsedBytes  BigInt    @default(0)
+  /**
+   * Per-role permission overrides (the "Peran & akses" matrix). null = use the
+   * catalog defaults (original behavior). Shape: { ADMIN: {key:bool}, STAFF: {…} }.
+   */
+  permissions       Json?
+  /**
+   * Subscription/config hooks (set by the platform admin-ops console). `plan` is
+   * a label for now (FREE/…); `memberLimit` null = unlimited.
+   */
+  plan              String    @default("FREE")
+  memberLimit       Int?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?

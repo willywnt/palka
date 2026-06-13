@@ -19,7 +19,7 @@ import { BrandMark } from '@/components/brand-mark';
 import {
   CREATE_ACTIONS,
   isShellSuppressedRoute,
-  navRoleAllows,
+  navItemAllowed,
   sidebarNavSections,
   type NavItem,
 } from '@/components/layout/nav-config';
@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { useEntityJump } from '@/components/use-entity-jump';
 import { cn } from '@/lib/utils';
 import { useOrg } from '@/modules/users/hooks/use-org';
+import type { PermissionKey } from '@/modules/users/permissions/catalog';
 
 /*
  * The command palette — one deterministic surface for "pergi ke mana saja,
@@ -48,6 +49,7 @@ type PaletteEntry = {
   haystack: string;
   /** Carried over from the NavItem — gated entries are filtered out at render time. */
   minRole?: NavItem['minRole'];
+  permission?: NavItem['permission'];
 };
 
 function toHaystack(...parts: Array<string | readonly string[] | undefined>): string {
@@ -72,6 +74,7 @@ const NAV_ENTRIES: readonly PaletteEntry[] = sidebarNavSections.flatMap((section
     href: item.href,
     haystack: toHaystack(item.title, section.label, item.keywords),
     minRole: item.minRole,
+    permission: item.permission,
   })),
 );
 
@@ -89,9 +92,13 @@ function matches(entry: PaletteEntry, tokens: readonly string[]): boolean {
   return tokens.every((token) => entry.haystack.includes(token));
 }
 
-function buildEntries(query: string, role: OrgRole | null): readonly PaletteEntry[] {
-  // Role-gated destinations drop out at render time (cosmetic — server still guards).
-  const navEntries = NAV_ENTRIES.filter((entry) => navRoleAllows(role, entry.minRole));
+function buildEntries(
+  query: string,
+  role: OrgRole | null,
+  permissions: readonly PermissionKey[] | null,
+): readonly PaletteEntry[] {
+  // Role/permission-gated destinations drop out at render time (cosmetic — server still guards).
+  const navEntries = NAV_ENTRIES.filter((entry) => navItemAllowed(entry, role, permissions));
   const trimmed = query.trim().toLowerCase();
 
   if (!trimmed) {
@@ -178,13 +185,17 @@ function PaletteDialog({
   const activeRef = useRef<HTMLButtonElement | null>(null);
   const { org } = useOrg();
   const role = org?.role ?? null;
+  const permissions = org?.permissions ?? null;
 
   // Entity lookups fire only for code-looking queries (and only while open —
   // a closed palette never passes a candidate).
   const codeCandidate = open ? toCodeCandidate(query) : '';
   const { entries: jumpHits, isLooking } = useEntityJump(codeCandidate);
 
-  const baseEntries = useMemo(() => buildEntries(query, role), [query, role]);
+  const baseEntries = useMemo(
+    () => buildEntries(query, role, permissions),
+    [query, role, permissions],
+  );
   const entries = useMemo(() => {
     if (jumpHits.length === 0) return baseEntries;
 

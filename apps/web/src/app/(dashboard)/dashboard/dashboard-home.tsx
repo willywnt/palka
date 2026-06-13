@@ -17,7 +17,7 @@ import { STAT_TONES, type StatTone } from '@/components/stat-card';
 import { WaveHairline } from '@/components/maritime-art';
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/modules/auth/hooks/use-current-user';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 import { InventoryDashboard } from '@/modules/inventory/components/inventory-dashboard';
 import { cn } from '@/lib/utils';
 
@@ -88,7 +88,7 @@ function todayLabel(): string {
 
 export function DashboardHome() {
   const { user } = useCurrentUser();
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canViewReports } = useHasPermission('reports.view');
   const firstName = (user?.displayName ?? user?.email ?? '').split(/[\s@]/)[0];
   const [tutupHariOpen, setTutupHariOpen] = useState(false);
 
@@ -108,7 +108,7 @@ export function DashboardHome() {
               Ringkasan toko kamu — stok, pesanan, dan yang perlu diperhatikan hari ini.
             </p>
           </div>
-          {isAdmin ? (
+          {canViewReports ? (
             <Button
               type="button"
               variant="outline"
@@ -159,7 +159,9 @@ export function DashboardHome() {
 
       <InventoryDashboard />
 
-      {isAdmin ? <TutupHariDialog open={tutupHariOpen} onOpenChange={setTutupHariOpen} /> : null}
+      {canViewReports ? (
+        <TutupHariDialog open={tutupHariOpen} onOpenChange={setTutupHariOpen} />
+      ) : null}
     </div>
   );
 }

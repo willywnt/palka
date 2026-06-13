@@ -10,10 +10,12 @@ import type { PageMeta } from '@/hooks/use-pagination';
 import type { AuditLogListItem } from '@/modules/audit/types';
 
 import { orgKeys } from './org-keys';
+import type { PermissionMatrix } from '../permissions/catalog';
 import type { TeamInviteItem, TeamMemberItem } from '../types';
 
 const membersUrl = `${apiRoutes.org}/members`;
 const invitesUrl = `${apiRoutes.org}/invites`;
+const permissionsUrl = `${apiRoutes.org}/permissions`;
 
 export function useTeamMembersQuery() {
   return useQuery({
@@ -79,6 +81,34 @@ export function useRemoveMemberMutation() {
       if (!result.success) throw new Error(formatApiErrorMessage(result.error));
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: orgKeys.members }),
+  });
+}
+
+/** The configurable role→permission matrix (OWNER is implicitly all, never in it). */
+export function usePermissionMatrixQuery() {
+  return useQuery({
+    queryKey: orgKeys.permissions,
+    queryFn: async () => {
+      const result = await apiFetch<PermissionMatrix>(permissionsUrl);
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+  });
+}
+
+export function useUpdatePermissionsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (matrix: PermissionMatrix) => {
+      const result = await apiFetch<PermissionMatrix>(permissionsUrl, {
+        method: 'PATCH',
+        body: matrix,
+      });
+      if (!result.success) throw new Error(formatApiErrorMessage(result.error));
+      return result.data;
+    },
+    // The matrix change can shift the caller's own effective keys → refresh the summary too.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: orgKeys.all }),
   });
 }
 

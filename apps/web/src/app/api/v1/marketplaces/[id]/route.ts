@@ -30,7 +30,7 @@ export const DELETE = withApiRoute<RouteParams>(
     );
     return apiSuccess(connection);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'marketplace.manage' },
 );
 
 export function OPTIONS() {

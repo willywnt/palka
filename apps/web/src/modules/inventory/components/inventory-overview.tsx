@@ -45,7 +45,7 @@ import { formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { formatVariantLabel } from '@/lib/variant-label';
 import { useMarkLabelsPrintedMutation } from '@/modules/catalog/hooks/use-products';
-import { useIsOrgAdmin } from '@/modules/users/hooks/use-org';
+import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import { REORDER_DEFAULTS } from '../config';
 import { useReorderReportQuery, useStockOverviewQuery } from '../hooks/use-inventory';
@@ -98,7 +98,7 @@ function RowActionsMenu({
   onShowQr: (item: StockOverviewItem) => void;
   onDispose: (item: StockOverviewItem) => void;
 }) {
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canAdjust } = useHasPermission('inventory.adjust');
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -124,7 +124,7 @@ function RowActionsMenu({
             Buat PO
           </Link>
         </DropdownMenuItem>
-        {isAdmin && item.damagedStock > 0 ? (
+        {canAdjust && item.damagedStock > 0 ? (
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onClick={() => onDispose(item)}
@@ -166,7 +166,7 @@ export function InventoryOverview() {
   const [disposeTarget, setDisposeTarget] = useState<StockOverviewItem | null>(null);
   const [qrTarget, setQrTarget] = useState<StockOverviewItem | null>(null);
   const markPrinted = useMarkLabelsPrintedMutation();
-  const { isAdmin } = useIsOrgAdmin();
+  const { allowed: canAdjust } = useHasPermission('inventory.adjust');
 
   useEffect(() => {
     if (debouncedSearch !== filters.search) setFilters({ search: debouncedSearch });
@@ -323,7 +323,7 @@ export function InventoryOverview() {
                   ) : null}
 
                   <div className="flex items-center gap-2">
-                    {isAdmin ? (
+                    {canAdjust ? (
                       <Button
                         variant="outline"
                         className="flex-1"
@@ -436,7 +436,7 @@ export function InventoryOverview() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {isAdmin ? (
+                          {canAdjust ? (
                             <Button
                               variant="outline"
                               size="sm"

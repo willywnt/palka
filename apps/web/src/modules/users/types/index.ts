@@ -1,10 +1,14 @@
 import type { OrgRole } from '@falka/types';
 
-/** What the shell needs to know about "my organization": name + my role. */
+import type { PermissionKey } from '../permissions/catalog';
+
+/** What the shell needs to know about "my organization": name, my role, my permissions. */
 export interface OrgSummary {
   id: string;
   name: string;
   role: OrgRole;
+  /** Effective permission keys for the current user (OWNER → all). */
+  permissions: PermissionKey[];
 }
 
 /** A row in the team member list. */

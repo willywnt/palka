@@ -24,7 +24,7 @@ export const POST = withApiRoute<RouteParams>(
     );
     return apiSuccess(sale);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'sales.refund' },
 );
 
 export function OPTIONS() {

@@ -45,7 +45,7 @@ export const DELETE = withApiRoute<RouteParams>(
     await catalogServerService.deleteProduct(org.id, user.id, parsed.data.id);
     return apiSuccess({ id: parsed.data.id });
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'catalog.delete' },
 );
 
 export function OPTIONS() {

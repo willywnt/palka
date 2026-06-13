@@ -27,7 +27,7 @@ export const POST = withApiRoute(
     );
     return apiSuccess(connection, 201);
   },
-  { requireAuth: true, minOrgRole: 'ADMIN' },
+  { requireAuth: true, requirePermission: 'marketplace.manage' },
 );
 
 export function OPTIONS() {
