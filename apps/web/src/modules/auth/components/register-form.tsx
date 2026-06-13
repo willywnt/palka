@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -21,7 +22,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 
-export function RegisterForm() {
+export function RegisterForm({ initialInviteCode }: { initialInviteCode?: string }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -32,6 +33,7 @@ export function RegisterForm() {
       password: '',
       confirmPassword: '',
       displayName: '',
+      inviteCode: initialInviteCode?.toUpperCase() ?? '',
     },
   });
 
@@ -42,6 +44,9 @@ export function RegisterForm() {
     formData.set('confirmPassword', values.confirmPassword);
     if (values.displayName) {
       formData.set('displayName', values.displayName);
+    }
+    if (values.inviteCode) {
+      formData.set('inviteCode', values.inviteCode);
     }
 
     const result = await registerAction(formData);
@@ -57,7 +62,7 @@ export function RegisterForm() {
   }
 
   return (
-    <ClientOnly fallback={<AuthFormSkeleton fields={4} />}>
+    <ClientOnly fallback={<AuthFormSkeleton fields={5} />}>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
@@ -155,6 +160,31 @@ export function RegisterForm() {
                     )}
                   </Button>
                 </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="inviteCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Kode undangan{' '}
+                  <span className="text-muted-foreground font-normal">(opsional)</span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="8 karakter"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    maxLength={8}
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Dapat kode dari pemilik toko? Masukkan di sini untuk gabung ke timnya.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

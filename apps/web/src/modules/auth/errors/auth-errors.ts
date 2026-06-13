@@ -5,6 +5,7 @@ export const AUTH_ERROR_CODES = {
   EMAIL_TAKEN: 'EMAIL_TAKEN',
   ACCOUNT_DISABLED: 'ACCOUNT_DISABLED',
   ACCESS_REVOKED: 'ACCESS_REVOKED',
+  INVALID_INVITE_CODE: 'INVALID_INVITE_CODE',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
 } as const;
 
@@ -17,6 +18,7 @@ export const AUTH_ERROR_MESSAGES: Record<AuthErrorCode, string> = {
   EMAIL_TAKEN: 'Email ini sudah terdaftar.',
   ACCOUNT_DISABLED: 'Akun ini sudah tidak aktif.',
   ACCESS_REVOKED: 'Akses kamu ke organisasi ini sudah dicabut. Hubungi pemilik toko.',
+  INVALID_INVITE_CODE: 'Kode undangan tidak valid, sudah dipakai, atau kedaluwarsa.',
   VALIDATION_ERROR: 'Periksa lagi isianmu, ya.',
 };
 
@@ -51,5 +53,9 @@ export class AuthError extends Error {
 
   static accessRevoked() {
     return new AuthError(AUTH_ERROR_CODES.ACCESS_REVOKED);
+  }
+
+  static invalidInviteCode() {
+    return new AuthError(AUTH_ERROR_CODES.INVALID_INVITE_CODE);
   }
 }

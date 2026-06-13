@@ -8,7 +8,14 @@ export const metadata: Metadata = {
   title: 'Buat akun',
 };
 
-export default function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string | string[] }>;
+}) {
+  const { code } = await searchParams;
+  const inviteCode = Array.isArray(code) ? code[0] : code;
+
   return (
     <Card>
       <CardHeader className="text-center">
@@ -16,7 +23,7 @@ export default function RegisterPage() {
         <CardDescription>Mulai pakai Falka</CardDescription>
       </CardHeader>
       <CardContent>
-        <RegisterForm />
+        <RegisterForm initialInviteCode={inviteCode} />
         <p className="text-muted-foreground mt-6 text-center text-sm">
           Sudah punya akun?{' '}
           <Link

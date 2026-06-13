@@ -1,22 +1,31 @@
 import type { Metadata } from 'next';
-import { Users } from 'lucide-react';
 
-import { EmptyState } from '@/components/empty-state';
 import { PageHeader } from '@/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { orgRoleAtLeast } from '@/lib/org-role';
+import { getCurrentUser } from '@/modules/auth/services/session';
+import { resolveOrgContext } from '@/modules/auth/services/org-context';
 import { StorageSettingsCard } from '@/modules/storage/components/storage-settings-card';
 
+import { ActivitySettings } from './activity-settings';
 import { GeneralSettings } from './general-settings';
+import { TeamSettings } from './team-settings';
 
 export const metadata: Metadata = {
   title: 'Pengaturan',
 };
 
-type SettingsTab = 'general' | 'storage' | 'team';
+type SettingsTab = 'general' | 'storage' | 'team' | 'activity';
 
-function resolveTab(value: string | string[] | undefined): SettingsTab {
+const ADMIN_TABS: ReadonlySet<SettingsTab> = new Set(['storage', 'team', 'activity']);
+
+function resolveTab(value: string | string[] | undefined, isAdmin: boolean): SettingsTab {
   const tab = Array.isArray(value) ? value[0] : value;
-  return tab === 'storage' || tab === 'team' ? tab : 'general';
+  const candidate: SettingsTab =
+    tab === 'storage' || tab === 'team' || tab === 'activity' ? tab : 'general';
+  // A non-admin requesting an admin-only tab lands on "Umum" instead.
+  if (!isAdmin && ADMIN_TABS.has(candidate)) return 'general';
+  return candidate;
 }
 
 export default async function SettingsPage({
@@ -25,7 +34,13 @@ export default async function SettingsPage({
   searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   const { tab } = await searchParams;
-  const defaultTab = resolveTab(tab);
+
+  // Resolve the viewer's org role server-side (no redirect — STAFF still see "Umum").
+  const user = await getCurrentUser();
+  const org = user ? await resolveOrgContext(user.id) : null;
+  const isAdmin = org !== null && orgRoleAtLeast(org.role, 'ADMIN');
+
+  const defaultTab = resolveTab(tab, isAdmin);
 
   return (
     <div>
@@ -38,22 +53,30 @@ export default async function SettingsPage({
       <Tabs defaultValue={defaultTab} className="max-w-2xl">
         <TabsList>
           <TabsTrigger value="general">Umum</TabsTrigger>
-          <TabsTrigger value="storage">Penyimpanan</TabsTrigger>
-          <TabsTrigger value="team">Tim</TabsTrigger>
+          {isAdmin ? (
+            <>
+              <TabsTrigger value="storage">Penyimpanan</TabsTrigger>
+              <TabsTrigger value="team">Tim</TabsTrigger>
+              <TabsTrigger value="activity">Riwayat aktivitas</TabsTrigger>
+            </>
+          ) : null}
         </TabsList>
         <TabsContent value="general">
           <GeneralSettings />
         </TabsContent>
-        <TabsContent value="storage">
-          <StorageSettingsCard />
-        </TabsContent>
-        <TabsContent value="team">
-          <EmptyState
-            icon={Users}
-            title="Fitur tim lagi disiapkan — kapalnya masih di galangan"
-            description="Nanti kamu bisa mengundang pengguna lain dan mengatur perannya dari sini."
-          />
-        </TabsContent>
+        {isAdmin ? (
+          <>
+            <TabsContent value="storage">
+              <StorageSettingsCard />
+            </TabsContent>
+            <TabsContent value="team">
+              <TeamSettings />
+            </TabsContent>
+            <TabsContent value="activity">
+              <ActivitySettings />
+            </TabsContent>
+          </>
+        ) : null}
       </Tabs>
     </div>
   );

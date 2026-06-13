@@ -19,6 +19,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     password: formData.get('password'),
     confirmPassword: formData.get('confirmPassword'),
     displayName: formData.get('displayName') || undefined,
+    inviteCode: formData.get('inviteCode') || undefined,
   });
 
   if (!parsed.success) {
@@ -35,6 +36,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
       email: parsed.data.email,
       password: parsed.data.password,
       displayName: parsed.data.displayName,
+      inviteCode: parsed.data.inviteCode,
     });
 
     await signIn('credentials', {
@@ -59,10 +61,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
       };
     }
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return {
         success: false,
         code: AUTH_ERROR_CODES.EMAIL_TAKEN,

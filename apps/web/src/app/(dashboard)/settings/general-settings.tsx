@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { Check, Monitor, Moon, Pencil, Sun, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { toast } from 'sonner';
 
 import { useCurrentUser } from '@/modules/auth/hooks/use-current-user';
+import { useIsOrgAdmin, useOrg, useRenameOrgMutation } from '@/modules/users/hooks/use-org';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -57,6 +60,10 @@ export function GeneralSettings() {
 
         <Separator />
 
+        <OrganizationSection />
+
+        <Separator />
+
         <section className="space-y-3">
           <p className="eyebrow text-muted-foreground">Tampilan</p>
           <div>
@@ -86,5 +93,97 @@ export function GeneralSettings() {
         </section>
       </CardContent>
     </Card>
+  );
+}
+
+/** Org name display + inline rename (ADMIN+). STAFF see a read-only name. */
+function OrganizationSection() {
+  const { org, isLoading } = useOrg();
+  const { isAdmin } = useIsOrgAdmin();
+  const renameOrg = useRenameOrgMutation();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  function startEditing() {
+    setDraft(org?.name ?? '');
+    setEditing(true);
+  }
+
+  async function handleSave() {
+    const name = draft.trim();
+    if (!name || name === org?.name) {
+      setEditing(false);
+      return;
+    }
+    try {
+      await renameOrg.mutateAsync(name);
+      toast.success('Nama toko diperbarui');
+      setEditing(false);
+    } catch (err) {
+      toast.error('Gagal mengubah nama toko', {
+        description: err instanceof Error ? err.message : 'Terjadi kesalahan',
+      });
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      <p className="eyebrow text-muted-foreground">Organisasi</p>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">Nama toko</span>
+        {isLoading ? (
+          <Skeleton className="h-8 w-40" />
+        ) : editing ? (
+          <form
+            className="flex items-center gap-1.5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSave();
+            }}
+          >
+            <Input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              maxLength={100}
+              autoFocus
+              aria-label="Nama toko"
+              className="h-8 w-44"
+              disabled={renameOrg.isPending}
+            />
+            <Button type="submit" size="icon" className="size-8" disabled={renameOrg.isPending}>
+              <Check className="size-4" />
+              <span className="sr-only">Simpan</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              disabled={renameOrg.isPending}
+              onClick={() => setEditing(false)}
+            >
+              <X className="size-4" />
+              <span className="sr-only">Batal</span>
+            </Button>
+          </form>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-right font-medium">{org?.name ?? '—'}</span>
+            {isAdmin ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={startEditing}
+                aria-label="Ubah nama toko"
+              >
+                <Pencil className="size-4" />
+              </Button>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

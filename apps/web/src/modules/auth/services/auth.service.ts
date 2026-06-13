@@ -71,14 +71,16 @@ export class AuthService {
   }
 
   /**
-   * Registration creates the user AND their own organization (as OWNER) in one
-   * transaction. (Joining an existing org via an invite code lands in the team
-   * phase — it reuses this same tx shape minus the org create.)
+   * Registration creates the user in one transaction and either:
+   *  - with an invite code: atomically claims the (single-use, unexpired) code
+   *    and joins that organization with the code's role — NO new org; or
+   *  - without a code: creates the user's own organization as OWNER.
    */
   async registerUser(input: {
     email: string;
     password: string;
     displayName?: string;
+    inviteCode?: string;
   }): Promise<AuthUser> {
     const normalizedEmail = normalizeEmail(input.email);
 
@@ -93,7 +95,7 @@ export class AuthService {
 
     const passwordHash = await hashPassword(input.password);
     const displayName = input.displayName?.trim() || null;
-    const orgName = `Toko ${displayName ?? normalizedEmail.split('@')[0]}`;
+    const inviteCode = input.inviteCode?.trim().toUpperCase() || null;
 
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -105,9 +107,47 @@ export class AuthService {
         select: { id: true, email: true, role: true, displayName: true },
       });
 
+      if (inviteCode) {
+        // Atomic claim: only an unused, unrevoked, unexpired code flips to used.
+        // count 0 means the code lost the race or never qualified.
+        const claim = await tx.organizationInvite.updateMany({
+          where: {
+            code: inviteCode,
+            usedAt: null,
+            revokedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+          data: { usedAt: new Date(), usedByUserId: user.id },
+        });
+
+        if (claim.count === 0) {
+          throw AuthError.invalidInviteCode();
+        }
+
+        const invite = await tx.organizationInvite.findUnique({
+          where: { code: inviteCode },
+          select: { organizationId: true, role: true },
+        });
+
+        if (!invite) {
+          throw AuthError.invalidInviteCode();
+        }
+
+        const membership = await tx.organizationMember.create({
+          data: {
+            organizationId: invite.organizationId,
+            userId: user.id,
+            role: invite.role,
+          },
+          select: { organizationId: true, role: true },
+        });
+
+        return toAuthUser({ ...user, membership });
+      }
+
       const organization = await tx.organization.create({
         data: {
-          name: orgName,
+          name: `Toko ${displayName ?? normalizedEmail.split('@')[0]}`,
           storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
         },
         select: { id: true },
