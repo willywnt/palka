@@ -27,6 +27,13 @@ function mapLazadaError(response: LazadaResponse): MarketplaceSyncError {
     return new MarketplaceSyncError(SYNC_ERROR_CODES.INVALID_TOKEN, message, { retryable: false });
   }
 
+  // E501 ("Update product failed") is a business-rule rejection carried in detail[].bizCheck
+  // (e.g. SELLER_NOT_PERMITTED, locked item) — permanent for this product/seller even though
+  // type is ISP, so retrying never helps. Don't burn retries on it.
+  if (response.code === '501') {
+    return MarketplaceSyncError.syncFailed(message, false);
+  }
+
   // LazOP error `type`: ISV = caller error (bad params/sign) — not worth retrying;
   // ISP/SYSTEM = provider/platform — transient, so retry.
   return MarketplaceSyncError.syncFailed(message, response.type !== 'ISV');
