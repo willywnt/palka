@@ -69,7 +69,26 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 Order: `postgres`/`redis` become healthy → `migrate` applies migrations and exits →
 `web` + `worker` start → `caddy` fronts `web` and issues TLS for `DOMAIN`.
 
-## 5. Verify
+## 5. Bootstrap the first platform admin (fresh DB only)
+
+A freshly-migrated DB is **empty** — no users, no organizations. Registration is
+invite-only and shop orgs are provisioned only from `/admin`, which itself needs a
+platform admin to sign in. Mint that first admin once (idempotent; creates **only** the
+admin + its own org, no demo data). Pass the credentials inline so the password never
+lands in `.env.production`:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm \
+  -e BOOTSTRAP_ADMIN_EMAIL=ops@yourco.com \
+  -e BOOTSTRAP_ADMIN_PASSWORD='<a strong 12+ char password>' \
+  migrate pnpm --filter @falka/db db:bootstrap-admin
+```
+
+The password must be ≥ 12 chars with letters and numbers (common ones are rejected).
+Then sign in at `https://<DOMAIN>/admin` and provision the first shop org + its OWNER
+account from the admin-ops console; the OWNER logs in to the shop and invites their team.
+
+## 6. Verify
 
 ```bash
 docker compose -f docker-compose.prod.yml ps          # all healthy/running, migrate Exited(0)

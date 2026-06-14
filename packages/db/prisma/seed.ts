@@ -5,10 +5,9 @@ import {
   RecordingStatus,
   UserRole,
 } from '@prisma/client';
-import { DEFAULT_STORAGE_QUOTA_BYTES } from '@falka/config/limits';
-import argon2 from 'argon2';
 
 import { DEMO_SHOP_ID, DEMO_STAFF_EMAIL, DEMO_USER_EMAIL, DEMO_VARIANTS } from './demo-data';
+import { ensureOwnOrganization, hashPassword } from './account-helpers';
 
 const prisma = new PrismaClient();
 
@@ -16,40 +15,6 @@ const SEED_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@falka.local';
 const SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'Admin123!';
 const SEED_DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'Demo123!';
 const SEED_STAFF_PASSWORD = process.env.SEED_STAFF_PASSWORD ?? 'Staff123!';
-
-async function hashSeedPassword(password: string): Promise<string> {
-  return argon2.hash(password, {
-    type: argon2.argon2id,
-    memoryCost: 65536,
-    timeCost: 3,
-    parallelism: 4,
-  });
-}
-
-/**
- * Ensure the user owns an organization (id := user.id — the same identity the
- * backfill migration uses, so storage-key prefixes stay valid) and holds the
- * given role in it. Idempotent.
- */
-async function ensureOwnOrganization(user: { id: string; displayName: string | null }) {
-  const organization = await prisma.organization.upsert({
-    where: { id: user.id },
-    update: {},
-    create: {
-      id: user.id,
-      name: user.displayName ?? 'Toko demo',
-      storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
-    },
-  });
-
-  await prisma.organizationMember.upsert({
-    where: { userId: user.id },
-    update: { role: OrgRole.OWNER },
-    create: { organizationId: organization.id, userId: user.id, role: OrgRole.OWNER },
-  });
-
-  return organization;
-}
 
 /**
  * Idempotently seed a small mapped catalog (product → variant → stocked inventory →
@@ -145,9 +110,9 @@ async function seedInventoryDemo(
 async function main() {
   console.log('Seeding database...');
 
-  const adminPasswordHash = await hashSeedPassword(SEED_ADMIN_PASSWORD);
-  const demoPasswordHash = await hashSeedPassword(SEED_DEMO_PASSWORD);
-  const staffPasswordHash = await hashSeedPassword(SEED_STAFF_PASSWORD);
+  const adminPasswordHash = await hashPassword(SEED_ADMIN_PASSWORD);
+  const demoPasswordHash = await hashPassword(SEED_DEMO_PASSWORD);
+  const staffPasswordHash = await hashPassword(SEED_STAFF_PASSWORD);
 
   const admin = await prisma.user.upsert({
     where: { email: SEED_ADMIN_EMAIL },
@@ -163,7 +128,7 @@ async function main() {
       role: UserRole.ADMIN,
     },
   });
-  await ensureOwnOrganization(admin);
+  await ensureOwnOrganization(prisma, admin);
 
   console.log(`Admin user: ${admin.email} (${admin.role})`);
 
@@ -181,7 +146,7 @@ async function main() {
       role: UserRole.USER,
     },
   });
-  const demoOrg = await ensureOwnOrganization(demoUser);
+  const demoOrg = await ensureOwnOrganization(prisma, demoUser);
 
   console.log(`Demo user: ${demoUser.email} (${demoUser.role})`);
 

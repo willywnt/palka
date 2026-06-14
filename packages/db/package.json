@@ -33,6 +33,7 @@
     "db:migrate:deploy": "node scripts/migrate-deploy.mjs",
     "db:migrate:reset": "node scripts/with-env.mjs prisma migrate reset",
     "db:seed": "node scripts/with-env.mjs prisma db seed",
+    "db:bootstrap-admin": "tsx prisma/bootstrap-admin.ts",
     "db:reset-demo": "node scripts/with-env.mjs tsx scripts/reset-demo.ts",
     "db:studio": "node scripts/with-env.mjs prisma studio",
     "postinstall": "prisma generate --schema=./prisma/schema.prisma"
