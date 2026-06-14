@@ -68,7 +68,12 @@ if (res.code !== '0') {
   console.log(
     `\ntotal_products: ${data.total_products ?? '?'}   products returned: ${products.length}`,
   );
-  console.log('\n--- first up to 2 products (raw shape) ---');
-  console.log(JSON.stringify(products.slice(0, 2), null, 2));
+  // Full raw envelope (definitive) — trims products to the first 2 if there are many.
+  const trimmed =
+    products.length > 2
+      ? { ...res.raw, data: { ...data, products: products.slice(0, 2) } }
+      : res.raw;
+  console.log('\n--- raw response (first up to 2 products) ---');
+  console.log(JSON.stringify(trimmed, null, 2));
   console.log('\nPaste the block above so we can confirm/fix the import field mapping.');
 }
