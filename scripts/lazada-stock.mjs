@@ -5,7 +5,8 @@
  * throwaway test SKU.
  *
  * Usage (builds the provider package first):
- *   pnpm lazada:stock <access_token> <item_id> <sku_id> <quantity>
+ *   pnpm lazada:stock <access_token> <item_id> <sku_id> <quantity>     # /product/price_quantity/update (XML)
+ *   pnpm lazada:stock-sellable <access_token> <sku_id> <quantity>      # /product/stock/sellable/update (multi-warehouse sellable)
  * (item_id + sku_id come from the import dump; Lazada deprecated SellerSku for this API.)
  *
  * Reads LAZADA_APP_KEY / LAZADA_APP_SECRET / LAZADA_API_BASE_URL from .env or apps/web/.env.local.
@@ -40,8 +41,16 @@ loadEnvFiles();
 const appKey = process.env.LAZADA_APP_KEY;
 const appSecret = process.env.LAZADA_APP_SECRET;
 const baseUrl = process.env.LAZADA_API_BASE_URL ?? 'https://api.lazada.co.id/rest';
-const [, , accessToken, itemId, skuId, quantityArg] = process.argv;
-const quantity = Number(quantityArg);
+// Two modes:
+//   price_quantity (default): <token> <item_id> <sku_id> <qty>  -> /product/price_quantity/update (XML)
+//   sellable (--sellable):    <token> --sellable <sku_id> <qty> -> /product/stock/sellable/update (skuId/sellableQuantity)
+const argv = process.argv.slice(2);
+const sellable = argv.includes('--sellable');
+const pos = argv.filter((a) => a !== '--sellable');
+const accessToken = pos[0];
+const itemId = sellable ? undefined : pos[1];
+const skuId = sellable ? pos[1] : pos[2];
+const quantity = Number(sellable ? pos[2] : pos[3]);
 
 if (!appKey || !appSecret) {
   console.error(
@@ -49,25 +58,40 @@ if (!appKey || !appSecret) {
   );
   process.exit(1);
 }
-if (!accessToken || !itemId || !skuId || !Number.isFinite(quantity)) {
-  console.error('Usage: pnpm lazada:stock <access_token> <item_id> <sku_id> <quantity>');
+if (!accessToken || !skuId || !Number.isFinite(quantity) || (!sellable && !itemId)) {
+  console.error(
+    'Usage:\n  pnpm lazada:stock <access_token> <item_id> <sku_id> <quantity>\n  pnpm lazada:stock <access_token> --sellable <sku_id> <quantity>',
+  );
   process.exit(1);
 }
 
-const payload = buildLazadaQuantityPayload({
-  externalProductId: itemId,
-  externalVariantId: skuId,
-  quantity,
-});
-console.log(`Pushing quantity=${quantity} to ItemId=${itemId} SkuId=${skuId}`);
-console.log(`payload: ${payload}`);
-
 const client = createLazadaClient({ appKey, appSecret, baseUrl });
-const res = await client.call('/product/price_quantity/update', {
-  method: 'POST',
-  accessToken,
-  params: { payload },
-});
+let res;
+if (sellable) {
+  console.log(
+    `Pushing sellableQuantity=${quantity} to SkuId=${skuId} via /product/stock/sellable/update`,
+  );
+  res = await client.call('/product/stock/sellable/update', {
+    method: 'POST',
+    accessToken,
+    params: { skuId, sellableQuantity: quantity },
+  });
+} else {
+  const payload = buildLazadaQuantityPayload({
+    externalProductId: itemId,
+    externalVariantId: skuId,
+    quantity,
+  });
+  console.log(
+    `Pushing quantity=${quantity} to ItemId=${itemId} SkuId=${skuId} via /product/price_quantity/update`,
+  );
+  console.log(`payload: ${payload}`);
+  res = await client.call('/product/price_quantity/update', {
+    method: 'POST',
+    accessToken,
+    params: { payload },
+  });
+}
 
 console.log('\nEnvelope:');
 console.log(`  code: ${res.code}  type: ${res.type ?? '-'}  message: ${res.message ?? '-'}`);
