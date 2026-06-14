@@ -63,22 +63,40 @@ order actions (mark-shipped / edit resi / cancel-with-reason) · DAMAGE write-of
   `olshop-lazada-integration`. **Deferred:** multi-region per-connection gateway (needs a migration),
   a scheduled refresh worker, a real self-fulfilled stock-write test.
 
+## ✅ Shipped (2026-06-15)
+
+- **Phase 6 — provider-health dashboard + drift reconciliation + token auto-refresh** (mid-size #2 +
+  big-bet B's scheduled-refresh tail) — on branch `session/2026-06-15-phase6-reconciliation`. **Zero DB
+  migration** (drift computed on-read, health from existing fields), **observe-only** (internal stock
+  stays the SoT; drift is surfaced, fixes are a manual re-push). Web: `marketplaceHealthService`
+  (per-connection ok/warn/danger from token lifecycle + sync coverage + needs-review + failed pushes +
+  recent sync), `marketplaceReconciliationService.checkDrift` (live pull → `computeStockDrift` →
+  over/under/missing), `GET /marketplaces/health` + `/[id]/health` (marketplace.view) + `POST
+/[id]/drift-check` (marketplace.manage); a "Kesehatan & drift" panel + dashboard badges + a
+  `marketplaceUnhealthy` nav pulse. Worker: `reconcile-marketplace-drift` (daily, logs drift per active
+  connection) + `refresh-marketplace-tokens` (daily, renews Lazada tokens nearing expiry), sharing the
+  `MARKETPLACE_RECONCILE` queue. `computeStockDrift` + the drift/token data-access live in `@falka/queue`
+  (web + worker share them); `fetchLazadaListings` lifted to `@falka/marketplace-providers`. Detail in
+  `inventory-mvp.md` Phase 6 + `.cursor/rules/40-inventory-marketplace.mdc`. **Deferred:** a persistent
+  drift audit-log + configurable alert thresholds, OAuth callbacks for the other providers.
+
 ## 🎯 Mid-size features (1 session each)
 
-| #   | Item                                                              | Module            | Effort | Gate | Notes                                                                                                                                                                                        |
-| --- | ----------------------------------------------------------------- | ----------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Per-channel performance report**                                | reporting         | M      | 🟢   | Beyond profit-by-channel: payment-method mix, return rate by channel, fulfillment time, turnover. Charts (see redesign). (Partly shipped: revenue share, AOV, return rate, trend matrix.)    |
-| 2   | **Phase 6: scheduled reconciliation + provider-health dashboard** | queue/marketplace | L      | 🟢   | Daily per-connection drift detect (pull external → compare → log); connection test endpoint (Lazada `validateStockSync` exists, unused) + health widget. High-value once real adapters live. |
-| 3   | **Supplier entity + per-supplier lead time**                      | purchasing        | L      | 🟡   | `Supplier` + `PurchaseOrder.supplierId`; per-supplier `leadTimeDays`/MOQ the reorder report prefers over the variant default. (Free-text `supplierName` today.) Precursor to AP.             |
+| #   | Item                                                                 | Module            | Effort | Gate | Notes                                                                                                                                                                                                                    |
+| --- | -------------------------------------------------------------------- | ----------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **Per-channel performance report**                                   | reporting         | M      | 🟢   | Beyond profit-by-channel: payment-method mix, return rate by channel, fulfillment time, turnover. Charts (see redesign). (Partly shipped: revenue share, AOV, return rate, trend matrix.)                                |
+| 2   | ✅ **Phase 6: scheduled reconciliation + provider-health dashboard** | queue/marketplace | L      | 🟢   | **Shipped 2026-06-15** (see ✅ section above): on-demand + scheduled drift detect, on-read provider-health dashboard + nav pulse, scheduled token auto-refresh. Deferred: persistent drift audit-log + alert thresholds. |
+| 3   | **Supplier entity + per-supplier lead time**                         | purchasing        | L      | 🟡   | `Supplier` + `PurchaseOrder.supplierId`; per-supplier `leadTimeDays`/MOQ the reorder report prefers over the variant default. (Free-text `supplierName` today.) Precursor to AP.                                         |
 
-> _Shipped from this table: **Dead-stock & ABC analysis** + **Stock opname / cycle count** (2026-06-11)._
+> _Shipped from this table: **Dead-stock & ABC analysis** + **Stock opname / cycle count** (2026-06-11)
+> · **Phase 6 reconciliation + provider-health + token auto-refresh** (2026-06-15)._
 
 ## 🛰️ Big bets (multi-session / gated, sequenced later)
 
 | #   | Item                                                                        | Effort   | Gate | Notes                                                                                                                                                                                                                                                                                                                                                               |
 | --- | --------------------------------------------------------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A   | **Notification engine** (in-app tray + WhatsApp)                            | L        | 🔴   | Low-stock / new-order / return / below-cost / dead-connection alerts + preferences. `Notification`/`NotificationPreference` + a send worker + a topbar tray. In-app tray can ship un-gated; **WhatsApp Business approval (Meta, slow in ID)** gates the WA channel. The retention hook.                                                                             |
-| B   | **Marketplace token auto-refresh + OAuth callback**                         | L        | 🟡   | **Lazada DONE (2026-06-14, `session/lazada-integration`):** OAuth authorize+callback, manual token-refresh route, test-connection; `encryptedRefreshToken` now used. Remaining: a SCHEDULED refresh worker (refresh is manual-route only) + OAuth callbacks for the other providers.                                                                                |
+| B   | **Marketplace token auto-refresh + OAuth callback**                         | L        | 🟡   | **Lazada DONE (2026-06-14):** OAuth authorize+callback, manual token-refresh route, test-connection. **Scheduled refresh worker DONE (2026-06-15, `refresh-marketplace-tokens` daily):** renews Lazada tokens nearing expiry. Remaining: OAuth callbacks for the other providers.                                                                                   |
 | C   | **Real Shopee / Tokopedia / TikTok adapters**                               | L (each) | 🔴   | **Lazada is now REAL + OAuth-onboarded + live-validated** (import works; stock-WRITE blocked by Lazada seller eligibility/dropshipping-warehouse, not Falka code). Shopee/Tokopedia/TikTok each still need OAuth + signed client + import + stock-sync + webhook/poll — reuse the Lazada OAuth pattern. **Start Shopee partner paperwork now — 6–12 wk lead time.** |
 | D   | **Courier aggregator (Biteship / RajaOngkir) + AWB at the packing station** | L        | 🔴   | Rate lookup, courier select, print AWB where `noResi` appears. `CourierProvider` + `ShippingLabel`. Needs API key/sandbox.                                                                                                                                                                                                                                          |
 | E   | **Multi-location / warehouse stock + transfers**                            | L        | 🟡   | Scope stock to `(variantId, locationId)`, `StockTransfer` ledger reason, location-aware pickers, per-location available summed to each channel. Foundational — rewrites inventory queries; sequence after Phase 6.                                                                                                                                                  |

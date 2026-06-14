@@ -185,8 +185,35 @@ SECRET` identical web↔worker. (8) `SELLER_NOT_PERMITTED`/E501 on stock-write =
   **account/warehouse** rule (dropshipping / post-2022 eligibility), NOT a code bug — worker treats E501 as
   non-retryable.
 - **Deferred:** multi-region per-connection `region`/`baseUrl` (needs migration — currently one env
-  `LAZADA_API_BASE_URL`); a scheduled refresh worker (refresh is manual-route only); a real self-fulfilled
-  stock-write success test.
+  `LAZADA_API_BASE_URL`); a real self-fulfilled stock-write success test.
+
+## Phase 6 — provider-health + drift reconciliation + token auto-refresh (shipped 2026-06-15)
+- **Zero DB migration, observe-only.** Internal `available` is the SoT; drift is only SURFACED, never
+  auto-corrected — the only fix is a manual re-push (`syncNow`). Health is computed on-read from existing
+  fields; no new tables.
+- **`computeStockDrift`** (`@falka/queue/marketplace-sync/drift.ts`, pure, unit-tested in
+  `apps/web/test/marketplace/drift.test.ts`): joins mapped listings to a fresh provider pull and classifies
+  each `in_sync | over (external > internal = oversell risk) | under | missing_external`, plus an
+  `unmappedExternal` count. Lives in `@falka/queue` so the worker job and the web service compute identically;
+  the web client only imports the TYPES (erased), never runtime.
+- **Web:** `marketplaceHealthService.listHealth/getHealth` (token lifecycle + sync coverage + needs-review +
+  failed pushes + recent sync → `ok|warn|danger` tone); `marketplaceReconciliationService.checkDrift` (pulls
+  live external via the import adapter, read-only, reuses `findDriftMappedListings` from `@falka/queue`).
+  Routes: `GET /api/v1/marketplaces/health` + `/[id]/health` (**marketplace.view**) · `POST /[id]/drift-check`
+  (**marketplace.manage** — it calls the provider). UI: a **"Kesehatan & drift"** panel on the connection
+  detail (health summary + "Periksa drift" + per-row "Sync sekarang"), dashboard health badges/summary, and a
+  `marketplaceUnhealthy` nav pulse (gated by `marketplace.view`).
+- **Worker (VPS/dev only — gated off on Vercel):** `MARKETPLACE_RECONCILE` queue runs two daily scheduled
+  jobs via job-name routing — `reconcile-marketplace-drift` (per active connection: rate-limited
+  `adapter.fetchListings` → `computeStockDrift` → **log** over/under/missing; stub providers return `null` →
+  skipped; best-effort per connection) and `refresh-marketplace-tokens` (renews Lazada tokens expiring within
+  the window via the stored refresh token, re-seals with `@falka/utils` crypto). Drift/token data-access
+  (`findActiveConnectionsForDrift`, `findDriftMappedListings`, `findConnectionsForTokenRefresh`,
+  `applyRefreshedConnectionTokens`) lives in `@falka/queue`; `findDriftMappedListings` is always called with the
+  connection's OWN `organizationId` (no cross-tenant read). The stock-provider adapter gained
+  `fetchListings(): ProviderListingSnapshot[] | null` (Lazada via the shared `fetchLazadaListings`).
+- **Deferred:** a persistent drift audit-log + configurable alert thresholds; OAuth callbacks for the other
+  providers.
 
 ## Cross-module composition (respect boundary §3)
 - catalog→inventory ONLY via the inventory service (no cross-table writes). orders→inventory via

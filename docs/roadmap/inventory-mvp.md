@@ -9,7 +9,8 @@
 > write-off) · **discount + PPN at POS, partial/per-item refund** shipped · **reporting (per-channel
 > performance + dead-stock & ABC)** and **stock opname / cycle count** (with a phone `OPNAME` pairing that
 > tallies +1 per scan) shipped (2026-06-11/12) · Started 2026-06-03 · Owner: @willywnt · Next: see
-> [`backlog.md`](./backlog.md) · Phase 6 (scheduled reconciliation / provider-health) still partly open.
+> [`backlog.md`](./backlog.md) · Phase 6 (provider-health dashboard + drift reconciliation + token
+> auto-refresh worker) shipped 2026-06-15.
 >
 > This is the working reference for the next big MVP: an **internal inventory system
 > that is the source of truth**, integrating stock across marketplaces (Shopee,
@@ -85,9 +86,18 @@ per change, all gates green (`typecheck`/`lint`/`build`/`test`).
   case-insensitive `noResi`; station **pack view** (what to pack), **auto-fulfill** on packing-video
   complete (`Order.fulfilledAt`), packing-video **evidence** on orders/returns, links both ways.
   (Formal `Recording.orderId` FK + pre-order backfill deferred — noResi-join for now.)
-- **Phase 6 — Automation & reporting** — ⏳ **open**. Scheduled reconciliation (drift), provider-health
-  dashboard, token auto-refresh worker, channel-performance / dead-stock reports. (Reorder intelligence
-  — velocity → days-of-cover → suggested qty, dead-stock status — already shipped in `inventory`.)
+- **Phase 6 — Automation & reporting** — ✅ **mostly shipped** (2026-06-15). **Provider-health dashboard**
+  (per-connection health computed on-read: token lifecycle, sync coverage, needs-review, failed pushes,
+  recent sync → ok/warn/danger tone; badges on the marketplace list + a "Kesehatan & drift" panel on the
+  connection detail + a `marketplaceUnhealthy` nav pulse). **Drift reconciliation** (`computeStockDrift`,
+  pure + unit-tested): on-demand "Periksa drift" pulls live external stock and compares to internal
+  available (over/under/missing), **observe-only** — internal stays the SoT, fixes are a manual re-push;
+  a **scheduled BullMQ job** (`reconcile-marketplace-drift`, daily) logs drift per active connection.
+  **Token auto-refresh worker** (`refresh-marketplace-tokens`, daily) renews Lazada tokens nearing expiry.
+  Zero DB migration (drift computed on-read, health from existing fields). Channel-performance / dead-stock
+  reports already shipped in `reporting`. (Reorder intelligence — velocity → days-of-cover → suggested qty,
+  dead-stock status — shipped in `inventory`.) Remaining: a persistent drift audit-log + alert thresholds,
+  and OAuth callbacks for the other providers (Lazada only today).
 - **Counter & restock verticals** (beyond the marketplace-sync phases, same SoT) — ✅ **shipped**:
   - **Offline sales / POS** (`sales` module) — counter sale decrements the SoT immediately
     (`applyOfflineSaleTx`: available−, ledger `SALE`/source `POS`, oversell allowed) and propagates to

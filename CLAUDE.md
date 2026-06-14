@@ -243,6 +243,14 @@ REAL, OAuth-onboarded, live-validated adapter** — Shopee/Tokopedia stay STUBS)
   `R2_PRODUCTS_BUCKET_NAME`+`R2_PRODUCTS_PUBLIC_URL`.
 - **Outbound sync** lives in `packages/queue/src/marketplace-sync` (worker): a SoT change enqueues
   `propagate-inventory-stock` → `sync-marketplace-stock` → provider adapter (Dev stub simulates).
+- **Phase 6 — provider-health + drift reconciliation + token auto-refresh** (shipped 2026-06-15,
+  zero-migration, **observe-only**): per-connection health computed on-read (`marketplaceHealthService` →
+  ok/warn/danger) drives a "Kesehatan & drift" panel + dashboard badges + a `marketplaceUnhealthy` nav
+  pulse; `computeStockDrift` (pure, in `@falka/queue`, shared by web + worker) compares a live external
+  pull vs internal `available` (over/under/missing) for an on-demand `POST /[id]/drift-check`
+  (marketplace.manage; health reads = marketplace.view) and a daily worker job — internal stays the SoT,
+  drift is only surfaced (fix = manual re-push). A daily `refresh-marketplace-tokens` worker renews Lazada
+  tokens nearing expiry. Detail: `.cursor/rules/40-inventory-marketplace.mdc` (Phase 6 section).
 - **Inbound order stock lifecycle** (each stage once, idempotent via `Order.inventoryAppliedAt`/
   `inventoryShippedAt`/`inventoryRevertedAt`): RESERVE on PAID (`available−`, `reserved+`) → SHIP on
   SHIPPED/COMPLETED (consume reservation, `reserved−`, available unchanged) → RELEASE on
