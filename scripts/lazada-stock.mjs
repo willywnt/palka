@@ -5,7 +5,8 @@
  * throwaway test SKU.
  *
  * Usage (builds the provider package first):
- *   pnpm lazada:stock <access_token> <seller_sku> <quantity>
+ *   pnpm lazada:stock <access_token> <item_id> <sku_id> <quantity>
+ * (item_id + sku_id come from the import dump; Lazada deprecated SellerSku for this API.)
  *
  * Reads LAZADA_APP_KEY / LAZADA_APP_SECRET / LAZADA_API_BASE_URL from .env or apps/web/.env.local.
  */
@@ -39,7 +40,7 @@ loadEnvFiles();
 const appKey = process.env.LAZADA_APP_KEY;
 const appSecret = process.env.LAZADA_APP_SECRET;
 const baseUrl = process.env.LAZADA_API_BASE_URL ?? 'https://api.lazada.co.id/rest';
-const [, , accessToken, sellerSku, quantityArg] = process.argv;
+const [, , accessToken, itemId, skuId, quantityArg] = process.argv;
 const quantity = Number(quantityArg);
 
 if (!appKey || !appSecret) {
@@ -48,13 +49,17 @@ if (!appKey || !appSecret) {
   );
   process.exit(1);
 }
-if (!accessToken || !sellerSku || !Number.isFinite(quantity)) {
-  console.error('Usage: pnpm lazada:stock <access_token> <seller_sku> <quantity>');
+if (!accessToken || !itemId || !skuId || !Number.isFinite(quantity)) {
+  console.error('Usage: pnpm lazada:stock <access_token> <item_id> <sku_id> <quantity>');
   process.exit(1);
 }
 
-const payload = buildLazadaQuantityPayload({ externalSku: sellerSku, quantity });
-console.log(`Pushing quantity=${quantity} to SellerSku=${sellerSku}`);
+const payload = buildLazadaQuantityPayload({
+  externalProductId: itemId,
+  externalVariantId: skuId,
+  quantity,
+});
+console.log(`Pushing quantity=${quantity} to ItemId=${itemId} SkuId=${skuId}`);
 console.log(`payload: ${payload}`);
 
 const client = createLazadaClient({ appKey, appSecret, baseUrl });
@@ -72,7 +77,7 @@ console.log(JSON.stringify(res.raw, null, 2));
 
 if (isLazadaSuccess(res)) {
   console.log(
-    `\n✅ Stock pushed. Check ${sellerSku} in Lazada Seller Center — it should read ${quantity}.`,
+    `\n✅ Stock pushed. Check SkuId ${skuId} in Lazada Seller Center — it should read ${quantity}.`,
   );
 } else {
   console.log('\n❌ Push failed — paste this whole output.');

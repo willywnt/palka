@@ -18,15 +18,18 @@ export type LazadaStockPayloadInput = {
 };
 
 /**
- * LazOP `/product/price_quantity/update` payload, keyed by SellerSku when known, else
- * ItemId+SkuId. Shared by the worker stock provider and the dev verification script so the
- * payload we test is exactly the one that ships.
+ * LazOP `/product/price_quantity/update` payload. Lazada DEPRECATED SellerSku for this
+ * endpoint (E0501: "The SellerSku parameter is no longer supported. Please update your
+ * parameter to use SkuId"), so identify by ItemId + SkuId; SellerSku is only a last-resort
+ * fallback for the rare case an item/sku id is missing. Shared by the worker stock provider
+ * and the dev verification script so the payload we test is exactly the one that ships.
  */
 export function buildLazadaQuantityPayload(input: LazadaStockPayloadInput): string {
-  const identity = input.externalSku
-    ? `<SellerSku>${escapeXml(input.externalSku)}</SellerSku>`
-    : `<ItemId>${escapeXml(input.externalProductId ?? '')}</ItemId>` +
-      `<SkuId>${escapeXml(input.externalVariantId ?? '')}</SkuId>`;
+  const identity =
+    input.externalProductId && input.externalVariantId
+      ? `<ItemId>${escapeXml(input.externalProductId)}</ItemId>` +
+        `<SkuId>${escapeXml(input.externalVariantId)}</SkuId>`
+      : `<SellerSku>${escapeXml(input.externalSku ?? '')}</SellerSku>`;
 
   return `<Request><Product><Skus><Sku>${identity}<Quantity>${input.quantity}</Quantity></Sku></Skus></Product></Request>`;
 }
