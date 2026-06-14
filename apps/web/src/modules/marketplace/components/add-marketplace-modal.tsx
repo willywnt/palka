@@ -99,8 +99,8 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
         <DialogHeader>
           <DialogTitle>Hubungkan toko marketplace</DialogTitle>
           <DialogDescription>
-            Untuk sekarang koneksinya masih simulasi. Nanti pakai login OAuth, jadi nggak perlu isi
-            token manual lagi.
+            Lazada pakai login OAuth — token diisi otomatis, tidak perlu paste manual. Provider lain
+            sementara isi token manual.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,6 +143,26 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
               )}
             />
 
+            {selectedProvider === MarketplaceProvider.LAZADA && (
+              <div className="bg-muted/40 space-y-3 rounded-lg border p-3">
+                <p className="text-muted-foreground text-sm">
+                  Login & izinkan akses sebagai seller Lazada — kodenya ditukar jadi token dan
+                  koneksinya dibuat otomatis. Tidak perlu isi token di bawah.
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = '/api/v1/marketplaces/lazada/oauth/authorize';
+                  }}
+                >
+                  Hubungkan dengan Lazada (OAuth)
+                </Button>
+                <p className="text-muted-foreground text-xs">
+                  Atau isi token manual di bawah (untuk dev/fallback).
+                </p>
+              </div>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
@@ -182,7 +202,7 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Access token OAuth (simulasi)"
+                      placeholder="Access token (manual / dev)"
                       autoComplete="off"
                       {...field}
                     />
@@ -204,7 +224,7 @@ export function AddMarketplaceModal({ open, onOpenChange }: AddMarketplaceModalP
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Refresh token (simulasi)"
+                      placeholder="Refresh token (manual / dev)"
                       autoComplete="off"
                       {...field}
                     />
