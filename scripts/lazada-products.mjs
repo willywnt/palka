@@ -60,14 +60,15 @@ console.log(`  requestId: ${res.requestId ?? '-'}`);
 
 if (res.code !== '0') {
   console.log('\n❌ Call failed — paste this whole output.');
-  process.exit(1);
+  // exitCode (not exit()) so we don't abort while the fetch handle is still closing (Node/Windows).
+  process.exitCode = 1;
+} else {
+  const data = res.raw.data ?? {};
+  const products = Array.isArray(data.products) ? data.products : [];
+  console.log(
+    `\ntotal_products: ${data.total_products ?? '?'}   products returned: ${products.length}`,
+  );
+  console.log('\n--- first up to 2 products (raw shape) ---');
+  console.log(JSON.stringify(products.slice(0, 2), null, 2));
+  console.log('\nPaste the block above so we can confirm/fix the import field mapping.');
 }
-
-const data = res.raw.data ?? {};
-const products = Array.isArray(data.products) ? data.products : [];
-console.log(
-  `\ntotal_products: ${data.total_products ?? '?'}   products returned: ${products.length}`,
-);
-console.log('\n--- first up to 2 products (raw shape) ---');
-console.log(JSON.stringify(products.slice(0, 2), null, 2));
-console.log('\nPaste the block above so we can confirm/fix the import field mapping.');

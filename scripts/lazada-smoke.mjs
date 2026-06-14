@@ -69,7 +69,9 @@ if (sigError) {
   console.log(
     '\n❌ Looks like a SIGNATURE error — check app_key/app_secret and the signing string.',
   );
-  process.exit(1);
+  // exitCode (not exit()) so we don't abort while the fetch handle is still closing (Node/Windows).
+  process.exitCode = 1;
+} else {
+  console.log('\n✅ Signature accepted (the code error is expected — it was a dummy code).');
+  console.log('   Next: get a real authorization code, then `pnpm lazada:token <code>`.');
 }
-console.log('\n✅ Signature accepted (the code error is expected — it was a dummy code).');
-console.log('   Next: get a real authorization code, then `node scripts/lazada-token.mjs <code>`.');
