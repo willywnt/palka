@@ -13,6 +13,7 @@ export const marketplaceKeys = {
   all: ['marketplace-connections'] as const,
   list: () => ['marketplace-connections', 'list'] as const,
   detail: (id: string) => ['marketplace-connections', 'detail', id] as const,
+  health: () => ['marketplace-connections', 'health'] as const,
 };
 
 export function useMarketplaceConnectionsQuery() {
