@@ -207,10 +207,12 @@ socket by forcing `transports: ['websocket']` (see scanner rules — it is NOT a
 
 ## 11. Workflow
 
-Analyze & explain before changing · work incrementally **per-module** · **one logical
-commit per change** · keep all gates green at every commit · report potential
-bug/security/race/perf as **separate suggestions** (don't silently change) · when unsure
-between approaches, **ASK** — boundary beats dedup.
+**ALWAYS branch off `main` before writing code — NEVER commit on `main`.** Solo dev: use
+**ONE branch per SESSION** (not per feature — keep branch count low); branch name is loose,
+but **commits must be clear and per-action**. · Analyze & explain before changing · work
+incrementally **per-module** · **one logical commit per change** · keep all gates green at
+every commit · report potential bug/security/race/perf as **separate suggestions** (don't
+silently change) · when unsure between approaches, **ASK** — boundary beats dedup.
 
 ## 12. Inventory / Marketplace MVP (catalog · inventory · marketplace · orders · returns · sales/POS · purchasing · order-aware recordings)
 
