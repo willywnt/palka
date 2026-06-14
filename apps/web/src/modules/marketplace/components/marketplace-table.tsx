@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { MoreHorizontal, Unplug } from 'lucide-react';
 
-import type { MarketplaceConnectionListItem } from '../types';
+import type { MarketplaceConnectionHealth, MarketplaceConnectionListItem } from '../types';
+import { MARKETPLACE_HEALTH_LABELS } from '../types';
 import {
   formatTokenExpiry,
   formatTokenExpiryRelative,
@@ -38,14 +39,23 @@ function isExpiringSoon(connection: MarketplaceConnectionListItem): boolean {
 
 export function MarketplaceTable({
   connections,
+  health,
   onDisconnect,
   isDisconnecting,
 }: {
   connections: MarketplaceConnectionListItem[];
+  /** Per-connection health verdict (keyed by connection id) for the at-a-glance badge. */
+  health?: Map<string, MarketplaceConnectionHealth>;
   onDisconnect: (connection: MarketplaceConnectionListItem) => void;
   isDisconnecting?: boolean;
 }) {
   const { allowed: canManage } = useHasPermission('marketplace.manage');
+
+  function renderHealthBadge(connectionId: string) {
+    const tone = health?.get(connectionId)?.tone;
+    if (!tone) return null;
+    return <StatusBadge tone={tone}>{MARKETPLACE_HEALTH_LABELS[tone]}</StatusBadge>;
+  }
 
   // The ⋯ menu — shared by the sm+ table and the <sm card list. Disconnect is
   // its only entry, so without the permission there's no menu at all (cosmetic; server guards).
@@ -106,6 +116,7 @@ export function MarketplaceTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap items-center gap-1.5">
+                    {renderHealthBadge(connection.id)}
                     <MarketplaceStatusBadge status={connection.connectionStatus} />
                     {(connection.failedSyncCount ?? 0) > 0 ? (
                       <StatusBadge tone="danger">
@@ -161,6 +172,7 @@ export function MarketplaceTable({
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <MarketplaceProviderBadge provider={connection.provider} />
+              {renderHealthBadge(connection.id)}
               <MarketplaceStatusBadge status={connection.connectionStatus} />
               {(connection.failedSyncCount ?? 0) > 0 ? (
                 <StatusBadge tone="danger">

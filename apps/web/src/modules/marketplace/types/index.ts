@@ -1,4 +1,4 @@
-import type { StockDriftSummary } from '@falka/queue';
+import type { StockDriftStatus, StockDriftSummary } from '@falka/queue';
 import type {
   MarketplaceMappingStatus,
   MarketplaceProvider,
@@ -103,9 +103,33 @@ export type MarketplaceConnectionHealth = {
   tone: MarketplaceHealthTone;
 };
 
+export const MARKETPLACE_HEALTH_LABELS: Record<MarketplaceHealthTone, string> = {
+  ok: 'Sehat',
+  warn: 'Perlu perhatian',
+  danger: 'Bermasalah',
+};
+
 // Drift shapes live in @falka/queue so the worker reconciliation job and this
 // web service compute drift the same way; re-exported here for the client.
 export type { StockDriftLine, StockDriftStatus, StockDriftSummary } from '@falka/queue';
+
+export const STOCK_DRIFT_STATUS_LABELS: Record<StockDriftStatus, string> = {
+  in_sync: 'Sinkron',
+  over: 'Marketplace lebih banyak',
+  under: 'Marketplace lebih sedikit',
+  missing_external: 'Hilang di marketplace',
+};
+
+/** Status tone for the drift badge — over (oversell) is the most dangerous. */
+export const STOCK_DRIFT_STATUS_TONE: Record<
+  StockDriftStatus,
+  'ok' | 'warn' | 'danger' | 'neutral'
+> = {
+  in_sync: 'ok',
+  over: 'danger',
+  under: 'warn',
+  missing_external: 'neutral',
+};
 
 /** The result of a live drift check against one connection's provider. */
 export type MarketplaceDriftReport = {

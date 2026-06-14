@@ -38,7 +38,11 @@ import type { PermissionKey } from '@/modules/users/permissions/catalog';
  */
 
 /** Live "needs my attention" counters served by use-ops-pulse. */
-export type OpsPulseKey = 'ordersToShip' | 'returnsPending' | 'restockUrgent';
+export type OpsPulseKey =
+  | 'ordersToShip'
+  | 'returnsPending'
+  | 'restockUrgent'
+  | 'marketplaceUnhealthy';
 
 export type NavItem = {
   title: string;
@@ -90,6 +94,7 @@ export const sidebarNavSections: readonly NavSection[] = [
         title: 'Marketplace',
         href: '/dashboard/marketplace',
         icon: ShoppingBag,
+        pulse: 'marketplaceUnhealthy',
         keywords: ['marketplace', 'shopee', 'tokopedia', 'lazada', 'listing', 'toko', 'sinkron'],
         permission: 'marketplace.view',
       },

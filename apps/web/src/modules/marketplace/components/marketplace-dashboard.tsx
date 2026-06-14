@@ -1,18 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, ShoppingBag } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, ShieldAlert, ShieldCheck, ShoppingBag, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
+import { StatCard } from '@/components/stat-card';
 import { useHasPermission } from '@/modules/users/hooks/use-org';
 
-import type { MarketplaceConnectionListItem } from '../types';
+import type { MarketplaceConnectionHealth, MarketplaceConnectionListItem } from '../types';
 import {
   useDisconnectMarketplaceMutation,
   useMarketplaceConnectionsQuery,
 } from '../hooks/use-marketplace-connections';
+import { useMarketplaceHealthQuery } from '../hooks/use-marketplace-health';
 import { AddMarketplaceModal } from './add-marketplace-modal';
 import { DisconnectMarketplaceDialog } from './disconnect-marketplace-dialog';
 import { MarketplaceTable } from './marketplace-table';
@@ -26,8 +28,22 @@ export function MarketplaceDashboard() {
   );
 
   const { data, isLoading, error, refetch } = useMarketplaceConnectionsQuery();
+  const healthQuery = useMarketplaceHealthQuery();
   const disconnectMutation = useDisconnectMarketplaceMutation();
   const { allowed: canManage } = useHasPermission('marketplace.manage');
+
+  const healthMap = useMemo(
+    () =>
+      new Map<string, MarketplaceConnectionHealth>(
+        (healthQuery.data ?? []).map((item) => [item.connectionId, item]),
+      ),
+    [healthQuery.data],
+  );
+  const healthCounts = useMemo(() => {
+    const counts = { ok: 0, warn: 0, danger: 0 };
+    for (const item of healthQuery.data ?? []) counts[item.tone] += 1;
+    return counts;
+  }, [healthQuery.data]);
 
   // The Lazada OAuth callback redirects back here with ?lazada=connected|error — toast once,
   // then strip the param so a refresh doesn't repeat it.
@@ -115,11 +131,38 @@ export function MarketplaceDashboard() {
           description="Hubungkan toko Shopee atau Tokopedia biar stok dan pesanannya bisa disinkronisasi."
         />
       ) : (
-        <MarketplaceTable
-          connections={data ?? []}
-          onDisconnect={setDisconnectTarget}
-          isDisconnecting={disconnectMutation.isPending}
-        />
+        <>
+          {healthQuery.data && healthQuery.data.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <StatCard
+                label="Channel sehat"
+                value={healthCounts.ok}
+                icon={ShieldCheck}
+                tone="emerald"
+              />
+              <StatCard
+                label="Perlu perhatian"
+                value={healthCounts.warn}
+                icon={TriangleAlert}
+                tone="amber"
+                accentClassName={healthCounts.warn > 0 ? 'text-status-warn' : undefined}
+              />
+              <StatCard
+                label="Bermasalah"
+                value={healthCounts.danger}
+                icon={ShieldAlert}
+                tone="rose"
+                accentClassName={healthCounts.danger > 0 ? 'text-destructive' : undefined}
+              />
+            </div>
+          ) : null}
+          <MarketplaceTable
+            connections={data ?? []}
+            health={healthMap}
+            onDisconnect={setDisconnectTarget}
+            isDisconnecting={disconnectMutation.isPending}
+          />
+        </>
       )}
 
       <AddMarketplaceModal open={addOpen} onOpenChange={setAddOpen} />

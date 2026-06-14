@@ -28,6 +28,25 @@ export function useMarketplaceHealthQuery(enabled = true) {
   });
 }
 
+/** One connection's health for the detail "Kesehatan & drift" panel. */
+export function useMarketplaceConnectionHealthQuery(connectionId: string, enabled = true) {
+  return useQuery({
+    queryKey: marketplaceKeys.healthDetail(connectionId),
+    queryFn: async () => {
+      const result = await apiFetch<MarketplaceConnectionHealth>(
+        `${apiRoutes.marketplace}/${connectionId}/health`,
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    enabled: Boolean(connectionId) && enabled,
+  });
+}
+
 /** Run a live drift check against one connection's provider (read-only, on demand). */
 export function useDriftCheckMutation(connectionId: string) {
   return useMutation({

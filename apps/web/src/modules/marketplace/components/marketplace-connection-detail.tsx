@@ -50,6 +50,7 @@ import {
   useUnmapListingMutation,
 } from '../hooks/use-marketplace-listings';
 import type { MarketplaceListingItem, MarketplaceListingMapping } from '../types';
+import { MarketplaceHealthPanel } from './marketplace-health-panel';
 import { MarketplaceProviderBadge } from './marketplace-provider-badge';
 
 function SyncStatusBadge({ mapping }: { mapping: MarketplaceListingMapping }) {
@@ -408,6 +409,8 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
           </div>
         ) : null}
       </div>
+
+      <MarketplaceHealthPanel connectionId={connectionId} />
 
       {listings.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
