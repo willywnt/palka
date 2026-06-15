@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { prisma } from '@falka/db';
+import { buildPaginatedResult, prisma, type PaginatedResult } from '@falka/db';
 import { buildManualRetryEventId, enqueuePropagateInventoryStock } from '@falka/queue';
 import type { MarketplaceProvider, Prisma } from '@prisma/client';
 
@@ -9,6 +9,25 @@ import { appLogger } from '@/lib/logger';
 import { MarketplaceError } from '../errors/marketplace-errors';
 import type { MarketplaceListingItem, MarketplaceSuggestedVariant } from '../types';
 import { buildVariantSkuIndex, matchSku, type VariantSkuIndex } from '../utils/sku-match';
+import type { ListingStatusFilter, ListListingsQuery } from '../validators/list-listings';
+
+/** Translate a listing status lens into a Prisma where-fragment over the mapping relation. */
+function listingStatusWhere(
+  status: ListingStatusFilter | undefined,
+): Prisma.MarketplaceProductWhereInput {
+  switch (status) {
+    case 'mapped':
+      return { mapping: { isNot: null } };
+    case 'unmapped':
+      return { mapping: { is: null } };
+    case 'needs_review':
+      return { mapping: { mappingStatus: 'NEEDS_REVIEW' } };
+    case 'sync_failed':
+      return { mapping: { lastSyncStatus: 'FAILED' } };
+    default:
+      return {};
+  }
+}
 
 const LISTING_INCLUDE = {
   mapping: {
@@ -64,17 +83,43 @@ export class MarketplaceMappingService {
   async listListings(
     organizationId: string,
     connectionId: string,
-  ): Promise<MarketplaceListingItem[]> {
+    query: ListListingsQuery,
+  ): Promise<PaginatedResult<MarketplaceListingItem>> {
     await this.assertConnectionOwned(organizationId, connectionId);
 
-    const rows = await prisma.marketplaceProduct.findMany({
-      where: { marketplaceConnectionId: connectionId, organizationId, deletedAt: null },
-      include: LISTING_INCLUDE,
-      orderBy: [{ externalProductName: 'asc' }, { externalVariantName: 'asc' }],
-    });
+    const search = query.search?.trim();
+    const where: Prisma.MarketplaceProductWhereInput = {
+      marketplaceConnectionId: connectionId,
+      organizationId,
+      deletedAt: null,
+      ...(search
+        ? {
+            OR: [
+              { externalSku: { contains: search, mode: 'insensitive' } },
+              { externalProductName: { contains: search, mode: 'insensitive' } },
+              { externalVariantName: { contains: search, mode: 'insensitive' } },
+              { externalProductId: { contains: search } },
+              { externalVariantId: { contains: search } },
+            ],
+          }
+        : {}),
+      ...listingStatusWhere(query.status),
+    };
+
+    const [rows, total] = await Promise.all([
+      prisma.marketplaceProduct.findMany({
+        where,
+        include: LISTING_INCLUDE,
+        orderBy: [{ externalProductName: 'asc' }, { externalVariantName: 'asc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      prisma.marketplaceProduct.count({ where }),
+    ]);
 
     const context = await this.buildSuggestionContext(organizationId, rows);
-    return rows.map((row) => toListingItem(row, this.suggestionFor(row, context)));
+    const items = rows.map((row) => toListingItem(row, this.suggestionFor(row, context)));
+    return buildPaginatedResult(items, total, query.page, query.pageSize);
   }
 
   async mapListing(

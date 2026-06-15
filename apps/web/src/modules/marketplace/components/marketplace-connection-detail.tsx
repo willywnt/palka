@@ -9,13 +9,15 @@ import {
   Link2Off,
   PlugZap,
   RefreshCw,
-  ShoppingCart,
+  Search,
   Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -27,11 +29,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { EllipsisTooltip } from '@/components/ui/action-tooltip';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
-import { StatCard } from '@/components/stat-card';
 import { StatusBadge } from '@/components/status-badge';
+import { TablePagination } from '@/components/table-pagination';
 import { VariantPickerDialog } from '@/components/variant-picker-dialog';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { usePagination } from '@/hooks/use-pagination';
 import { formatDateTime } from '@/lib/formatters';
 import { useHasPermission } from '@/modules/users/hooks/use-org';
 
@@ -50,8 +55,25 @@ import {
   useUnmapListingMutation,
 } from '../hooks/use-marketplace-listings';
 import type { MarketplaceListingItem, MarketplaceListingMapping } from '../types';
+import { LISTING_STATUS_FILTERS, type ListingStatusFilter } from '../validators/list-listings';
 import { MarketplaceHealthPanel } from './marketplace-health-panel';
 import { MarketplaceProviderBadge } from './marketplace-provider-badge';
+
+const ALL_STATUS = 'all' as const;
+
+const LISTING_STATUS_LABELS: Record<ListingStatusFilter | typeof ALL_STATUS, string> = {
+  all: 'Semua listing',
+  unmapped: 'Belum dikaitkan',
+  needs_review: 'Perlu ditinjau',
+  mapped: 'Sudah dikaitkan',
+  sync_failed: 'Gagal sinkron',
+};
+
+/** "variant · sku" line under the listing name (or — when neither is set). */
+function listingSubtitle(listing: MarketplaceListingItem): string {
+  const parts = [listing.externalVariantName, listing.externalSku].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : '—';
+}
 
 function SyncStatusBadge({ mapping }: { mapping: MarketplaceListingMapping }) {
   if (!mapping.syncEnabled) return null;
@@ -82,8 +104,18 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
   const [mapTarget, setMapTarget] = useState<string | null>(null);
   const { allowed: canManage } = useHasPermission('marketplace.manage');
 
+  const { page, setPage, pageSize, setPageSize } = usePagination(20);
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebouncedValue(searchInput, 300);
+  const [statusFilter, setStatusFilter] = useState<ListingStatusFilter | typeof ALL_STATUS>(
+    ALL_STATUS,
+  );
+
   const connectionQuery = useMarketplaceConnectionQuery(connectionId);
-  const listingsQuery = useMarketplaceListingsQuery(connectionId);
+  const listingsQuery = useMarketplaceListingsQuery(connectionId, page, pageSize, {
+    search,
+    status: statusFilter === ALL_STATUS ? undefined : statusFilter,
+  });
   const importMutation = useImportListingsMutation(connectionId);
   const rerunMutation = useRerunAutoMapMutation(connectionId);
   const mapMutation = useMapListingMutation(connectionId);
@@ -196,12 +228,10 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
   }
 
   const connection = connectionQuery.data;
-  const listings = listingsQuery.data ?? [];
-  const mappedCount = listings.filter((listing) => listing.mapping).length;
-  const syncOnCount = listings.filter((listing) => listing.mapping?.syncEnabled).length;
-  const reviewCount = listings.filter(
-    (listing) => listing.mapping?.mappingStatus === 'NEEDS_REVIEW',
-  ).length;
+  const listings = listingsQuery.data?.items ?? [];
+  const listingsMeta = listingsQuery.data?.meta;
+  const totalListings = listingsMeta?.total ?? 0;
+  const hasFilter = search.trim().length > 0 || statusFilter !== ALL_STATUS;
 
   // Mapping summary (SKU badge + status + last-sync stamp) — shared by table & cards.
   function renderMappingInfo(mapping: MarketplaceListingMapping | null) {
@@ -397,7 +427,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
             <Button
               variant="outline"
               onClick={() => void handleRerunAutoMap()}
-              disabled={rerunMutation.isPending || listings.length === 0}
+              disabled={rerunMutation.isPending || totalListings === 0}
             >
               <Wand2 className="size-4" />
               {rerunMutation.isPending ? 'Mengaitkan...' : 'Auto-kait lagi'}
@@ -412,31 +442,36 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
 
       <MarketplaceHealthPanel connectionId={connectionId} />
 
-      {listings.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Listing" value={listings.length} icon={ShoppingCart} tone="sky" />
-          <StatCard
-            label="Sudah dikaitkan"
-            value={mappedCount}
-            icon={Link2}
-            tone="emerald"
-            hint={`${listings.length - mappedCount} belum dikaitkan`}
-          />
-          <StatCard
-            label="Sinkronisasi aktif"
-            value={syncOnCount}
-            icon={RefreshCw}
-            tone="primary"
-          />
-          <StatCard
-            label="Perlu ditinjau"
-            value={reviewCount}
-            icon={Wand2}
-            tone="amber"
-            accentClassName={reviewCount > 0 ? 'text-status-warn' : undefined}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+          <Input
+            value={searchInput}
+            onChange={(event) => {
+              setSearchInput(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Cari SKU / nama / ID listing"
+            className="pl-9"
           />
         </div>
-      ) : null}
+        <Select
+          value={statusFilter}
+          onChange={(event) => {
+            setStatusFilter(event.target.value as ListingStatusFilter | typeof ALL_STATUS);
+            setPage(1);
+          }}
+          className="w-full sm:w-52"
+          aria-label="Filter status listing"
+        >
+          <option value={ALL_STATUS}>{LISTING_STATUS_LABELS.all}</option>
+          {LISTING_STATUS_FILTERS.map((value) => (
+            <option key={value} value={value}>
+              {LISTING_STATUS_LABELS[value]}
+            </option>
+          ))}
+        </Select>
+      </div>
 
       {listingsQuery.isLoading ? (
         <div className="space-y-3">
@@ -447,22 +482,35 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
       ) : listingsQuery.error ? (
         <ErrorState title="Gagal memuat listing" onRetry={() => void listingsQuery.refetch()} />
       ) : listings.length === 0 ? (
-        <EmptyState
-          icon={DownloadCloud}
-          title="Belum ada listing diimpor"
-          description="Impor listing toko ini, lalu kaitkan satu per satu ke produk."
-          action={
-            canManage ? (
-              <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
-                <DownloadCloud className="size-4" />
-                Impor listing
-              </Button>
-            ) : undefined
-          }
-        />
+        hasFilter ? (
+          <EmptyState
+            icon={Search}
+            title="Tidak ada listing yang cocok"
+            description="Coba ubah kata kunci atau filter status."
+          />
+        ) : (
+          <EmptyState
+            icon={DownloadCloud}
+            title="Belum ada listing diimpor"
+            description="Impor listing toko ini, lalu kaitkan satu per satu ke produk."
+            action={
+              canManage ? (
+                <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
+                  <DownloadCloud className="size-4" />
+                  Impor listing
+                </Button>
+              ) : undefined
+            }
+          />
+        )
       ) : (
-        <>
-          <div className="hidden rounded-xl border sm:block">
+        <div className="space-y-3">
+          <p className="text-muted-foreground text-sm">
+            <span className="num text-foreground font-medium">{totalListings}</span> listing
+            {hasFilter ? ' cocok dengan filter' : ''}
+          </p>
+
+          <div className="hidden overflow-x-auto rounded-xl border sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -476,10 +524,15 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
                 {listings.map((listing) => (
                   <TableRow key={listing.marketplaceProductId}>
                     <TableCell>
-                      <div className="font-medium">{listing.externalProductName}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {listing.externalVariantName ?? '—'}
-                        {listing.externalSku ? ` · ${listing.externalSku}` : ''}
+                      <div className="max-w-[16rem] lg:max-w-[24rem]">
+                        <EllipsisTooltip
+                          text={listing.externalProductName}
+                          className="font-medium"
+                        />
+                        <EllipsisTooltip
+                          text={listingSubtitle(listing)}
+                          className="text-muted-foreground text-xs"
+                        />
                       </div>
                     </TableCell>
                     <TableCell className="num text-right">{listing.stock}</TableCell>
@@ -497,9 +550,8 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium break-words">{listing.externalProductName}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {listing.externalVariantName ?? '—'}
-                      {listing.externalSku ? ` · ${listing.externalSku}` : ''}
+                    <p className="text-muted-foreground text-xs break-words">
+                      {listingSubtitle(listing)}
                     </p>
                   </div>
                   <p className="text-muted-foreground shrink-0 text-sm">
@@ -511,7 +563,17 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
               </div>
             ))}
           </div>
-        </>
+
+          {listingsMeta ? (
+            <TablePagination
+              page={listingsMeta.page}
+              pageSize={listingsMeta.pageSize}
+              total={listingsMeta.total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          ) : null}
+        </div>
       )}
 
       {mapTarget ? (
