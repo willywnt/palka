@@ -186,9 +186,11 @@ export function MarketplaceHealthPanel({ connectionId }: { connectionId: string 
             <StatusBadge tone={report.summary.missingExternal > 0 ? 'warn' : 'neutral'}>
               <span className="num">{report.summary.missingExternal}</span> hilang
             </StatusBadge>
-            <StatusBadge tone={report.summary.unmappedExternal > 0 ? 'info' : 'neutral'}>
-              <span className="num">{report.summary.unmappedExternal}</span> belum dipetakan
-            </StatusBadge>
+            {report.summary.unmappedExternal > 0 ? (
+              <StatusBadge tone="info">
+                <span className="num">{report.summary.unmappedExternal}</span> belum dipetakan
+              </StatusBadge>
+            ) : null}
             <span className="text-muted-foreground text-xs">
               Diperiksa <span suppressHydrationWarning>{formatDateTime(report.checkedAt)}</span>
             </span>

@@ -29,16 +29,25 @@ export class MarketplaceReconciliationService {
       throw MarketplaceError.validation('Marketplace connection is not active.');
     }
 
-    const mapped = await findDriftMappedListings(organizationId, connectionId);
+    const [mapped, totalListings] = await Promise.all([
+      findDriftMappedListings(organizationId, connectionId),
+      prisma.marketplaceProduct.count({
+        where: { marketplaceConnectionId: connectionId, organizationId, deletedAt: null },
+      }),
+    ]);
 
     // Nothing mapped → nothing to reconcile; skip the provider call entirely.
-    const summary =
+    const base =
       mapped.length === 0
         ? computeStockDrift({ mapped: [], external: [] })
         : computeStockDrift({
             mapped,
             external: await this.fetchExternalStock(connection, mapped),
           });
+
+    // Per-item drift pulls ONLY the mapped items, so the computed unmappedExternal is
+    // meaningless — report the real "listings not yet mapped" count from the DB instead.
+    const summary = { ...base, unmappedExternal: Math.max(0, totalListings - mapped.length) };
 
     appLogger.info('marketplace.drift.checked', {
       organizationId,
