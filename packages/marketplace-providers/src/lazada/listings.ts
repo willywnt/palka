@@ -20,6 +20,22 @@ function clampStock(value: unknown): number {
   return Math.max(0, Math.min(INT32_MAX, Math.floor(value)));
 }
 
+/**
+ * Builds a variation label from a SKU's `saleProp` (e.g. `{color_family:'Black',
+ * size:'EU:42.5'}` → "Black · EU:42.5"). Color before size before the rest, matching
+ * Seller Center's order. Values are the API's canonical (English) form — Seller Center
+ * localizes them ("Hitam"), but the API doesn't return the localized label.
+ */
+function buildVariantName(saleProp: Record<string, string | number> | undefined): string | null {
+  if (!saleProp) return null;
+  const rank = (key: string): number => (/colou?r/i.test(key) ? 0 : /size/i.test(key) ? 1 : 2);
+  const parts = Object.entries(saleProp)
+    .sort(([a], [b]) => rank(a) - rank(b))
+    .map(([, value]) => String(value).trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -46,6 +62,8 @@ type LazadaApiSku = {
   SellerSku?: string;
   quantity?: number;
   Status?: string;
+  /** Variation attributes, e.g. `{ color_family: 'Black', size: 'EU:42.5' }`. */
+  saleProp?: Record<string, string | number>;
 };
 
 type LazadaApiProduct = {
@@ -66,6 +84,8 @@ export type LazadaListingItem = {
   /** The seller's own SKU (Lazada SellerSku), if set. */
   sellerSku: string | null;
   productName: string;
+  /** Variation label built from `saleProp` values, e.g. "Black · EU:42.5" (null when none). */
+  variantName: string | null;
   /** Sellable quantity Lazada currently reports for this SKU. */
   quantity: number;
   status: string;
@@ -160,6 +180,7 @@ export async function fetchLazadaListings(
           skuId,
           sellerSku: sku.SellerSku ?? null,
           productName,
+          variantName: buildVariantName(sku.saleProp),
           quantity: clampStock(sku.quantity),
           status: sku.Status ?? product.status ?? 'active',
           raw: { item_id: product.item_id, ...sku } as Record<string, unknown>,

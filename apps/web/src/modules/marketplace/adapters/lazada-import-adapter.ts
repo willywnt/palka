@@ -50,7 +50,7 @@ export class LazadaImportAdapter implements MarketplaceImportAdapter {
         externalVariantId: item.skuId,
         externalSku: item.sellerSku,
         externalProductName: item.productName,
-        externalVariantName: null,
+        externalVariantName: item.variantName,
         stock: item.quantity,
         status: item.status,
         raw: item.raw,
