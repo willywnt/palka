@@ -41,45 +41,61 @@ export class MarketplaceImportService {
     });
 
     const now = new Date();
+    let skipped = 0;
 
     for (const listing of listings) {
       const rawPayload = listing.raw as Prisma.InputJsonValue;
 
-      await prisma.marketplaceProduct.upsert({
-        where: {
-          marketplaceConnectionId_externalProductId_externalVariantId: {
+      try {
+        await prisma.marketplaceProduct.upsert({
+          where: {
+            marketplaceConnectionId_externalProductId_externalVariantId: {
+              marketplaceConnectionId: connection.id,
+              externalProductId: listing.externalProductId,
+              externalVariantId: listing.externalVariantId,
+            },
+          },
+          create: {
+            userId: actorUserId,
+            organizationId,
             marketplaceConnectionId: connection.id,
+            provider: connection.provider,
             externalProductId: listing.externalProductId,
             externalVariantId: listing.externalVariantId,
+            externalSku: listing.externalSku,
+            externalProductName: listing.externalProductName,
+            externalVariantName: listing.externalVariantName,
+            stock: listing.stock,
+            status: listing.status,
+            rawPayload,
+            lastImportedAt: now,
           },
-        },
-        create: {
-          userId: actorUserId,
+          update: {
+            externalSku: listing.externalSku,
+            externalProductName: listing.externalProductName,
+            externalVariantName: listing.externalVariantName,
+            stock: listing.stock,
+            status: listing.status,
+            rawPayload,
+            lastImportedAt: now,
+            deletedAt: null,
+          },
+        });
+      } catch (error) {
+        // One malformed listing (e.g. a value the column can't hold) must not sink the
+        // whole import — skip it and keep going. The rest still import + auto-map.
+        skipped += 1;
+        appLogger.warn('marketplace.import.listing_skipped', {
           organizationId,
-          marketplaceConnectionId: connection.id,
-          provider: connection.provider,
+          connectionId: connection.id,
           externalProductId: listing.externalProductId,
           externalVariantId: listing.externalVariantId,
-          externalSku: listing.externalSku,
-          externalProductName: listing.externalProductName,
-          externalVariantName: listing.externalVariantName,
-          stock: listing.stock,
-          status: listing.status,
-          rawPayload,
-          lastImportedAt: now,
-        },
-        update: {
-          externalSku: listing.externalSku,
-          externalProductName: listing.externalProductName,
-          externalVariantName: listing.externalVariantName,
-          stock: listing.stock,
-          status: listing.status,
-          rawPayload,
-          lastImportedAt: now,
-          deletedAt: null,
-        },
-      });
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
+
+    const imported = listings.length - skipped;
 
     const autoMapped = await this.autoMapBySku(
       organizationId,
@@ -96,11 +112,12 @@ export class MarketplaceImportService {
     appLogger.info('marketplace.listings.imported', {
       organizationId,
       connectionId: connection.id,
-      imported: listings.length,
+      imported,
+      skipped,
       autoMapped,
     });
 
-    return { imported: listings.length, autoMapped };
+    return { imported, autoMapped };
   }
 
   /** Re-runs SKU auto-map over already-imported, still-unmapped listings (no provider fetch). */

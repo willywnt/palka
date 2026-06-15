@@ -10,6 +10,16 @@ const PAGE_DELAY_MS = 1200;
 /** Retries for a single page when Lazada throttles it (E1002 sentinel / system busy). */
 const MAX_PAGE_RETRIES = 4;
 
+/** Postgres INT4 ceiling — our stock columns are 32-bit, and Lazada test shops can
+ *  return absurd quantities (e.g. 1.37e12) that overflow the insert. */
+const INT32_MAX = 2_147_483_647;
+
+/** Clamp a provider quantity into a non-negative INT4 so it never overflows the DB. */
+function clampStock(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(INT32_MAX, Math.floor(value)));
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -150,7 +160,7 @@ export async function fetchLazadaListings(
           skuId,
           sellerSku: sku.SellerSku ?? null,
           productName,
-          quantity: typeof sku.quantity === 'number' ? sku.quantity : 0,
+          quantity: clampStock(sku.quantity),
           status: sku.Status ?? product.status ?? 'active',
           raw: { item_id: product.item_id, ...sku } as Record<string, unknown>,
         });
