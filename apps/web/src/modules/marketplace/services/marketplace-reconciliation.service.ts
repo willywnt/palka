@@ -3,6 +3,7 @@ import 'server-only';
 import { prisma } from '@falka/db';
 import { computeStockDrift, findDriftMappedListings } from '@falka/queue';
 import type { DriftExternalInput } from '@falka/queue';
+import type { MarketplaceProvider } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
 
@@ -12,10 +13,11 @@ import type { MarketplaceDriftReport } from '../types';
 import { marketplaceEncryptionService } from './encryption.service';
 
 /**
- * On-demand drift reconciliation: pulls a connection's CURRENT external listings
+ * On-demand drift reconciliation: pulls a connection's CURRENT external stock
  * (read-only, no snapshot write) and compares each mapped variant's provider stock
  * against internal available. Surfaces over/under/missing drift so staff can re-sync;
- * never writes back to the marketplace and never overwrites internal stock.
+ * never writes back to the marketplace and never overwrites internal stock. Pulls only
+ * the MAPPED items when the adapter supports it (no full-catalog scan).
  */
 export class MarketplaceReconciliationService {
   async checkDrift(organizationId: string, connectionId: string): Promise<MarketplaceDriftReport> {
@@ -29,22 +31,14 @@ export class MarketplaceReconciliationService {
 
     const mapped = await findDriftMappedListings(organizationId, connectionId);
 
-    const adapter = getMarketplaceImportAdapter(connection.provider);
-    const listings = await adapter.fetchListings({
-      shopId: connection.shopId,
-      // Stub adapters ignore the token; seeded connections store a non-cipher
-      // placeholder, so decrypt leniently and let a real adapter fail its own auth.
-      accessToken:
-        marketplaceEncryptionService.safeDecryptToken(connection.encryptedAccessToken) ?? '',
-    });
-
-    const external: DriftExternalInput[] = listings.map((listing) => ({
-      externalProductId: listing.externalProductId,
-      externalVariantId: listing.externalVariantId,
-      stock: listing.stock,
-    }));
-
-    const summary = computeStockDrift({ mapped, external });
+    // Nothing mapped → nothing to reconcile; skip the provider call entirely.
+    const summary =
+      mapped.length === 0
+        ? computeStockDrift({ mapped: [], external: [] })
+        : computeStockDrift({
+            mapped,
+            external: await this.fetchExternalStock(connection, mapped),
+          });
 
     appLogger.info('marketplace.drift.checked', {
       organizationId,
@@ -62,6 +56,34 @@ export class MarketplaceReconciliationService {
       checkedAt: new Date().toISOString(),
       summary,
     };
+  }
+
+  /**
+   * Current external stock for the mapped items — only those items (one provider call
+   * each when the adapter supports it), not the whole catalog. Falls back to a full
+   * listings pull for adapters without per-item fetch (the tiny stub).
+   */
+  private async fetchExternalStock(
+    connection: { provider: MarketplaceProvider; shopId: string; encryptedAccessToken: string },
+    mapped: { externalProductId: string }[],
+  ): Promise<DriftExternalInput[]> {
+    const adapter = getMarketplaceImportAdapter(connection.provider);
+    // Stub adapters ignore the token; seeded connections store a non-cipher placeholder,
+    // so decrypt leniently and let a real adapter fail its own auth.
+    const accessToken =
+      marketplaceEncryptionService.safeDecryptToken(connection.encryptedAccessToken) ?? '';
+    const externalProductIds = [...new Set(mapped.map((item) => item.externalProductId))];
+
+    const listings =
+      adapter.fetchListingsForItems && externalProductIds.length > 0
+        ? await adapter.fetchListingsForItems({ accessToken, externalProductIds })
+        : await adapter.fetchListings({ shopId: connection.shopId, accessToken });
+
+    return listings.map((listing) => ({
+      externalProductId: listing.externalProductId,
+      externalVariantId: listing.externalVariantId,
+      stock: listing.stock,
+    }));
   }
 }
 

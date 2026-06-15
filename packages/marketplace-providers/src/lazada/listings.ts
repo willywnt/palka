@@ -75,6 +75,9 @@ type LazadaApiProduct = {
 
 type LazadaProductsGetData = { products?: LazadaApiProduct[] };
 
+/** `/product/item/get` returns the product either at `data.item` or directly under `data`. */
+type LazadaItemGetData = LazadaApiProduct & { item?: LazadaApiProduct };
+
 /** A Lazada listing flattened to one row per SKU (the externalVariant grain). */
 export type LazadaListingItem = {
   /** Lazada item_id — the external product id. */
@@ -102,6 +105,31 @@ export class LazadaApiError extends Error {
     super(`Lazada API error (code ${code}${providerMessage ? `: ${providerMessage}` : ''})`);
     this.name = 'LazadaApiError';
   }
+}
+
+/** Flatten one Lazada product into per-SKU listing rows (the externalVariant grain). */
+function mapProductSkus(product: LazadaApiProduct): LazadaListingItem[] {
+  const itemId = String(product.item_id ?? '');
+  const productName = product.attributes?.name ?? 'Lazada product';
+  const rows: LazadaListingItem[] = [];
+
+  for (const sku of product.skus ?? []) {
+    const skuId = String(sku.SkuId ?? '');
+    if (!itemId || !skuId) continue;
+
+    rows.push({
+      itemId,
+      skuId,
+      sellerSku: sku.SellerSku ?? null,
+      productName,
+      variantName: buildVariantName(sku.saleProp),
+      quantity: clampStock(sku.quantity),
+      status: sku.Status ?? product.status ?? 'active',
+      raw: { item_id: product.item_id, ...sku } as Record<string, unknown>,
+    });
+  }
+
+  return rows;
 }
 
 /**
@@ -167,31 +195,68 @@ export async function fetchLazadaListings(
     const products = response.data?.products ?? [];
     if (products.length === 0) break;
 
-    for (const product of products) {
-      const itemId = String(product.item_id ?? '');
-      const productName = product.attributes?.name ?? 'Lazada product';
-
-      for (const sku of product.skus ?? []) {
-        const skuId = String(sku.SkuId ?? '');
-        if (!itemId || !skuId) continue;
-
-        items.push({
-          itemId,
-          skuId,
-          sellerSku: sku.SellerSku ?? null,
-          productName,
-          variantName: buildVariantName(sku.saleProp),
-          quantity: clampStock(sku.quantity),
-          status: sku.Status ?? product.status ?? 'active',
-          raw: { item_id: product.item_id, ...sku } as Record<string, unknown>,
-        });
-      }
-    }
+    for (const product of products) items.push(...mapProductSkus(product));
 
     if (products.length < PAGE_LIMIT) break;
 
     // Gentle pacing before the next page keeps a large catalog under flow control.
     await sleep(PAGE_DELAY_MS);
+  }
+
+  return items;
+}
+
+const ITEM_GET_PATH = '/product/item/get';
+/** Pace + retry per-item reads (gentler than full paging). */
+const ITEM_DELAY_MS = 400;
+const MAX_ITEM_RETRIES = 3;
+
+/**
+ * Fetches CURRENT stock for a specific set of items via `/product/item/get` (one call
+ * per item). For drift reconciliation we only care about the MAPPED listings, so this
+ * avoids paging the whole catalog (thousands of SKUs / throttling) when only a handful
+ * are mapped. A per-item failure (e.g. E207 "SKU not exist" — a deleted/locked item) is
+ * skipped, not fatal: the drift comparison then reports that listing as missing-external.
+ */
+export async function fetchLazadaItemsStock(
+  client: LazadaClient,
+  params: { accessToken: string; itemIds: string[] },
+): Promise<LazadaListingItem[]> {
+  const uniqueIds = [...new Set(params.itemIds.filter(Boolean))];
+  const items: LazadaListingItem[] = [];
+
+  for (let index = 0; index < uniqueIds.length; index += 1) {
+    const itemId = uniqueIds[index];
+
+    let response = await client.call<LazadaItemGetData>(ITEM_GET_PATH, {
+      method: 'GET',
+      accessToken: params.accessToken,
+      params: { item_id: itemId },
+    });
+
+    for (
+      let attempt = 1;
+      attempt <= MAX_ITEM_RETRIES &&
+      !isLazadaSuccess(response) &&
+      isTransientLazadaError(response.code, response.message);
+      attempt += 1
+    ) {
+      await sleep(ITEM_DELAY_MS * 2 * attempt);
+      response = await client.call<LazadaItemGetData>(ITEM_GET_PATH, {
+        method: 'GET',
+        accessToken: params.accessToken,
+        params: { item_id: itemId },
+      });
+    }
+
+    if (isLazadaSuccess(response)) {
+      const product = response.data?.item ?? response.data;
+      if (product) {
+        items.push(...mapProductSkus({ ...product, item_id: product.item_id ?? itemId }));
+      }
+    }
+
+    if (index < uniqueIds.length - 1) await sleep(ITEM_DELAY_MS);
   }
 
   return items;

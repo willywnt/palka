@@ -18,6 +18,15 @@ export type NormalizedListing = {
 export interface MarketplaceImportAdapter {
   readonly provider: MarketplaceProvider;
   fetchListings(params: { shopId: string; accessToken: string }): Promise<NormalizedListing[]>;
+  /**
+   * Fetch current stock for SPECIFIC external products only (drift reconciliation),
+   * avoiding a full-catalog pull. Optional — providers without it fall back to
+   * {@link fetchListings} (fine for the stub's tiny catalog).
+   */
+  fetchListingsForItems?(params: {
+    accessToken: string;
+    externalProductIds: string[];
+  }): Promise<NormalizedListing[]>;
 }
 
 const STUB_CATALOG = [
