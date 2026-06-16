@@ -3,6 +3,12 @@ export type NormalizedStockUpdateRequest = {
   externalVariantId: string;
   externalSku: string | null;
   quantity: number;
+  /**
+   * Provider-specific: the connection's designated sync warehouse (Lazada multi-warehouse).
+   * When set, the push targets ONLY this warehouseCode and leaves the others untouched.
+   * null = single-warehouse / not configured.
+   */
+  syncWarehouseCode: string | null;
 };
 
 export type NormalizedStockUpdateResponse = {
@@ -16,6 +22,7 @@ export function normalizeStockUpdateRequest(input: {
   externalVariantId: string;
   externalSku: string | null;
   availableStock: number;
+  syncWarehouseCode?: string | null;
 }): NormalizedStockUpdateRequest {
   return {
     externalProductId: input.externalProductId,
@@ -23,6 +30,7 @@ export function normalizeStockUpdateRequest(input: {
     externalSku: input.externalSku,
     // Marketplaces only accept a non-negative whole stock count.
     quantity: Math.max(0, Math.trunc(input.availableStock)),
+    syncWarehouseCode: input.syncWarehouseCode ?? null,
   };
 }
 

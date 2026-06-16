@@ -84,6 +84,7 @@ export async function executeStockSync(
       externalVariantId: context.externalVariantId,
       externalSku: context.externalSku,
       availableStock: context.availableStock,
+      syncWarehouseCode: context.syncWarehouseCode,
     });
 
     // Real provider adapters need the DECRYPTED token; stub adapters ignore it.
