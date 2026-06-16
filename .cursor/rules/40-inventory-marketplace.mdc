@@ -190,10 +190,19 @@ update` returns `SELLER_NOT_PERMITTED`/E501 for **dropshipping-warehouse** selle
   **`/product/stock/sellable/adjust`** takes the SAME XML but applies it as a **DELTA** (live-confirmed:
   0→set5→set5 = 10, and a `-10` brought it back) — do NOT use adjust for sync (it would accumulate). Both
   are stock-only (never touch price). Verified `code:0` + absolute set/read-back on a real dropshipping SKU.
-  (9) **KNOWN GAP — multi-warehouse (found 2026-06-16):** a SKU with several `multiWarehouseInventories[]`
-  only gets ONE warehouse set by the bare `<SellableQuantity>` (default/last) → multi-warehouse SKUs never
-  reconcile. Single-warehouse/dropshipping is fine. Backlogged (mid-size #4): capture `warehouseCode` at
-  import + `<MultiWarehouseInventories><WarehouseCode>` payload + a sync-warehouse policy.
+  (9) **multi-warehouse — SHIPPED non-destructive 2026-06-16:** a Lazada SKU can split stock across
+  `multiWarehouseInventories[]` (read shape: `warehouseCode`/`sellableQuantity`/…; top-level `quantity` = Σ
+  sellableQuantity). **Falka owns exactly ONE warehouse** (per-connection `MarketplaceConnection.syncWarehouseCode`,
+  picked in the connection-detail "Gudang sinkron" card from `knownWarehouseCodes` captured at import). The push
+  writes `available` to ONLY that warehouse via a **single-entry** `<MultiWarehouseInventories><MultiWarehouse
+Inventory><WarehouseCode/><Quantity/></…>` block and **OMITS the rest — Lazada leaves omitted warehouses
+  untouched (partial update, live-verified)**. NEVER zero a warehouse we don't own (that erases another writer's
+  stock — the rejected "Policy A"). The inner element is **`<Quantity>`** (NOT `<SellableQuantity>`), absolute;
+  an unknown child element returns `code:0` yet is silently ignored (validate by changing set + read-back).
+  `syncWarehouseCode` null ⇒ bare single-warehouse path (unchanged). **Drift compares internal `available` vs the
+  SYNC warehouse's own sellable** (shared `resolveSyncWarehouseStock`), not the cross-warehouse sum — so other
+  warehouses' real stock isn't mis-read as drift; the storefront total may legitimately exceed our pool. The
+  internal multi-location/WMS generalization (Option A is its n=1 case) is scoped in `docs/roadmap/wms-scoping.md`.
 - **Deferred:** multi-region per-connection `region`/`baseUrl` (needs migration — currently one env
   `LAZADA_API_BASE_URL`).
 
