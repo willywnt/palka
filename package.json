@@ -33,6 +33,7 @@
     "lazada:token": "pnpm --filter @falka/marketplace-providers build && node scripts/lazada-token.mjs",
     "lazada:products": "pnpm --filter @falka/marketplace-providers build && node scripts/lazada-products.mjs",
     "lazada:stock": "pnpm --filter @falka/marketplace-providers build && node scripts/lazada-stock.mjs",
+    "lazada:mw-probe": "pnpm --filter @falka/marketplace-providers build && node scripts/lazada-mw-probe.mjs",
     "lazada:seller": "pnpm --filter @falka/marketplace-providers build && node scripts/lazada-seller.mjs",
     "prepare": "node scripts/prepare.mjs"
   },
