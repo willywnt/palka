@@ -20,6 +20,25 @@ export type DriftExternalInput = {
   stock: number;
 };
 
+/**
+ * Resolves the external stock to compare against internal available. Falka owns exactly ONE
+ * marketplace warehouse: when a `syncWarehouseCode` is configured, drift must compare against
+ * that warehouse's OWN sellable (0 when the SKU doesn't carry it), NOT the cross-warehouse sum
+ * — otherwise other warehouses' stock would always read as drift. Without a sync warehouse (or
+ * per-warehouse data) it falls back to the total sellable. Shared by the web on-demand
+ * drift-check and the worker reconciliation job so both compute the external value identically.
+ */
+export function resolveSyncWarehouseStock(
+  listing: { stock: number; warehouses?: { code: string; sellable: number }[] | null },
+  syncWarehouseCode: string | null | undefined,
+): number {
+  const code = syncWarehouseCode?.trim();
+  if (code && listing.warehouses) {
+    return listing.warehouses.find((warehouse) => warehouse.code === code)?.sellable ?? 0;
+  }
+  return listing.stock;
+}
+
 export type StockDriftStatus = 'in_sync' | 'over' | 'under' | 'missing_external';
 
 export type StockDriftLine = {

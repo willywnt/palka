@@ -12,6 +12,7 @@ export type DriftConnection = {
   shopName: string;
   encryptedAccessToken: string;
   tokenExpiresAt: Date | null;
+  syncWarehouseCode: string | null;
 };
 
 /** Total non-deleted imported listings for a connection (drives the real "unmapped" count). */
@@ -38,6 +39,7 @@ export async function findActiveConnectionsForDrift(limit: number): Promise<Drif
       shopName: true,
       encryptedAccessToken: true,
       tokenExpiresAt: true,
+      syncWarehouseCode: true,
     },
   });
 }

@@ -10,6 +10,7 @@ import {
   getMarketplaceStockProvider,
   getProviderRateLimiter,
   isAccessTokenExpired,
+  resolveSyncWarehouseStock,
 } from '../marketplace-sync/index.js';
 import {
   reconcileMarketplaceDriftJobSchema,
@@ -90,7 +91,15 @@ export async function processReconcileMarketplaceDriftJob(
         continue;
       }
 
-      const summary = computeStockDrift({ mapped, external });
+      // Falka owns ONE warehouse: compare internal available against the sync warehouse's own
+      // sellable (when configured), not the cross-warehouse sum.
+      const resolvedExternal = external.map((listing) => ({
+        externalProductId: listing.externalProductId,
+        externalVariantId: listing.externalVariantId,
+        stock: resolveSyncWarehouseStock(listing, connection.syncWarehouseCode),
+      }));
+
+      const summary = computeStockDrift({ mapped, external: resolvedExternal });
       // Per-item drift only pulls mapped items, so report the real "not yet mapped" from the DB.
       const total = await countConnectionListings(connection.organizationId, connection.id);
       const unmappedExternal = Math.max(0, total - mapped.length);

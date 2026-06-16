@@ -12,7 +12,13 @@ export type StockProviderUpdateParams = NormalizedStockUpdateRequest & { accessT
 export type ProviderListingSnapshot = {
   externalProductId: string;
   externalVariantId: string;
+  /** Total sellable across the SKU's warehouses (Σ). */
   stock: number;
+  /**
+   * Per-warehouse sellable (multi-warehouse providers; undefined otherwise). Lets drift read
+   * the connection's sync warehouse's own sellable via {@link resolveSyncWarehouseStock}.
+   */
+  warehouses?: { code: string; sellable: number }[];
 };
 
 export interface MarketplaceStockProviderAdapter {

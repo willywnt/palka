@@ -10,7 +10,14 @@ export type NormalizedListing = {
   externalSku: string | null;
   externalProductName: string;
   externalVariantName: string | null;
+  /** Total sellable across the SKU's warehouses (Σ); the storefront-facing number. */
   stock: number;
+  /**
+   * Per-warehouse sellable (Lazada multi-warehouse; undefined for single-warehouse providers
+   * and the stub). Lets drift read the connection's sync warehouse's own sellable instead of
+   * the cross-warehouse sum, and lets import enumerate the shop's warehouseCodes.
+   */
+  warehouses?: { code: string; sellable: number }[];
   status: string;
   raw: Record<string, unknown>;
 };

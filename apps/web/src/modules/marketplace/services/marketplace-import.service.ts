@@ -42,8 +42,12 @@ export class MarketplaceImportService {
 
     const now = new Date();
     let skipped = 0;
+    // Distinct warehouseCodes seen across the shop's listings — populates the sync-warehouse
+    // picker (no per-SKU storage needed; the connection owns one warehouse).
+    const warehouseCodes = new Set<string>();
 
     for (const listing of listings) {
+      for (const warehouse of listing.warehouses ?? []) warehouseCodes.add(warehouse.code);
       const rawPayload = listing.raw as Prisma.InputJsonValue;
 
       try {
@@ -106,7 +110,11 @@ export class MarketplaceImportService {
 
     await prisma.marketplaceConnection.update({
       where: { id: connection.id },
-      data: { lastImportedAt: now },
+      data: {
+        lastImportedAt: now,
+        // Don't clobber a previously-captured set when this import surfaced no warehouse data.
+        ...(warehouseCodes.size > 0 ? { knownWarehouseCodes: [...warehouseCodes].sort() } : {}),
+      },
     });
 
     appLogger.info('marketplace.listings.imported', {

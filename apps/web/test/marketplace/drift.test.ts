@@ -1,4 +1,4 @@
-import { computeStockDrift } from '@falka/queue';
+import { computeStockDrift, resolveSyncWarehouseStock } from '@falka/queue';
 import type { DriftExternalInput, DriftMappedInput } from '@falka/queue';
 import { describe, expect, it } from 'vitest';
 
@@ -129,5 +129,35 @@ describe('computeStockDrift', () => {
       unmappedExternal: 0,
       lines: [],
     });
+  });
+});
+
+// Falka owns ONE marketplace warehouse: with a sync warehouse configured, drift compares
+// against THAT warehouse's own sellable (Option A), not the cross-warehouse sum — otherwise
+// other warehouses' stock would always read as drift.
+describe('resolveSyncWarehouseStock', () => {
+  const listing = {
+    stock: 1155, // Σ across warehouses
+    warehouses: [
+      { code: 'dropshipping', sellable: 45 },
+      { code: 'ID67YE4SPX-WH-10010', sellable: 1110 },
+    ],
+  };
+
+  it('returns the sync warehouse sellable, not the cross-warehouse sum', () => {
+    expect(resolveSyncWarehouseStock(listing, 'dropshipping')).toBe(45);
+  });
+
+  it('returns 0 when the SKU does not carry the sync warehouse', () => {
+    expect(resolveSyncWarehouseStock(listing, 'ID67YE4SPX-WH-99999')).toBe(0);
+  });
+
+  it('falls back to the total sellable when no sync warehouse is configured', () => {
+    expect(resolveSyncWarehouseStock(listing, null)).toBe(1155);
+    expect(resolveSyncWarehouseStock(listing, '   ')).toBe(1155);
+  });
+
+  it('falls back to the total when the listing carries no per-warehouse data', () => {
+    expect(resolveSyncWarehouseStock({ stock: 7 }, 'dropshipping')).toBe(7);
   });
 });

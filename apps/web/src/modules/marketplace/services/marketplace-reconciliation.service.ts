@@ -1,7 +1,11 @@
 import 'server-only';
 
 import { prisma } from '@falka/db';
-import { computeStockDrift, findDriftMappedListings } from '@falka/queue';
+import {
+  computeStockDrift,
+  findDriftMappedListings,
+  resolveSyncWarehouseStock,
+} from '@falka/queue';
 import type { DriftExternalInput } from '@falka/queue';
 import type { MarketplaceProvider } from '@prisma/client';
 
@@ -44,6 +48,9 @@ export class MarketplaceReconciliationService {
             mapped,
             external: await this.fetchExternalStock(connection, mapped),
           });
+    // With a sync warehouse configured, `external` already reflects only that warehouse's
+    // sellable (set in fetchExternalStock) — so drift compares apples to apples: internal
+    // available vs the ONE warehouse Falka owns, not the cross-warehouse sum.
 
     // Per-item drift pulls ONLY the mapped items, so the computed unmappedExternal is
     // meaningless — report the real "listings not yet mapped" count from the DB instead.
@@ -73,7 +80,12 @@ export class MarketplaceReconciliationService {
    * listings pull for adapters without per-item fetch (the tiny stub).
    */
   private async fetchExternalStock(
-    connection: { provider: MarketplaceProvider; shopId: string; encryptedAccessToken: string },
+    connection: {
+      provider: MarketplaceProvider;
+      shopId: string;
+      encryptedAccessToken: string;
+      syncWarehouseCode: string | null;
+    },
     mapped: { externalProductId: string }[],
   ): Promise<DriftExternalInput[]> {
     const adapter = getMarketplaceImportAdapter(connection.provider);
@@ -91,7 +103,9 @@ export class MarketplaceReconciliationService {
     return listings.map((listing) => ({
       externalProductId: listing.externalProductId,
       externalVariantId: listing.externalVariantId,
-      stock: listing.stock,
+      // Falka owns ONE warehouse: compare against its own sellable (0 if the SKU doesn't carry
+      // it), not the cross-warehouse sum. Falls back to total sellable when unconfigured.
+      stock: resolveSyncWarehouseStock(listing, connection.syncWarehouseCode),
     }));
   }
 }

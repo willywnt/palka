@@ -23,6 +23,7 @@ function toNormalizedListings(items: LazadaListingItem[]): NormalizedListing[] {
     externalProductName: item.productName,
     externalVariantName: item.variantName,
     stock: item.quantity,
+    warehouses: item.warehouses,
     status: item.status,
     raw: item.raw,
   }));

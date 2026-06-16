@@ -130,6 +130,7 @@ export class LazadaStockProvider implements MarketplaceStockProviderAdapter {
       externalProductId: item.itemId,
       externalVariantId: item.skuId,
       stock: item.quantity,
+      warehouses: item.warehouses,
     }));
   }
 
@@ -145,6 +146,7 @@ export class LazadaStockProvider implements MarketplaceStockProviderAdapter {
       externalProductId: item.itemId,
       externalVariantId: item.skuId,
       stock: item.quantity,
+      warehouses: item.warehouses,
     }));
   }
 }
