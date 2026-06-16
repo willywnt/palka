@@ -4,10 +4,11 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Pins the multi-warehouse capture in the Lazada listings parser: each SKU's
- * `multiWarehouseInventories[]` is flattened to a deduped `warehouseCodes` list (blank
- * codes dropped, FBL warehouses excluded) so stock sync knows which warehouses to zero.
- * Field shapes (multiWarehouseInventories / warehouseCode / fblWarehouseInventories) are
- * the real ones observed on the live seller account 2026-06-16.
+ * `multiWarehouseInventories[]` is flattened to a `warehouses` list of { code, sellable }
+ * (blank codes dropped, FBL warehouses excluded) — used to enumerate a connection's
+ * warehouses for the sync-warehouse picker and to read the sync warehouse's own sellable
+ * for drift. Field shapes (multiWarehouseInventories / warehouseCode / sellableQuantity /
+ * fblWarehouseInventories) are the real ones observed on the live seller account 2026-06-16.
  */
 function fakeClient(products: unknown[]): LazadaClient {
   let page = 0;
@@ -22,7 +23,7 @@ function fakeClient(products: unknown[]): LazadaClient {
 }
 
 describe('fetchLazadaListings — multi-warehouse capture', () => {
-  it('captures deduped warehouseCodes, drops blanks, and excludes FBL', async () => {
+  it('captures per-warehouse sellable, drops blank codes, and excludes FBL', async () => {
     const items = await fetchLazadaListings(
       fakeClient([
         {
@@ -32,12 +33,11 @@ describe('fetchLazadaListings — multi-warehouse capture', () => {
             {
               SkuId: 16243014036,
               SellerSku: 'MW-1',
-              quantity: 1781,
+              quantity: 1155,
               multiWarehouseInventories: [
-                { warehouseCode: 'dropshipping', sellableQuantity: 1781 },
-                { warehouseCode: 'ID67YE4SPX-WH-10010', sellableQuantity: 0 },
-                { warehouseCode: 'ID67YE4SPX-WH-10010', sellableQuantity: 0 }, // dup
-                { warehouseCode: '   ', sellableQuantity: 0 }, // blank
+                { warehouseCode: 'dropshipping', sellableQuantity: 45 },
+                { warehouseCode: 'ID67YE4SPX-WH-10010', sellableQuantity: 1110 },
+                { warehouseCode: '   ', sellableQuantity: 5 }, // blank code dropped
               ],
               fblWarehouseInventories: [{ sellableQuantity: 99 }], // FBL: must be ignored
             },
@@ -48,11 +48,14 @@ describe('fetchLazadaListings — multi-warehouse capture', () => {
     );
 
     expect(items).toHaveLength(1);
-    expect(items[0]?.warehouseCodes).toEqual(['dropshipping', 'ID67YE4SPX-WH-10010']);
-    expect(items[0]?.quantity).toBe(1781);
+    expect(items[0]?.warehouses).toEqual([
+      { code: 'dropshipping', sellable: 45 },
+      { code: 'ID67YE4SPX-WH-10010', sellable: 1110 },
+    ]);
+    expect(items[0]?.quantity).toBe(1155);
   });
 
-  it('returns an empty warehouseCodes list for a single-warehouse or non-multi SKU', async () => {
+  it('returns an empty warehouses list for a non-multi-warehouse SKU', async () => {
     const items = await fetchLazadaListings(
       fakeClient([
         {
@@ -71,7 +74,9 @@ describe('fetchLazadaListings — multi-warehouse capture', () => {
       { accessToken: 'tok' },
     );
 
-    expect(items.find((i) => i.skuId === '10')?.warehouseCodes).toEqual(['dropshipping']);
-    expect(items.find((i) => i.skuId === '11')?.warehouseCodes).toEqual([]);
+    expect(items.find((i) => i.skuId === '10')?.warehouses).toEqual([
+      { code: 'dropshipping', sellable: 9 },
+    ]);
+    expect(items.find((i) => i.skuId === '11')?.warehouses).toEqual([]);
   });
 });

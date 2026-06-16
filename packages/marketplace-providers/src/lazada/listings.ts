@@ -62,6 +62,12 @@ type LazadaWarehouseInventory = {
   sellableQuantity?: number;
 };
 
+/** One warehouse's current sellable stock for a SKU (self-fulfilled). */
+export type LazadaWarehouseStock = {
+  code: string;
+  sellable: number;
+};
+
 type LazadaApiSku = {
   SkuId?: number | string;
   SellerSku?: string;
@@ -103,11 +109,12 @@ export type LazadaListingItem = {
   /** Sellable quantity Lazada currently reports for this SKU (Σ across warehouses). */
   quantity: number;
   /**
-   * Every self-fulfilled warehouseCode this SKU holds stock in (deduped; empty when the
-   * SKU isn't multi-warehouse). Captured so stock sync can zero the non-sync warehouses
-   * (Policy A) — FBL warehouses are excluded.
+   * Per-warehouse sellable for this SKU (self-fulfilled only; FBL excluded; empty when not
+   * multi-warehouse). Used to enumerate a connection's warehouses for the sync-warehouse
+   * picker and to read the sync warehouse's own sellable for drift (it owns one warehouse,
+   * so drift compares that, not the cross-warehouse sum).
    */
-  warehouseCodes: string[];
+  warehouses: LazadaWarehouseStock[];
   status: string;
   /** The raw `{ item_id, ...sku }` blob for logging/debugging. */
   raw: Record<string, unknown>;
@@ -124,12 +131,12 @@ export class LazadaApiError extends Error {
   }
 }
 
-/** Deduped, non-empty warehouseCodes a SKU holds self-fulfilled stock in (FBL excluded). */
-function extractWarehouseCodes(sku: LazadaApiSku): string[] {
-  const codes = (sku.multiWarehouseInventories ?? [])
-    .map((entry) => entry.warehouseCode?.trim())
-    .filter((code): code is string => Boolean(code));
-  return [...new Set(codes)];
+/** Per-warehouse sellable for a SKU (self-fulfilled; FBL excluded; blank codes dropped). */
+function extractWarehouses(sku: LazadaApiSku): LazadaWarehouseStock[] {
+  return (sku.multiWarehouseInventories ?? []).flatMap((entry) => {
+    const code = entry.warehouseCode?.trim();
+    return code ? [{ code, sellable: clampStock(entry.sellableQuantity) }] : [];
+  });
 }
 
 /** Flatten one Lazada product into per-SKU listing rows (the externalVariant grain). */
@@ -149,7 +156,7 @@ function mapProductSkus(product: LazadaApiProduct): LazadaListingItem[] {
       productName,
       variantName: buildVariantName(sku.saleProp),
       quantity: clampStock(sku.quantity),
-      warehouseCodes: extractWarehouseCodes(sku),
+      warehouses: extractWarehouses(sku),
       status: sku.Status ?? product.status ?? 'active',
       raw: { item_id: product.item_id, ...sku } as Record<string, unknown>,
     });
