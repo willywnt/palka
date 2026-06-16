@@ -39,6 +39,8 @@ function mapConnection(connection: MarketplaceConnection): MarketplaceConnection
     connectionStatus: resolveConnectionStatus(connection.isActive, connection.tokenExpiresAt),
     createdAt: connection.createdAt.toISOString(),
     updatedAt: connection.updatedAt.toISOString(),
+    syncWarehouseCode: connection.syncWarehouseCode,
+    knownWarehouseCodes: connection.knownWarehouseCodes,
   };
 }
 
@@ -336,6 +338,41 @@ export class MarketplaceServerService {
       action: 'marketplace.token_refreshed',
       resource: 'marketplace_connection',
       metadata: { connectionId, provider: updated.provider, shopId: updated.shopId },
+    });
+
+    return mapConnection(updated);
+  }
+
+  /**
+   * Set (or clear) the connection's Lazada sync warehouse — the ONE warehouse Falka owns. Stock
+   * push then targets only this warehouseCode and leaves the others untouched (non-destructive);
+   * null reverts to the single-warehouse bare path. Owner-facing config, not a token/secret.
+   */
+  async updateSyncWarehouse(
+    organizationId: string,
+    actorUserId: string,
+    connectionId: string,
+    syncWarehouseCode: string | null,
+  ): Promise<MarketplaceConnectionDetail> {
+    await this.getOwnedConnection(connectionId, organizationId);
+
+    const updated = await prisma.marketplaceConnection.update({
+      where: { id: connectionId },
+      data: { syncWarehouseCode },
+    });
+
+    appLogger.info('marketplace.sync_warehouse_updated', {
+      organizationId,
+      connectionId,
+      provider: updated.provider,
+      syncWarehouseCode,
+    });
+    void auditService.log({
+      organizationId,
+      actorUserId,
+      action: 'marketplace.sync_warehouse_updated',
+      resource: 'marketplace_connection',
+      metadata: { connectionId, provider: updated.provider, syncWarehouseCode },
     });
 
     return mapConnection(updated);

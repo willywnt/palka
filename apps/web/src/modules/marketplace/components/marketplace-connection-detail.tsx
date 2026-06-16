@@ -58,6 +58,7 @@ import type { MarketplaceListingItem, MarketplaceListingMapping } from '../types
 import { LISTING_STATUS_FILTERS, type ListingStatusFilter } from '../validators/list-listings';
 import { MarketplaceHealthPanel } from './marketplace-health-panel';
 import { MarketplaceProviderBadge } from './marketplace-provider-badge';
+import { SyncWarehouseCard } from './sync-warehouse-card';
 
 const ALL_STATUS = 'all' as const;
 
@@ -453,6 +454,14 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
       </div>
 
       <MarketplaceHealthPanel connectionId={connectionId} />
+
+      {canManage && connection?.provider === 'LAZADA' ? (
+        <SyncWarehouseCard
+          connectionId={connectionId}
+          syncWarehouseCode={connection.syncWarehouseCode}
+          knownWarehouseCodes={connection.knownWarehouseCodes}
+        />
+      ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs">

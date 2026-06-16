@@ -21,6 +21,13 @@ export type MarketplaceConnectionListItem = {
   connectionStatus: MarketplaceConnectionStatus;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Lazada multi-warehouse: the ONE warehouse Falka owns (stock push targets only it, leaving
+   * the others untouched). null = single-warehouse bare path (behavior unchanged).
+   */
+  syncWarehouseCode: string | null;
+  /** Distinct warehouseCodes seen across the shop's listings at import — the picker's options. */
+  knownWarehouseCodes: string[];
   /** Listings whose auto-map needs a human look (list endpoint only). */
   needsReviewCount?: number;
   /** Listings whose last stock push failed (list endpoint only). */

@@ -92,6 +92,28 @@ export function useRefreshConnectionMutation(connectionId: string) {
   });
 }
 
+export function useUpdateSyncWarehouseMutation(connectionId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (syncWarehouseCode: string | null) => {
+      const result = await apiFetch<MarketplaceConnectionDetail>(
+        `${apiRoutes.marketplace}/${connectionId}`,
+        { method: 'PATCH', body: { syncWarehouseCode } },
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: marketplaceKeys.all });
+    },
+  });
+}
+
 export function useTestConnectionMutation(connectionId: string) {
   return useMutation({
     mutationFn: async () => {
