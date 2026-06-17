@@ -43,9 +43,9 @@ import { hashPassword } from '../prisma/account-helpers';
 const prisma = new PrismaClient();
 
 const PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'Demo123!';
-const OWNER_EMAIL = 'pemilik@tokodemo.local';
-const ADMIN_EMAIL = 'admin@tokodemo.local';
-const STAFF_EMAIL = 'staf@tokodemo.local';
+const OWNER_EMAIL = 'owner@falka.demo';
+const ADMIN_EMAIL = 'admin@falka.demo';
+const STAFF_EMAIL = 'staff@falka.demo';
 const ORG_NAME = 'Toko Falka Demo';
 
 const DAY = 86_400_000;
