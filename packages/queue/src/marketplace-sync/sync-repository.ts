@@ -85,6 +85,7 @@ export type SyncJobContext = {
   syncEnabled: boolean;
   connectionActive: boolean;
   shopId: string;
+  shopCipher: string | null;
   encryptedAccessToken: string;
   encryptedRefreshToken: string | null;
   tokenExpiresAt: Date | null;
@@ -111,6 +112,7 @@ export async function loadSyncJobContext(syncJobId: string): Promise<SyncJobCont
           isActive: true,
           deletedAt: true,
           shopId: true,
+          externalShopCipher: true,
           encryptedAccessToken: true,
           encryptedRefreshToken: true,
           tokenExpiresAt: true,
@@ -149,6 +151,7 @@ export async function loadSyncJobContext(syncJobId: string): Promise<SyncJobCont
     syncEnabled: job.mapping.syncEnabled,
     connectionActive: job.connection.isActive && job.connection.deletedAt === null,
     shopId: job.connection.shopId,
+    shopCipher: job.connection.externalShopCipher,
     encryptedAccessToken: job.connection.encryptedAccessToken,
     encryptedRefreshToken: job.connection.encryptedRefreshToken,
     tokenExpiresAt: job.connection.tokenExpiresAt,

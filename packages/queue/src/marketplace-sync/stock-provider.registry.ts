@@ -9,9 +9,15 @@ import type {
 /**
  * Credentials a shop-scoped provider call needs. `shopId` is required because some
  * providers (Shopee, TikTok/Tokopedia) must send the shop id on EVERY request — and it
- * is part of their signature base. Lazada embeds the shop in the token and ignores it.
+ * is part of their signature base. `shopCipher` is the opaque shop identifier TikTok Shop
+ * (Tokopedia channel) additionally requires on every shop-scoped call; null for the others.
+ * Lazada embeds the shop in the token and ignores both.
  */
-export type ProviderShopCredentials = { accessToken: string; shopId: string };
+export type ProviderShopCredentials = {
+  accessToken: string;
+  shopId: string;
+  shopCipher: string | null;
+};
 
 export type StockProviderUpdateParams = NormalizedStockUpdateRequest & ProviderShopCredentials;
 

@@ -83,6 +83,7 @@ export class MarketplaceReconciliationService {
     connection: {
       provider: MarketplaceProvider;
       shopId: string;
+      externalShopCipher: string | null;
       encryptedAccessToken: string;
       syncWarehouseCode: string | null;
     },
@@ -99,10 +100,15 @@ export class MarketplaceReconciliationService {
       adapter.fetchListingsForItems && externalProductIds.length > 0
         ? await adapter.fetchListingsForItems({
             shopId: connection.shopId,
+            shopCipher: connection.externalShopCipher,
             accessToken,
             externalProductIds,
           })
-        : await adapter.fetchListings({ shopId: connection.shopId, accessToken });
+        : await adapter.fetchListings({
+            shopId: connection.shopId,
+            shopCipher: connection.externalShopCipher,
+            accessToken,
+          });
 
     return listings.map((listing) => ({
       externalProductId: listing.externalProductId,

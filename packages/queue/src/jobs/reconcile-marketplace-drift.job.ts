@@ -85,9 +85,14 @@ export async function processReconcileMarketplaceDriftJob(
         ? await adapter.fetchListingsForItems({
             accessToken,
             shopId: connection.shopId,
+            shopCipher: connection.externalShopCipher,
             externalProductIds,
           })
-        : await adapter.fetchListings({ accessToken, shopId: connection.shopId });
+        : await adapter.fetchListings({
+            accessToken,
+            shopId: connection.shopId,
+            shopCipher: connection.externalShopCipher,
+          });
 
       // Provider can't enumerate listings (stub) — nothing to reconcile.
       if (external === null) {

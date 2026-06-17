@@ -25,7 +25,12 @@ export type NormalizedListing = {
 
 export interface MarketplaceImportAdapter {
   readonly provider: MarketplaceProvider;
-  fetchListings(params: { shopId: string; accessToken: string }): Promise<NormalizedListing[]>;
+  fetchListings(params: {
+    shopId: string;
+    /** TikTok Shop shop_cipher (Tokopedia channel); null for providers that don't use it. */
+    shopCipher: string | null;
+    accessToken: string;
+  }): Promise<NormalizedListing[]>;
   /**
    * Fetch current stock for SPECIFIC external products only (drift reconciliation),
    * avoiding a full-catalog pull. Optional — providers without it fall back to
@@ -33,6 +38,7 @@ export interface MarketplaceImportAdapter {
    */
   fetchListingsForItems?(params: {
     shopId: string;
+    shopCipher: string | null;
     accessToken: string;
     externalProductIds: string[];
   }): Promise<NormalizedListing[]>;

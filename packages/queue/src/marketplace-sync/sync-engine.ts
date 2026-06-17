@@ -188,6 +188,7 @@ export async function executeStockSync(
       ...request,
       accessToken: fresh.accessToken,
       shopId: context.shopId,
+      shopCipher: context.shopCipher,
     });
 
     if (!response.success) {

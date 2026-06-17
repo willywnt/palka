@@ -34,6 +34,7 @@ export class MarketplaceImportService {
     const adapter = getMarketplaceImportAdapter(connection.provider);
     const listings = await adapter.fetchListings({
       shopId: connection.shopId,
+      shopCipher: connection.externalShopCipher,
       // Stub adapters ignore the token; seeded/stub connections store a non-cipher
       // placeholder, so decrypt leniently and let a real adapter fail its own auth.
       accessToken:

@@ -9,6 +9,7 @@ export type DriftConnection = {
   organizationId: string;
   provider: MarketplaceProvider;
   shopId: string;
+  externalShopCipher: string | null;
   shopName: string;
   encryptedAccessToken: string;
   tokenExpiresAt: Date | null;
@@ -36,6 +37,7 @@ export async function findActiveConnectionsForDrift(limit: number): Promise<Drif
       organizationId: true,
       provider: true,
       shopId: true,
+      externalShopCipher: true,
       shopName: true,
       encryptedAccessToken: true,
       tokenExpiresAt: true,
