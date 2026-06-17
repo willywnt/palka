@@ -1,137 +1,62 @@
-# VPS / Coolify Migration Strategy
+# Vercel → self-hosted VPS migration
 
-The current stack (Vercel + Neon + R2) is designed to be **vendor-portable**. This document outlines migration to self-hosted infrastructure when scale or cost requires it.
+**Decision (2026-06-16): production is moving off Vercel+Neon to a self-hosted VPS.** Vercel was a
+stopgap — it can't run the BullMQ **worker** or **Socket.IO**, so marketplace sync, scheduled jobs, the
+scanner, and (later) WhatsApp stay dormant there. The VPS unblocks all of it. The step-by-step runbook is
+[`vps-setup.md`](./vps-setup.md); the provider/cost comparison + chosen package (HEMAT) is
+[`vps-cost-packages.md`](./vps-cost-packages.md).
 
-## Current vs future architecture
+This migration is a **clean start** — no data is carried over from Neon (no `pg_dump`/restore; Lazada is
+re-authorized via OAuth on the new domain, so encryption-secret continuity is moot).
 
-| Component | Current                | Future VPS option                   |
-| --------- | ---------------------- | ----------------------------------- |
-| App       | Vercel serverless      | Docker + Coolify / Caddy            |
-| Database  | Neon PostgreSQL        | Self-hosted PostgreSQL 16           |
-| Redis     | Docker local / Upstash | Self-hosted Redis 7                 |
-| Storage   | Cloudflare R2          | MinIO (S3-compatible)               |
-| Jobs      | Not yet                | BullMQ workers (separate container) |
+## Architecture: current → target
 
-## Portability design decisions
+| Component | Current (stopgap) | Target VPS (Option A, single host)          |
+| --------- | ----------------- | ------------------------------------------- |
+| App       | Vercel serverless | Docker: `web` (Next + Socket.IO) via Caddy  |
+| Worker    | (does not run)    | `apps/worker` BullMQ container — now active |
+| Database  | Neon PostgreSQL   | Self-hosted PostgreSQL 16 (container)       |
+| Redis     | Upstash / none    | Self-hosted Redis 7 (container)             |
+| Storage   | Cloudflare R2     | **Cloudflare R2 (unchanged — keep it)**     |
+| TLS/proxy | Vercel            | Caddy (auto Let's Encrypt)                  |
 
-These choices make migration straightforward:
+## Why this is low-risk
 
-1. **Modular monolith** — all business logic in `apps/web/src/modules/`, no Vercel-specific APIs
-2. **StorageProvider abstraction** — swap R2 for MinIO without changing upload flow
-3. **Prisma ORM** — works with any PostgreSQL host
-4. **Standard env vars** — no Vercel-only configuration required at runtime
-5. **Docker Compose for infra** — already used locally for Postgres + Redis
+The app was built vendor-portable: a modular monolith with no Vercel-only runtime APIs, a
+`StorageProvider` abstraction (R2 today, swappable), Prisma (any Postgres), standard env vars, and Docker
+Compose already used for local infra. Files stay on R2, so there's no object migration.
 
-## Migration phases
+## What NOT to change
 
-### Phase 1 — Keep managed services, move app
+- Prisma schema + the `migrate deploy` workflow (the compose `migrate` service runs it).
+- Auth.js JWT config — only `AUTH_URL` changes to the new domain.
+- API route structure (`/api/v1/*`) and the Socket.IO event contracts.
+- `MARKETPLACE_ENCRYPTION_SECRET` — keep it stable per env (it decrypts marketplace tokens).
+- R2 key structure.
 
-Deploy Next.js as a standalone Node.js app:
+## Cutover (clean start)
 
-```bash
-pnpm turbo build --filter=@falka/web
-node apps/web/.next/standalone/server.js  # if standalone output enabled
-```
+1. Stand up the VPS per [`vps-setup.md`](./vps-setup.md): shared Caddy → prod app stack → bootstrap admin.
+2. Point DNS (`palka.app` A record) at the VPS; Caddy issues TLS.
+3. Re-register the **Lazada OAuth callback** at `https://<domain>/api/v1/marketplaces/lazada/oauth/callback`
+   and re-authorize the shop.
+4. Decommission the Vercel project + Neon DB once the VPS is verified. (If you ever migrate _with_ data
+   instead: `pg_dump` Neon → restore into the VPS Postgres, and keep `MARKETPLACE_ENCRYPTION_SECRET` identical.)
 
-Or use Coolify with:
+## Rollback
 
-- Build: `pnpm turbo build --filter=@falka/web`
-- Start: `pnpm --filter @falka/web start`
-- Keep Neon + R2
+Keep the Vercel project alive during cutover. With low DNS TTL: verify the VPS via a hosts-file override
+first, switch the DNS record, and keep Vercel as a fallback for ~48 h before tearing it down.
 
-### Phase 2 — Self-host database and Redis
+## Monitoring on the VPS
 
-1. Provision VPS (minimum 2 vCPU, 4 GB RAM)
-2. Run `docker-compose.yml` (Postgres + Redis) on VPS
-3. Migrate data from Neon via `pg_dump` / `pg_restore`
-4. Update `DATABASE_URL` and `REDIS_URL`
-5. Run `pnpm db:migrate:deploy`
+- Pino logs → stdout → `docker compose logs` (or ship to Loki later).
+- Uptime monitoring (Uptime Kuma / Better Stack) hitting `https://<domain>/api/health`.
+- Sentry (optional) via `SENTRY_DSN`.
 
-### Phase 3 — Self-host storage
+## Scaling path
 
-1. Deploy MinIO on VPS or separate storage node
-2. Implement or configure `MinioStorageProvider` (same S3 SDK)
-3. Migrate objects from R2 via `rclone` or AWS CLI
-4. Update `R2_*` env vars to MinIO endpoint
-5. Apply equivalent CORS rules on MinIO
-
-### Phase 4 — Background workers
-
-1. Add `apps/worker` package (future)
-2. Connect to same `REDIS_URL` and `DATABASE_URL`
-3. Run BullMQ consumers in separate Docker container
-4. Scale workers independently of web app
-
-## Coolify deployment sketch
-
-```yaml
-# docker-compose.production.yml (future — not implemented yet)
-services:
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-    ports:
-      - '3000:3000'
-    depends_on:
-      - postgres
-      - redis
-
-  worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-    depends_on:
-      - redis
-
-  postgres:
-    image: postgres:16-alpine
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis_data:/data
-```
-
-## What not to change during migration
-
-- Prisma schema and migrations workflow
-- Auth.js JWT configuration (update `AUTH_URL` only)
-- API route structure (`/api/v1/*`)
-- Encryption secrets (or plan token re-encryption)
-- R2 key structure (keep same paths in MinIO)
-
-## Rollback plan
-
-Keep Vercel project active during VPS migration. DNS cutover via low TTL:
-
-1. Deploy to VPS, verify with hosts file override
-2. Switch DNS A/CNAME record
-3. Keep Vercel as fallback for 48 hours
-
-## Monitoring on VPS
-
-Replace Vercel Logs with:
-
-- Pino → stdout → Docker logs or Loki
-- Uptime monitoring (Uptime Kuma, Better Stack)
-- Future: Sentry for errors
-
-## Cost trigger points
-
-Consider VPS when:
-
-- Vercel serverless costs exceed dedicated VPS
-- BullMQ workers need persistent processes
-- Recording processing requires long-running jobs
-- Data residency requirements mandate self-hosting
-
-Until then, Vercel + Neon + R2 is the recommended production stack.
+Single box now (HEMAT). When load grows: upgrade the box (Biznet NEO Lite Pro / 16 GB), then split
+Postgres and/or the worker onto their own hosts (just change `DATABASE_URL` / `REDIS_URL`), and add a CDN
+in front. The same image + compose scale up without code changes. A managed PaaS layer (Coolify) is the
+SEIMBANG upgrade — it adds git-push deploys, per-env management, and a backup UI on the same VPS.

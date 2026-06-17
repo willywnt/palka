@@ -1,0 +1,31 @@
+# Shared reverse proxy — ONE Caddy fronts every environment on this box and
+# auto-provisions/renews TLS (Let's Encrypt). Run it once; each app stack
+# (docker-compose.prod.yml, per env) joins the same external `edge` network so
+# Caddy can reach each env's `web` by its alias (palka-prod-web / palka-staging-web).
+#
+#   docker network create edge                                    # once, ever
+#   docker compose -f docker-compose.proxy.yml --env-file .env.proxy up -d
+#
+# Requires: DNS A record for each domain → this server, ports 80 + 443 open.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      PROD_DOMAIN: ${PROD_DOMAIN}
+      STAGING_DOMAIN: ${STAGING_DOMAIN:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:

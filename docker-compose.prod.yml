@@ -1,27 +1,33 @@
-# Single-host PRODUCTION stack (Option A): Caddy (auto-TLS) → web (Next + Socket.IO),
-# plus the BullMQ worker, Postgres, and Redis. Uploaded files live in R2 (Cloudflare),
-# not on this host.
+# Per-ENVIRONMENT app stack (single-host Option A): web (Next + Socket.IO) + BullMQ
+# worker + Postgres + Redis + a one-shot migrate + a scheduled pg_dump backup.
 #
-# The repo's docker-compose.yml is for LOCAL DEV infra only (postgres + redis). This
-# prod stack is a separate file — always pass it explicitly with `-f`.
+# TLS + domain routing live in the SHARED Caddy (docker-compose.proxy.yml) so one box
+# can host several environments. Bring the proxy up ONCE, then run THIS file once per
+# environment from its OWN checkout dir (each dir holds its own .env.production):
 #
-# Usage (one env file drives BOTH ${var} interpolation AND container env):
-#   cp .env.production.vps.example .env.production    # then fill it in
-#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#   docker network create edge                                    # once, ever
+#   docker compose -f docker-compose.proxy.yml --env-file .env.proxy up -d
+#   # in ~/apps/palka-prod    (its .env.production has WEB_ALIAS=palka-prod-web,    APP_IMAGE=falka-app:prod)
+#   docker compose -p palka-prod    --env-file .env.production up -d --build
+#   # in ~/apps/palka-staging (its .env.production has WEB_ALIAS=palka-staging-web, APP_IMAGE=falka-app:staging)
+#   docker compose -p palka-staging --env-file .env.production up -d --build
 #
-# NOTE: untested scaffold — validate/tune at first deploy. See docs/deployment/vps-setup.md.
+# Uploaded files live on Cloudflare R2 (this host never stores them). The repo's
+# docker-compose.yml is LOCAL DEV infra only — unrelated to this prod stack.
+#
+# NOTE: scaffold — validate/tune at the first real deploy. See docs/deployment/vps-setup.md.
 
 x-app: &app
   build:
     context: .
     dockerfile: Dockerfile
     args:
-      # NEXT_PUBLIC_* must be present at BUILD time (inlined into the client bundle).
+      # NEXT_PUBLIC_* are inlined at BUILD time (per-env URL ⇒ per-env image, see APP_IMAGE).
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Falka}
       NEXT_PUBLIC_ENABLE_MOBILE_SCANNER: ${NEXT_PUBLIC_ENABLE_MOBILE_SCANNER:-true}
       DATABASE_URL: ${DATABASE_URL}
-  image: falka-app:latest
+  image: ${APP_IMAGE:-falka-app:latest}
   env_file: [.env.production]
   restart: unless-stopped
 
@@ -40,12 +46,16 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
     expose: ['3000']
+    # Joins the shared `edge` network under a per-env alias so the shared Caddy can
+    # route <domain> → this env's web. Postgres/Redis stay off `edge` (project-internal).
+    networks:
+      default: {}
+      edge:
+        aliases: ['${WEB_ALIAS:-palka-prod-web}']
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
-    # node (no curl/wget in the slim image) hits the platform health route; 503 when a
-    # dependency is down. start_period covers Next.js boot so early failures don't count.
     healthcheck:
       test:
         [
@@ -79,19 +89,6 @@ services:
       retries: 5
       start_period: 30s
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports: ['80:80', '443:443']
-    environment:
-      DOMAIN: ${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      web: { condition: service_healthy }
-
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -119,8 +116,24 @@ services:
       timeout: 5s
       retries: 12
 
+  # Scheduled pg_dump → local volume (gzip + retention). Sync the volume to R2 offsite
+  # via host cron + rclone — see docs/deployment/vps-setup.md → "Backups".
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: [.env.production]
+    volumes:
+      - pg_backups:/backups
+      - ./scripts/backup-db.sh:/backup-db.sh:ro
+    entrypoint: ['/bin/sh', '/backup-db.sh']
+    depends_on:
+      postgres: { condition: service_healthy }
+
+networks:
+  edge:
+    external: true
+
 volumes:
-  caddy_data:
-  caddy_config:
   pg_data:
   redis_data:
+  pg_backups:

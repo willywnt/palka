@@ -1,11 +1,19 @@
-# Caddy auto-provisions and renews TLS for $DOMAIN via Let's Encrypt.
-# Requirements: a DNS A/AAAA record for $DOMAIN → this server's IP, and ports
-# 80 + 443 reachable. WebSocket upgrades (Socket.IO at /api/socket) are proxied
-# transparently — no extra config needed.
+# One Caddy fronts every environment on this box (auto-TLS via Let's Encrypt).
+# {$VAR} is read from the caddy container env (docker-compose.proxy.yml / .env.proxy).
+# Each environment's `web` joins the external `edge` network under the alias used below.
+# WebSocket upgrades (Socket.IO at /api/socket) proxy transparently — no extra config.
 #
-# $DOMAIN is read from the caddy container's environment (set in docker-compose.prod.yml).
+# Requirements: a DNS A/AAAA record for each domain → this server's IP, ports 80 + 443
+# reachable, and the matching app stack up (docker-compose.prod.yml, per env).
 
-{$DOMAIN} {
+{$PROD_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy web:3000
+	reverse_proxy palka-prod-web:3000
 }
+
+# --- Staging: uncomment after the staging stack is up + STAGING_DOMAIN is set, then
+# --- reload Caddy: `docker compose -f docker-compose.proxy.yml exec caddy caddy reload --config /etc/caddy/Caddyfile`
+# {$STAGING_DOMAIN} {
+# 	encode zstd gzip
+# 	reverse_proxy palka-staging-web:3000
+# }
