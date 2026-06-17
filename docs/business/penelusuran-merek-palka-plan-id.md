@@ -194,6 +194,22 @@ pendaftaran merek di Kelas 42/9** (software):
   distinktif**, dan **daftarkan merek Kelas 42/9 lebih cepat** (first-to-file mengunci ruang software
   untukmu sebelum pihak lain).
 
+### Ketersediaan domain & sosmed (cek 2026-06-15)
+> Metode: DNS resolution (andal untuk "terpakai"). RDAP & WHOIS **terblokir** dari alat ini →
+> domain "kemungkinan tersedia" **wajib dikonfirmasi ulang di registrar**.
+
+- ❌ **Domain terpakai** (resolve DNS): `palka.com`, `palka.id`, `palka.app`, `palka.co`,
+  `palka.net`, `palka.tech`.
+- ❓ **Kemungkinan tersedia** (tanpa DNS — verifikasi di registrar): `palka.io`, **`palka.co.id`**,
+  `getpalka.com`, `palkaapp.com`, `trypalka.com`, `usepalka.com`.
+- **Sosmed:** handle persis `@palka` tidak muncul jelas di pencarian (mungkin tersedia/akun privat);
+  banyak varian `palka_*`/`palkas` terpakai (Palka = nama umum/marga). **Cek manual** via
+  namechk.com / namecheckr.com atau buka URL profilnya langsung.
+
+**Rekomendasi domain:** untuk SaaS Indonesia → **`palka.co.id`** (pas untuk badan usaha ID) atau
+**`palka.io`** sebagai utama (bila tersedia); cadangan pola SaaS: `usepalka.com`/`getpalka.com`.
+Samakan handle sosmed di semua platform (mis. `@palkaapp` / `@usepalka` / `@palka.co.id`).
+
 ---
 **Disclaimer:** Hasil penelusuran ≠ jaminan pendaftaran; keputusan akhir ada pada pemeriksa DJKI
 (bersifat diskresi). Dokumen ini alat bantu, bukan nasihat hukum.
