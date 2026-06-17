@@ -316,6 +316,11 @@ sehingga ada potensi kebingungan namespace yang justru tidak ada pada "palka").
 
 > Catatan: jaga agar wording **bukan** "ritel pakaian" (itu ranah Falka). Fokus ke manajemen
 > bisnis/inventaris/data — yang berbeda jenis dari ritel fashion.
+>
+> ⚠️ **Hasil penelusuran 2026-06:** kelas 35 ternyata lebih ramai — **PARKA** (kelas 35) punya jasa
+> "manajemen bisnis online / order penjualan via aplikasi program komputer" yang **sejenis** + bunyi
+> mirip (PALKA≈PARKA, beda huruf L/R). **Rekomendasi: prioritaskan kelas 42 (+9); kelas 35 hanya
+> dengan opini konsultan KI / uraian dipersempit / ditunda.** Detail: `penelusuran-merek-palka-plan-id.md`.
 
 - Layanan manajemen usaha dan administrasi usaha terkomputerisasi.
 - Manajemen dan pengendalian persediaan/stok secara terkomputerisasi untuk pihak ketiga.

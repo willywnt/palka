@@ -135,7 +135,42 @@ Untuk tiap hit, terapkan:
 3. PDKI tab **Gambar**: unggah draf logo.
 4. Terapkan **aturan keputusan** (§8).
 5. Cek pelengkap (§10).
-6. Bila hijau semua → ajukan (kelas 42 + 9 + 35). Bila ada kuning → konsultan KI dulu.
+6. **Prioritaskan kelas 42 + 9** (relatif bersih). **Kelas 35 lebih ramai** (lihat §13: PARKA) →
+   bila ingin 35, minta opini konsultan KI dulu / persempit uraian / tunda.
+
+---
+
+## 13. Hasil penelusuran (diisi 2026-06-15)
+
+Penelusuran manual varian fonetik di PDKI:
+
+| Kata kunci | Kelas 9 | Kelas 35 | Kelas 42 | Penilaian |
+|---|---|---|---|---|
+| palca, palkha, palko, balka, salka | — | — | — | 🟢 SAFE (tidak ada hit) |
+| **parka** (ParKa, JID2023029792, aktif s/d 2033) | — | ✅ ada | — | 🟡 **WARN utk kelas 35** |
+| **polka** | ✅ termometer/boiler control | ✅ penyajian barang ritel | — | 🟢 9 = beda barang (bukan software); 35 = minor |
+| **malka** (Andreas S. Kamdani) | — | ✅ perdagangan/iklan | ✅ arsitektur/disain industri | 🟢 42 = arsitektur (bukan software) & awalan M≠P; 35 = minor |
+| **palka desain** (interior) | — | — | ✅ ada | 🟡 WARN (uji *sejenis* desain interior vs software) |
+
+**Interpretasi:**
+- 🟢 **Kelas 42 (INTI): relatif aman.** Tak ada merek software/SaaS mirip "PALKA". Yang ada di 42
+  hanya bidang **desain/arsitektur** (Palka Desain = interior; Malka = arsitektur/disain industri)
+  → **tidak sejenis** dengan SaaS, dan Malka beda awalan (M). Sisa risiko = **uji *sejenis* Palka
+  Desain** (tetap minta opini KI).
+- 🟢 **Kelas 9: relatif aman** untuk software. Polka di kelas 9 = **alat ukur/termometer** (barang
+  keras), bukan perangkat lunak → tidak sejenis.
+- 🟡 **Kelas 35: paling ramai & berisiko.** **PARKA (kelas 35)** menjual jasa **manajemen bisnis
+  online, pemrosesan data daring, order penjualan via aplikasi program komputer** — **sejenis**
+  dengan rencana kelas 35-mu, **dan** secara bunyi **PALKA ≈ PARKA** (beda satu huruf L/R). Kombinasi
+  ini bisa memicu **penolakan sementara/oposisi**. Polka & Malka di 35 lebih jauh (beda vokal/awalan
+  & jasa) tapi menambah keramaian.
+
+**Rekomendasi terbaru:**
+1. **Ajukan "PALKA" di Kelas 42 (+ 9 untuk app).** Perlindungan inti SaaS & relatif bersih.
+2. **Tunda/hati-hati dengan Kelas 35.** Bila tetap mau: (a) persempit uraian agar jauh dari
+   "manajemen bisnis online/iklan", (b) pakai logo distinktif, (c) **minta clearance KI khusus
+   PARKA** dulu — atau lewati 35 di tahap awal (kelas 42 sudah melindungi software-nya).
+3. Tetap minta opini KI untuk **Palka Desain (sejenis?)** di kelas 42 sebelum bayar.
 
 ---
 **Disclaimer:** Hasil penelusuran ≠ jaminan pendaftaran; keputusan akhir ada pada pemeriksa DJKI
