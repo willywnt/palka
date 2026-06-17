@@ -53,6 +53,37 @@ const daysAgo = (n: number): Date => new Date(Date.now() - n * DAY);
 const rp = (n: number): string => String(Math.round(n));
 const code = (prefix: string, n: number): string => `${prefix}${String(n).padStart(5, '0')}`;
 
+/**
+ * `--fresh` (or SEED_FRESH=1) wipes the demo org's existing data before reseeding, so a re-run
+ * gives a clean, fully-refreshed demo. Without it the seed is idempotent (skips if data exists).
+ */
+const FRESH = process.argv.includes('--fresh') || process.env.SEED_FRESH === '1';
+
+/**
+ * Delete ALL of the demo org's feature data, scoped to `organizationId` only (never touches
+ * another org). FK-safe order: rows a parent cascades (order→items/returns, sale→items/refunds,
+ * connection-owned products/mappings/jobs, PO/opname/bundle items, notification reads) go via
+ * their parent; the StockLedger is cleared before variants (its variant FK is Restrict).
+ */
+async function wipeOrgData(organizationId: string): Promise<void> {
+  await prisma.marketplaceSyncJob.deleteMany({ where: { organizationId } });
+  await prisma.order.deleteMany({ where: { organizationId } }); // cascades orderItems + returns(+items)
+  await prisma.marketplaceProductMapping.deleteMany({ where: { organizationId } });
+  await prisma.marketplaceProduct.deleteMany({ where: { organizationId } });
+  await prisma.marketplaceConnection.deleteMany({ where: { organizationId } });
+  await prisma.sale.deleteMany({ where: { organizationId } }); // cascades saleItems + refunds(+items)
+  await prisma.purchaseOrder.deleteMany({ where: { organizationId } }); // cascades poItems
+  await prisma.stockOpname.deleteMany({ where: { organizationId } }); // cascades opnameItems
+  await prisma.bundle.deleteMany({ where: { organizationId } }); // cascades bundleItems
+  await prisma.recording.deleteMany({ where: { organizationId } });
+  await prisma.notification.deleteMany({ where: { organizationId } }); // cascades notificationReads
+  await prisma.stockLedger.deleteMany({ where: { organizationId } }); // before variants (FK Restrict)
+  await prisma.productVariant.deleteMany({ where: { organizationId } }); // cascades inventory
+  await prisma.product.deleteMany({ where: { organizationId } });
+  await prisma.supplier.deleteMany({ where: { organizationId } });
+  await prisma.auditLog.deleteMany({ where: { organizationId } });
+}
+
 // ── Catalog fixtures ────────────────────────────────────────────────────────────────────────
 type VariantSeed = {
   sku: string;
@@ -286,6 +317,11 @@ async function main() {
   console.log(
     `Org "${org.name}" — OWNER ${OWNER_EMAIL} · ADMIN ${ADMIN_EMAIL} · STAFF ${STAFF_EMAIL}`,
   );
+
+  if (FRESH) {
+    await wipeOrgData(organizationId);
+    console.log('--fresh: cleared existing demo-org data before reseeding.');
+  }
 
   const alreadySeeded = await prisma.product.count({ where: { organizationId } });
   if (alreadySeeded > 0) {
