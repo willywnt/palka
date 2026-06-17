@@ -172,6 +172,28 @@ Penelusuran manual varian fonetik di PDKI:
    PARKA** dulu — atau lewati 35 di tahap awal (kelas 42 sudah melindungi software-nya).
 3. Tetap minta opini KI untuk **Palka Desain (sejenis?)** di kelas 42 sebelum bayar.
 
+## 14. Catatan namespace & domain (temuan 2026-06)
+
+Ruang nama "Palka" cukup ramai — tapi **semua di bidang berbeda**, jadi **tidak menghalangi
+pendaftaran merek di Kelas 42/9** (software):
+
+- **PT Palka Dikara Meraki / Komunal — `palka.id`** (Bali, sejak 2019): komunitas & usaha
+  **seni-budaya-kepemudaan** (podcast, produksi video/foto, live music/event, album "Palka Komunal").
+  Bidang seni/hiburan (≈ **Kelas 41**) → **tidak sejenis** dengan SaaS inventaris. *(Namun cek juga
+  PDKI apakah entitas ini punya merek "Palka" terdaftar — kalaupun ada, kemungkinan di kelas 38/41,
+  tetap tidak sejenis & bukan merek terkenal.)*
+- **Palka Desain** — branding sosmed (Instagram) + merek terdaftar Kelas 42 **desain interior**.
+
+**Implikasi praktis:**
+- 🌐 **Domain `palka.id` sudah dipakai** (PT Palka Dikara) → siapkan alternatif: `palka.co.id`,
+  `palka.app`, `getpalka`/`trypalka`/`usepalka`, dsb. Cek juga handle sosmed.
+- 🏢 **Nama PT**: pakai **nama badan hukum distinktif** (mis. "PT Palka Niaga Teknologi" / nama lain)
+  — **nama PT tidak harus sama dengan merek/produk**. Karena sudah ada "PT Palka Dikara…", cek
+  ketersediaan di **AHU** (PP 43/2011: nama PT tak boleh sama/mirip pada pokoknya).
+- 🏷️ Namespace ramai = **daya pembeda kata "palka" relatif lemah** → **wajib logo/wordmark
+  distinktif**, dan **daftarkan merek Kelas 42/9 lebih cepat** (first-to-file mengunci ruang software
+  untukmu sebelum pihak lain).
+
 ---
 **Disclaimer:** Hasil penelusuran ≠ jaminan pendaftaran; keputusan akhir ada pada pemeriksa DJKI
 (bersifat diskresi). Dokumen ini alat bantu, bukan nasihat hukum.
