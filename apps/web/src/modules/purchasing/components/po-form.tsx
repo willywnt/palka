@@ -55,6 +55,9 @@ import { useSupplierOptionsQuery } from '../hooks/use-suppliers';
 import { usePurchaseScanner, type PoScannerStatus } from '../hooks/use-purchase-scanner';
 import type { PurchasableVariant, ScannedPurchaseItem } from '../types';
 
+/** Sentinel Select value for the "type a supplier name manually" option. */
+const MANUAL_SUPPLIER = '__manual__';
+
 /** Per-state copy + accent for the PO phone-scanner indicator. */
 const SCAN_STATUS_META: Record<PoScannerStatus, { dot: string; cta: string; hint: string | null }> =
   {
@@ -169,6 +172,8 @@ export function PoForm() {
   const [lines, setLines] = useState<PoLine[]>([]);
   const [supplierName, setSupplierName] = useState('');
   const [supplierId, setSupplierId] = useState('');
+  // True when the user chose "ketik manual" — reveals the free-text name field.
+  const [manualSupplier, setManualSupplier] = useState(false);
   const supplierOptions = useSupplierOptionsQuery();
   const hasSuppliers = (supplierOptions.data?.length ?? 0) > 0;
 
@@ -564,31 +569,49 @@ export function PoForm() {
           <div className="space-y-1.5">
             <Label htmlFor="supplier">Pemasok (opsional)</Label>
             {hasSuppliers ? (
-              <Select
-                aria-label="Pilih pemasok tersimpan"
-                value={supplierId}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setSupplierId(value);
-                  const picked = supplierOptions.data?.find((option) => option.id === value);
-                  if (picked) setSupplierName(picked.name);
-                }}
-              >
-                <option value="">— Ketik manual —</option>
-                {(supplierOptions.data ?? []).map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </Select>
-            ) : null}
-            <Input
-              id="supplier"
-              value={supplierName}
-              onChange={(event) => setSupplierName(event.target.value)}
-              placeholder="Nama pemasok"
-              disabled={Boolean(supplierId)}
-            />
+              <>
+                <Select
+                  id="supplier"
+                  value={manualSupplier ? MANUAL_SUPPLIER : supplierId}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === MANUAL_SUPPLIER) {
+                      setManualSupplier(true);
+                      setSupplierId('');
+                      setSupplierName('');
+                      return;
+                    }
+                    setManualSupplier(false);
+                    setSupplierId(value);
+                    setSupplierName(
+                      supplierOptions.data?.find((option) => option.id === value)?.name ?? '',
+                    );
+                  }}
+                >
+                  <option value="">Tanpa pemasok</option>
+                  {(supplierOptions.data ?? []).map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                  <option value={MANUAL_SUPPLIER}>+ Pemasok lain (ketik manual)…</option>
+                </Select>
+                {manualSupplier ? (
+                  <Input
+                    value={supplierName}
+                    onChange={(event) => setSupplierName(event.target.value)}
+                    placeholder="Nama pemasok baru"
+                  />
+                ) : null}
+              </>
+            ) : (
+              <Input
+                id="supplier"
+                value={supplierName}
+                onChange={(event) => setSupplierName(event.target.value)}
+                placeholder="Nama pemasok"
+              />
+            )}
           </div>
 
           {lines.length === 0 ? (
