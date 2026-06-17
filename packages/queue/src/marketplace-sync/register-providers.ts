@@ -3,6 +3,7 @@ import { logger } from '@falka/utils/logger';
 
 import { LazadaStockProvider } from './providers/lazada-stock-provider.js';
 import { ShopeeStockProvider } from './providers/shopee-stock-provider.js';
+import { TokopediaStockProvider } from './providers/tokopedia-stock-provider.js';
 import { registerMarketplaceStockProvider } from './stock-provider.registry.js';
 
 /**
@@ -22,5 +23,10 @@ export function registerConfiguredStockProviders(): void {
   if (env.SHOPEE_PARTNER_ID && env.SHOPEE_PARTNER_KEY) {
     registerMarketplaceStockProvider(new ShopeeStockProvider());
     logger.info('marketplace.stock.provider_registered', { provider: 'SHOPEE' });
+  }
+
+  if (env.TOKOPEDIA_APP_KEY && env.TOKOPEDIA_APP_SECRET) {
+    registerMarketplaceStockProvider(new TokopediaStockProvider());
+    logger.info('marketplace.stock.provider_registered', { provider: 'TOKOPEDIA' });
   }
 }

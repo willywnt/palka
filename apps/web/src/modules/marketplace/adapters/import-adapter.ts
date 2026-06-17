@@ -3,6 +3,7 @@ import type { MarketplaceProvider } from '@prisma/client';
 
 import { LazadaImportAdapter } from './lazada-import-adapter';
 import { ShopeeImportAdapter } from './shopee-import-adapter';
+import { TokopediaImportAdapter } from './tokopedia-import-adapter';
 
 /** A marketplace listing normalized to our shape, regardless of provider. */
 export type NormalizedListing = {
@@ -108,6 +109,10 @@ function createImportAdapter(provider: MarketplaceProvider): MarketplaceImportAd
 
   if (provider === 'SHOPEE' && env.SHOPEE_PARTNER_ID && env.SHOPEE_PARTNER_KEY) {
     return new ShopeeImportAdapter();
+  }
+
+  if (provider === 'TOKOPEDIA' && env.TOKOPEDIA_APP_KEY && env.TOKOPEDIA_APP_SECRET) {
+    return new TokopediaImportAdapter();
   }
 
   return new StubMarketplaceImportAdapter(provider);
