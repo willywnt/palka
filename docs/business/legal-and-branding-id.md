@@ -144,7 +144,7 @@ Dokumen ini punya 4 bagian:
 |---|---|
 | **Kebijakan Privasi** | Efektif wajib (UU PDP + PP 71/2019) |
 | **Syarat & Ketentuan (ToS)** | Kontrak elektronik sah; simpan log persetujuan |
-| **DPA** (Data Processing Agreement) | Wajib substantif (controller–processor); juga dengan sub-prosesor (Cloudflare/cloud) |
+| **DPA** (Data Processing Agreement) | Wajib substantif (controller–processor); juga dengan sub-prosesor (Cloudflare/cloud) — draf & checklist di `dpa-draft-dan-checklist-id.md` |
 | **SLA** | Tidak wajib by name, tapi standar B2B |
 | ⚠️ **Klausul pembatasan tanggung jawab** | Pasal 18 UU 8/1999 melarang **klausula baku** yang mengalihkan/menghapus tanggung jawab pelaku usaha → **batal demi hukum**. Untuk B2B bite-nya lebih lemah, tapi praktik aman: **batasi (cap), jangan hapus total** |
 
