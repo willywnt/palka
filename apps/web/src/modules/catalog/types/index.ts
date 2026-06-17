@@ -26,6 +26,8 @@ export type ProductVariantItem = {
   leadTimeDays: number | null;
   /** Minimum reorder quantity (MOQ); null = no minimum. */
   minOrderQty: number | null;
+  /** Preferred supplier (purchasing); null = none. Drives the reorder lead-time/MOQ fallback. */
+  supplierId: string | null;
   availableStock: number;
   /** Reserved for unshipped orders — deleting a variant with reserved stock is blocked. */
   reservedStock: number;

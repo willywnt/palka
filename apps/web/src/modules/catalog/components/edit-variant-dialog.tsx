@@ -23,6 +23,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { NumberInput } from '@/components/ui/number-input';
+import { Select } from '@/components/ui/select';
+import { useSupplierOptionsQuery } from '@/modules/purchasing/hooks/use-suppliers';
 
 import { useUpdateVariantMutation } from '../hooks/use-products';
 import type { ProductVariantItem } from '../types';
@@ -37,6 +39,7 @@ function toDefaults(variant: ProductVariantItem): EditVariantFormInput {
     alertEnabled: variant.alertEnabled,
     leadTimeDays: variant.leadTimeDays ?? 0,
     minOrderQty: variant.minOrderQty ?? 0,
+    supplierId: variant.supplierId,
   };
 }
 
@@ -52,6 +55,7 @@ export function EditVariantDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const updateMutation = useUpdateVariantMutation(productId);
+  const supplierOptions = useSupplierOptionsQuery(open);
 
   const form = useForm<EditVariantFormInput>({
     resolver: zodResolver(editVariantFormSchema),
@@ -67,6 +71,7 @@ export function EditVariantDialog({
           alertEnabled: values.alertEnabled,
           leadTimeDays: values.leadTimeDays,
           minOrderQty: values.minOrderQty,
+          supplierId: values.supplierId,
         },
       });
       toast.success('Varian diperbarui', { description: `Pengaturan ${variant.name} disimpan.` });
@@ -154,6 +159,35 @@ export function EditVariantDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="supplierId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pemasok utama</FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value ?? ''}
+                      onChange={(event) =>
+                        field.onChange(event.target.value === '' ? null : event.target.value)
+                      }
+                    >
+                      <option value="">Tanpa pemasok</option>
+                      {(supplierOptions.data ?? []).map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormDescription>
+                    Lead time/MOQ pemasok dipakai saat field varian di atas kosong.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -60,6 +60,11 @@ export class InventoryReorderService {
           leadTimeDays: true,
           minOrderQty: true,
           imageUrl: true,
+          // Preferred supplier supplies fallback lead time / MOQ for variants that don't set
+          // their own (soft-deleted suppliers are ignored — see the resolution below).
+          supplier: {
+            select: { defaultLeadTimeDays: true, defaultMinOrderQty: true, deletedAt: true },
+          },
           product: { select: { name: true } },
           inventory: { select: { availableStock: true, incomingStock: true } },
         },
@@ -110,9 +115,12 @@ export class InventoryReorderService {
       const available = variant.inventory?.availableStock ?? 0;
       const incoming = variant.inventory?.incomingStock ?? 0;
 
-      // A variant's own lead time overrides the request-level default.
-      const effectiveLeadTime = variant.leadTimeDays ?? leadTimeDays;
-      const minOrderQty = variant.minOrderQty ?? undefined;
+      // Precedence: the variant's own value (most specific) wins; the preferred supplier's
+      // default fills the gap; the request-level default is the final fallback. Same for MOQ.
+      const supplier = variant.supplier && !variant.supplier.deletedAt ? variant.supplier : null;
+      const effectiveLeadTime =
+        variant.leadTimeDays ?? supplier?.defaultLeadTimeDays ?? leadTimeDays;
+      const minOrderQty = variant.minOrderQty ?? supplier?.defaultMinOrderQty ?? undefined;
 
       const ageDays = (now.getTime() - variant.createdAt.getTime()) / MS_PER_DAY;
       const bucketDeltas =

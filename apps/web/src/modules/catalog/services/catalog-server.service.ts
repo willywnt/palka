@@ -84,6 +84,7 @@ function mapVariant(
     alertEnabled: variant.alertEnabled,
     leadTimeDays: variant.leadTimeDays,
     minOrderQty: variant.minOrderQty,
+    supplierId: variant.supplierId,
     availableStock,
     reservedStock: variant.inventory?.reservedStock ?? 0,
     incomingStock: variant.inventory?.incomingStock ?? 0,
@@ -444,6 +445,16 @@ export class CatalogServerService {
     });
     if (!owned) throw CatalogError.notFound('Variant not found.');
 
+    // A non-null supplier must belong to this org (and not be soft-deleted) — guards against
+    // assigning another tenant's supplier. null clears the link.
+    if (input.supplierId) {
+      const supplier = await prisma.supplier.findFirst({
+        where: { id: input.supplierId, organizationId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!supplier) throw CatalogError.validation('Pemasok tidak ditemukan.');
+    }
+
     await prisma.productVariant.update({
       where: { id: variantId },
       data: {
@@ -457,6 +468,7 @@ export class CatalogServerService {
         ...(input.minOrderQty !== undefined
           ? { minOrderQty: normalizePlanningValue(input.minOrderQty) }
           : {}),
+        ...(input.supplierId !== undefined ? { supplierId: input.supplierId } : {}),
       },
     });
 

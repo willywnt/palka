@@ -15,6 +15,8 @@ export const updateVariantSchema = z
     alertEnabled: z.boolean().optional(),
     leadTimeDays: z.coerce.number().int().nonnegative().max(MAX_LEAD_DAYS).optional(),
     minOrderQty: z.coerce.number().int().nonnegative().max(MAX_STOCK).optional(),
+    // Preferred supplier; null clears it. Server validates it belongs to the org.
+    supplierId: z.string().cuid().nullable().optional(),
   })
   .refine((value) => Object.values(value).some((field) => field !== undefined), {
     message: 'At least one field must be provided.',
@@ -35,6 +37,8 @@ export const editVariantFormSchema = z.object({
   alertEnabled: z.boolean(),
   leadTimeDays: z.coerce.number().int().nonnegative().max(MAX_LEAD_DAYS),
   minOrderQty: z.coerce.number().int().nonnegative().max(MAX_STOCK),
+  /** Preferred supplier id, or null for "none". */
+  supplierId: z.string().cuid().nullable(),
 });
 
 export type EditVariantFormInput = z.infer<typeof editVariantFormSchema>;
