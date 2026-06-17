@@ -1,4 +1,4 @@
-import { createShopeeClient, isShopeeSuccess } from './client.js';
+import { createShopeeClient } from './client.js';
 import { signShopeeRequest } from './sign.js';
 
 /**
