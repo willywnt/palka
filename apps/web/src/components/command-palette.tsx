@@ -13,7 +13,18 @@ import {
 import type { Route } from 'next';
 import type { OrgRole } from '@falka/types';
 import { usePathname, useRouter } from 'next/navigation';
-import { CornerDownLeft, Plus, Search } from 'lucide-react';
+import {
+  Boxes,
+  ClipboardCheck,
+  Clock,
+  CornerDownLeft,
+  Layers,
+  Plus,
+  Search,
+  ShoppingCart,
+  Store,
+  Truck,
+} from 'lucide-react';
 
 import { BrandMark } from '@/components/brand-mark';
 import {
@@ -38,6 +49,11 @@ import { highlightSpans } from '@/lib/search/highlight';
 import { cn } from '@/lib/utils';
 import { useOrg } from '@/modules/users/hooks/use-org';
 import type { PermissionKey } from '@/modules/users/permissions/catalog';
+import {
+  useCommandHistoryStore,
+  type CommandHistoryEntry,
+  type HistoryIconName,
+} from '@/store/command-history-store';
 
 /*
  * The command palette — one deterministic surface for "pergi ke mana saja,
@@ -63,12 +79,74 @@ type PaletteEntry = {
 };
 
 /** A scored entry — `match` is present only for fuzzy-ranked (typed-query) hits. */
-type RankedEntry = PaletteEntry & { match?: MatchResult };
+type RankedEntry = PaletteEntry & {
+  match?: MatchResult;
+  /** A recalled search string — selecting the row re-runs it in place (no nav). */
+  recentText?: string;
+  /** Preserved icon name for a recalled destination, so re-recording keeps it. */
+  iconName?: HistoryIconName;
+};
 
 const KEYWORD_WEIGHT = 1;
 const SECTION_WEIGHT = 0.5;
 /** Cap the ranked result list so the longest tail never buries the best hits. */
 const MAX_RANKED = 8;
+/** Group heading + right-label for the recents group (drives the eyebrow grouping). */
+const RECENTS_HINT = 'Terakhir';
+/** Mirrors the store — too-short queries aren't worth recording or recalling. */
+const MIN_RECORDED_QUERY = 2;
+
+/** Resolve a stored icon name to a component (the store keeps only the name). */
+const HISTORY_ICONS: Record<HistoryIconName, ComponentType<{ className?: string }>> = {
+  query: Search,
+  sale: Store,
+  purchase: Truck,
+  opname: ClipboardCheck,
+  order: ShoppingCart,
+  variant: Boxes,
+  bundle: Layers,
+  create: Plus,
+  pandu: BrandMark,
+  nav: Clock,
+};
+
+/** Which icon name to file an opened entry under (jump entries carry it explicitly). */
+function paletteIconName(entry: RankedEntry): HistoryIconName {
+  if (entry.iconName) return entry.iconName;
+  if (entry.id.startsWith('create:')) return 'create';
+  if (entry.id.startsWith('jump:sale:')) return 'sale';
+  if (entry.id.startsWith('jump:purchase:')) return 'purchase';
+  if (entry.id.startsWith('jump:opname:')) return 'opname';
+  if (entry.id.startsWith('jump:order:')) return 'order';
+  if (entry.id.startsWith('jump:variant:')) return 'variant';
+  if (entry.id.startsWith('jump:bundle:')) return 'bundle';
+  if (entry.id.startsWith('pandu:')) return 'pandu';
+  return 'nav';
+}
+
+/** Map a stored recent to a palette row (a recent query re-runs; a destination opens). */
+function toRecentEntry(recent: CommandHistoryEntry): RankedEntry {
+  if (recent.kind === 'query') {
+    return {
+      id: recent.id,
+      title: recent.text,
+      hint: RECENTS_HINT,
+      icon: HISTORY_ICONS.query,
+      href: '#' as Route,
+      searchable: toSearchable(recent.text, []),
+      recentText: recent.text,
+    };
+  }
+  return {
+    id: recent.id,
+    title: recent.title,
+    hint: RECENTS_HINT,
+    icon: HISTORY_ICONS[recent.iconName],
+    href: recent.href as Route,
+    searchable: toSearchable(recent.title, []),
+    iconName: recent.iconName,
+  };
+}
 
 function keywordFields(keywords: readonly string[] | undefined): SearchField[] {
   return (keywords ?? []).map((text) => ({ text, weight: KEYWORD_WEIGHT }));
@@ -215,10 +293,22 @@ function PaletteDialog({
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const activeRef = useRef<HTMLButtonElement | null>(null);
   const { org } = useOrg();
   const role = org?.role ?? null;
   const permissions = org?.permissions ?? null;
+
+  const recents = useCommandHistoryStore((state) => state.recents);
+  const recordQuery = useCommandHistoryStore((state) => state.recordQuery);
+  const recordDestination = useCommandHistoryStore((state) => state.recordDestination);
+  const clearHistory = useCommandHistoryStore((state) => state.clearHistory);
+
+  // Persisted recents come from localStorage — render them only after mount so
+  // the first client paint never disagrees with SSR.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Entity lookups fire only for code-looking queries (and only while open —
   // a closed palette never passes a candidate).
@@ -229,22 +319,32 @@ function PaletteDialog({
     () => buildEntries(query, role, permissions),
     [query, role, permissions],
   );
-  const entries = useMemo(() => {
-    if (jumpHits.length === 0) return baseEntries;
 
-    const jumpEntries: RankedEntry[] = jumpHits.map((hit) => ({
-      id: hit.id,
-      title: hit.title,
-      hint: 'Data',
-      icon: hit.icon,
-      href: hit.href,
-      searchable: toSearchable(hit.title, []),
-    }));
-    // A real record beats the "Pandu belum paham" suggestions — keep only
-    // genuine nav/create hits below the jump group.
-    const navHits = baseEntries === SUGGESTION_ENTRIES ? [] : baseEntries;
-    return [...jumpEntries, ...navHits];
-  }, [baseEntries, jumpHits]);
+  // The "Terakhir" group leads the empty palette (returning-seller muscle
+  // memory), with the full Buat/menu list directly below.
+  const recentEntries = useMemo<readonly RankedEntry[]>(() => {
+    if (query.trim() || !mounted) return [];
+    return recents.map(toRecentEntry);
+  }, [query, mounted, recents]);
+
+  const entries = useMemo<readonly RankedEntry[]>(() => {
+    if (jumpHits.length > 0) {
+      const jumpEntries: RankedEntry[] = jumpHits.map((hit) => ({
+        id: hit.id,
+        title: hit.title,
+        hint: 'Data',
+        icon: hit.icon,
+        href: hit.href,
+        searchable: toSearchable(hit.title, []),
+      }));
+      // A real record beats the "Pandu belum paham" suggestions — keep only
+      // genuine nav/create hits below the jump group.
+      const navHits = baseEntries === SUGGESTION_ENTRIES ? [] : baseEntries;
+      return [...jumpEntries, ...navHits];
+    }
+    if (recentEntries.length > 0) return [...recentEntries, ...baseEntries];
+    return baseEntries;
+  }, [baseEntries, jumpHits, recentEntries]);
 
   const noDirectHit = entries === SUGGESTION_ENTRIES;
   const showJumpGroup = jumpHits.length > 0 || (isLooking && codeCandidate.length > 0);
@@ -265,9 +365,33 @@ function PaletteDialog({
     activeRef.current?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex, entries]);
 
-  function run(entry: PaletteEntry) {
+  function run(entry: RankedEntry) {
+    // A recalled search re-runs in place — no navigation, nothing to record.
+    if (entry.recentText !== undefined) {
+      setQuery(entry.recentText);
+      setActiveIndex(0);
+      return;
+    }
+
+    // Remember what worked: the destination, plus the query that surfaced it
+    // (skip the suggestion fallbacks — they're guesses, not intent).
+    if (!entry.id.startsWith('suggestion:')) {
+      recordDestination({
+        title: entry.title,
+        href: entry.href,
+        iconName: paletteIconName(entry),
+      });
+      const typed = query.trim();
+      if (typed.length >= MIN_RECORDED_QUERY) recordQuery(typed);
+    }
+
     onOpenChange(false);
     router.push(entry.href);
+  }
+
+  function handleClearHistory() {
+    clearHistory();
+    setActiveIndex(0);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -345,9 +469,22 @@ function PaletteDialog({
             return (
               <div key={entry.id}>
                 {showHeading ? (
-                  <p className="eyebrow text-muted-foreground px-3 pt-3 pb-1.5 first:pt-1">
-                    {entry.hint}
-                  </p>
+                  entry.hint === RECENTS_HINT ? (
+                    <div className="flex items-center justify-between px-3 pt-3 pb-1.5 first:pt-1">
+                      <span className="eyebrow text-muted-foreground">{entry.hint}</span>
+                      <button
+                        type="button"
+                        onClick={handleClearHistory}
+                        className="text-muted-foreground hover:text-foreground text-[11px] transition-colors"
+                      >
+                        Bersihkan
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="eyebrow text-muted-foreground px-3 pt-3 pb-1.5 first:pt-1">
+                      {entry.hint}
+                    </p>
+                  )
                 ) : null}
                 <button
                   type="button"
