@@ -29,6 +29,7 @@
     "db:seed": "pnpm --filter @falka/db db:seed",
     "db:studio": "pnpm --filter @falka/db db:studio",
     "db:reset-demo": "pnpm --filter @falka/db db:reset-demo",
+    "db:seed-demo-full": "pnpm --filter @falka/db db:seed-demo",
     "lazada:smoke": "pnpm --filter @falka/marketplace-providers build && node scripts/lazada-smoke.mjs",
     "lazada:token": "pnpm --filter @falka/marketplace-providers build && node scripts/lazada-token.mjs",
     "lazada:products": "pnpm --filter @falka/marketplace-providers build && node scripts/lazada-products.mjs",
