@@ -1,0 +1,63 @@
+name: CI
+
+# Enforce the §9 quality gate (typecheck · lint · build · test) on every change
+# to main and every PR targeting it — the same four commands the contributor guide
+# requires green locally, now enforced automatically.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A newer push to the same ref supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: typecheck · lint · build · test
+    runs-on: ubuntu-latest
+    env:
+      # The gates run offline (no DB/Redis/R2 connection — `next build` only renders
+      # dynamic routes and the unit tests mock the data layer), but the validated
+      # server/client env schemas reject missing required vars at load. These are
+      # throwaway CI placeholders, NOT secrets; nothing connects out with them.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      AUTH_SECRET: ci-placeholder-auth-secret-padding-0000000000
+      MARKETPLACE_ENCRYPTION_SECRET: ci-placeholder-encryption-secret-padding-00
+      R2_ACCOUNT_ID: ci
+      R2_ACCESS_KEY_ID: ci
+      R2_SECRET_ACCESS_KEY: ci
+      R2_RECORDINGS_BUCKET_NAME: ci-recordings
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        # Version is read from package.json "packageManager".
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Build FIRST: typedRoutes generates apps/web/.next/types, which `tsc` needs to
+      # type-check Route literals on a clean checkout (build-before-typecheck).
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
