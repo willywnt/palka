@@ -62,8 +62,8 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('@/modules/inventory/services/inventory-server.service', () => ({
   inventoryServerService: inventoryMock,
 }));
-vi.mock('@/modules/catalog/services/catalog-server.service', () => ({
-  catalogServerService: catalogMock,
+vi.mock('@/modules/catalog/services/bundle-server.service', () => ({
+  bundleServerService: catalogMock,
 }));
 
 const { PurchasingServerService } =

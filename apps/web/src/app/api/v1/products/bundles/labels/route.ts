@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { catalogServerService } from '@/modules/catalog/services/catalog-server.service';
+import { bundleServerService } from '@/modules/catalog/services/bundle-server.service';
 import {
   labelVariantsQuerySchema,
   markBundleLabelsPrintedSchema,
@@ -18,7 +18,7 @@ export const GET = withApiRoute(
     });
     if (!parsed.success) return apiValidationError(parsed.error);
 
-    const result = await catalogServerService.listBundleLabels(org.id, parsed.data);
+    const result = await bundleServerService.listBundleLabels(org.id, parsed.data);
     return apiSuccess(result);
   },
   { requireAuth: true },
@@ -30,7 +30,7 @@ export const POST = withApiRoute(
     const parsed = markBundleLabelsPrintedSchema.safeParse(body);
     if (!parsed.success) return apiValidationError(parsed.error);
 
-    await catalogServerService.markBundleLabelsPrinted(org.id, parsed.data.bundleIds);
+    await bundleServerService.markBundleLabelsPrinted(org.id, parsed.data.bundleIds);
     return apiSuccess({ ok: true });
   },
   { requireAuth: true },

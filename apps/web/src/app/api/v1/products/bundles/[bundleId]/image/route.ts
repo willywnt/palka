@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { catalogServerService } from '@/modules/catalog/services/catalog-server.service';
+import { bundleServerService } from '@/modules/catalog/services/bundle-server.service';
 import { setVariantImageSchema } from '@/modules/catalog/validators';
 import { apiNotFound, apiSuccess, apiValidationError } from '@/lib/api-response';
 import { withApiRoute } from '@/lib/api/with-api-route';
@@ -19,7 +19,7 @@ export const PATCH = withApiRoute<RouteParams>(
     const parsed = setVariantImageSchema.safeParse(body);
     if (!parsed.success) return apiValidationError(parsed.error);
 
-    const bundle = await catalogServerService.setBundleImage(
+    const bundle = await bundleServerService.setBundleImage(
       org.id,
       parsedParams.data.bundleId,
       parsed.data,
@@ -34,7 +34,7 @@ export const DELETE = withApiRoute<RouteParams>(
     const parsed = paramsSchema.safeParse(await params);
     if (!parsed.success) return apiNotFound('Bundle not found');
 
-    const bundle = await catalogServerService.removeBundleImage(org.id, parsed.data.bundleId);
+    const bundle = await bundleServerService.removeBundleImage(org.id, parsed.data.bundleId);
     return apiSuccess(bundle);
   },
   { requireAuth: true },

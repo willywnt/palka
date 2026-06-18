@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { catalogServerService } from '@/modules/catalog/services/catalog-server.service';
+import { bundleServerService } from '@/modules/catalog/services/bundle-server.service';
 import { apiNotFound, apiSuccess } from '@/lib/api-response';
 import { withApiRoute } from '@/lib/api/with-api-route';
 
@@ -14,7 +14,7 @@ export const POST = withApiRoute<RouteParams>(
     const parsed = paramsSchema.safeParse(await params);
     if (!parsed.success) return apiNotFound('Bundle not found');
 
-    const restored = await catalogServerService.restoreBundle(org.id, parsed.data.bundleId);
+    const restored = await bundleServerService.restoreBundle(org.id, parsed.data.bundleId);
     return apiSuccess(restored);
   },
   { requireAuth: true },

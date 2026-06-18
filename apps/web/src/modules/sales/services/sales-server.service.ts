@@ -9,7 +9,7 @@ import { retryOnCodeCollision } from '@/lib/db-retry';
 import { auditService } from '@/modules/audit/services/audit.service';
 import { notificationServerService } from '@/modules/notifications/services/notification-server.service';
 import { inventoryServerService } from '@/modules/inventory/services/inventory-server.service';
-import { catalogServerService } from '@/modules/catalog/services/catalog-server.service';
+import { bundleServerService } from '@/modules/catalog/services/bundle-server.service';
 import { allocateBundleUnitAmounts } from '@/modules/catalog/utils/bundle-allocation';
 
 import type { BundleResolution } from '@/modules/catalog/types';
@@ -204,7 +204,7 @@ export class SalesServerService {
   async resolveScannedItem(organizationId: string, code: string): Promise<ScannedSaleItem | null> {
     const variant = await this.resolveSellableVariant(organizationId, code);
     if (variant) return { kind: 'variant', variant };
-    const bundle = await catalogServerService.resolveBundleByCode(organizationId, code);
+    const bundle = await bundleServerService.resolveBundleByCode(organizationId, code);
     if (bundle) return { kind: 'bundle', bundle };
     return null;
   }
@@ -519,7 +519,7 @@ export class SalesServerService {
         })
       : [];
     const variantById = new Map(variants.map((variant) => [variant.id, variant]));
-    const bundles = await catalogServerService.resolveBundles(
+    const bundles = await bundleServerService.resolveBundles(
       organizationId,
       bundleItems.map((item) => item.bundleId),
     );
