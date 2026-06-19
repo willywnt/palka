@@ -16,20 +16,40 @@ export type RateLimitOptions = {
 };
 
 /**
- * Sliding-window counter using Redis INCR + EXPIRE.
+ * Atomic INCR + (conditional) EXPIRE + TTL read in a single round-trip. Doing
+ * the increment and expiry as separate commands risks orphaning the key with no
+ * TTL if the process dies between them (the window then never resets and the
+ * route stays limited forever); a Redis blip between INCR and EXPIRE has the
+ * same effect. Re-arming the expiry whenever the TTL is missing (`< 0`) — not
+ * only on the first hit — self-heals any such orphaned key. Returns
+ * `{count, ttl}`.
+ */
+const INCR_AND_EXPIRE_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+local ttl = redis.call('TTL', KEYS[1])
+if ttl < 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`;
+
+/**
+ * Sliding-window counter using an atomic INCR + EXPIRE Lua script.
  * Fails open when Redis is unavailable so the app keeps serving traffic.
  */
 export async function checkRateLimit(options: RateLimitOptions): Promise<RateLimitResult> {
   return withOptionalRedis(
     async (redis) => {
       const redisKey = `ratelimit:${options.key}`;
-      const count = await redis.incr(redisKey);
+      const result = (await redis.eval(
+        INCR_AND_EXPIRE_SCRIPT,
+        1,
+        redisKey,
+        options.windowSeconds,
+      )) as [number, number];
+      const [count, ttl] = result;
 
-      if (count === 1) {
-        await redis.expire(redisKey, options.windowSeconds);
-      }
-
-      const ttl = await redis.ttl(redisKey);
       const retryAfterSeconds = ttl > 0 ? ttl : options.windowSeconds;
       const remaining = Math.max(options.limit - count, 0);
 
