@@ -1,5 +1,7 @@
 # Worker deployment guide
 
+> **Legacy / stopgap.** This documents the current **Vercel + Neon** production setup. The committed direction is a **self-hosted single-host VPS** (Docker Compose: web + worker + Postgres + Redis, keeping Cloudflare R2) — see [vps-migration.md](./vps-migration.md) and [vps-setup.md](./vps-setup.md). On Vercel the worker + Socket.IO don't run, so marketplace sync / scheduled jobs / scanner are dormant in prod until cutover.
+
 Falka background jobs run in a **persistent Node.js worker process** (`apps/worker`). They must **not** run inside Vercel serverless functions.
 
 ## Architecture
@@ -31,6 +33,12 @@ Falka background jobs run in a **persistent Node.js worker process** (`apps/work
 | `upload-recovery` | Every 6 hours | Stale sessions + failed upload cleanup |
 
 | `audit-cleanup` | Daily 04:00 UTC | Audit log retention |
+
+| `marketplace-reconcile` | Daily 05:00 + 06:00 UTC | Token refresh (`refresh-marketplace-tokens`, 05:00) + drift reconciliation (`reconcile-marketplace-drift`, 06:00) |
+
+| `marketplace-propagate` | Event-driven | Fan-out a variant's stock change to its mappings (`propagate-inventory-stock`) |
+
+| `marketplace-stock-sync` | Event-driven | Push one mapping's stock to the provider adapter (`sync-marketplace-stock`) |
 
 ## Environment variables
 
@@ -168,13 +176,21 @@ WantedBy=multi-user.target
 
 - **Schedulers:** set `WORKER_ENABLE_SCHEDULERS=false` on secondary worker replicas if you run multiple instances (only one scheduler owner recommended).
 
+## Marketplace queues (live)
+
+Marketplace sync runs on the worker today (`packages/queue/src/marketplace-sync/*`):
+
+- **Token refresh** — `refresh-marketplace-tokens` job on the `marketplace-reconcile` queue (daily 05:00 UTC, plus lazy refresh-before-use in the sync engine).
+
+- **Drift reconciliation** — `reconcile-marketplace-drift` job on the `marketplace-reconcile` queue (daily 06:00 UTC, read-only: surfaces drift, never writes back).
+
+- **Stock synchronization** — a source-of-truth stock change enqueues `propagate-inventory-stock` (queue `marketplace-propagate`) → fans out to `sync-marketplace-stock` (queue `marketplace-stock-sync`) → provider adapter.
+
+These run only on a persistent worker; on Vercel they are dormant until the VPS cutover (see the banner above).
+
 ## Future-ready queues (not implemented)
 
 The `@falka/queue` package reserves architecture for:
-
-- Marketplace token refresh
-
-- Stock synchronization
 
 - AI processing / thumbnails / OCR
 

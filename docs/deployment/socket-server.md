@@ -1,5 +1,7 @@
 # Realtime (Socket.IO) deployment
 
+> **Legacy / stopgap.** This documents the current **Vercel + Neon** production setup. The committed direction is a **self-hosted single-host VPS** (Docker Compose: web + worker + Postgres + Redis, keeping Cloudflare R2) — see [vps-migration.md](./vps-migration.md) and [vps-setup.md](./vps-setup.md). On Vercel the worker + Socket.IO don't run, so marketplace sync / scheduled jobs / scanner are dormant in prod until cutover.
+
 ## Root cause of the production "xhr poll error"
 
 The pairing realtime layer is a Socket.IO server attached to a **custom Node
