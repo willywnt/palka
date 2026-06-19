@@ -41,10 +41,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Default seed accounts (after `pnpm db:seed`):
 
-| Email               | Password    |
-| ------------------- | ----------- |
-| `admin@falka.local` | `Admin123!` |
-| `demo@falka.local`  | `Demo123!`  |
+| Email               | Password    | Role                    |
+| ------------------- | ----------- | ----------------------- |
+| `admin@falka.local` | `Admin123!` | Platform admin          |
+| `demo@falka.local`  | `Demo123!`  | Shop owner (demo org)   |
+| `staff@falka.local` | `Staff123!` | STAFF member (demo org) |
 
 ## Daily workflow
 
@@ -90,7 +91,7 @@ Unit tests mock Prisma, so a DB/runtime regression (e.g. a bad raw query) won't 
 there — that's what the E2E suite is for. End-to-end tests drive a real browser, so:
 
 1. **Run the app** — `pnpm dev` (Playwright reuses it if already up).
-2. **Seed the demo org** — `pnpm db:seed-demo` (the E2E logs in as `owner@falka.demo`
+2. **Seed the demo org** — `pnpm --filter @falka/db db:seed-demo` (the E2E logs in as `owner@falka.demo`
    / `Demo123!`; override with `E2E_EMAIL` / `E2E_PASSWORD`).
 3. **Install the browser once** — `pnpm --filter @falka/web exec playwright install chromium`.
 
