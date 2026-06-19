@@ -47,6 +47,12 @@ const nextConfig: NextConfig = {
   ],
   typedRoutes: true,
   serverExternalPackages: ['pino', 'pino-pretty', '@sentry/nextjs', 'socket.io'],
+  // lucide-react is a ~3900-module barrel imported across ~130 files; the icon-level
+  // rewrite keeps dev route compiles (webpack) and client bundles lean. date-fns/recharts
+  // are already in Next's built-in optimize list, so they don't need listing here.
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   async headers() {
     return [
       {

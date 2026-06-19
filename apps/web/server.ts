@@ -28,7 +28,9 @@ const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME ?? (dev ? '0.0.0.0' : 'localhost');
 const port = Number(process.env.PORT ?? 3000);
 
-const app = next({ dev, hostname, port });
+// Use Turbopack for dev compilation (much faster route compiles than webpack on Windows).
+// Gated on `dev` so the prod custom server (`tsx server.ts`) keeps using the webpack build.
+const app = next({ dev, hostname, port, turbopack: dev });
 const handle = app.getRequestHandler();
 
 function createNodeServer(useHttps: boolean): HttpServerInstance {
