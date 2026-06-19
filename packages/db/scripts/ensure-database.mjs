@@ -10,7 +10,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const monorepoRoot = resolve(packageRoot, '../..');
 const envPath = resolve(monorepoRoot, '.env');
 
-config({ path: envPath });
+config({ path: envPath, quiet: true });
 
 function hasDocker() {
   const result = spawnSync('docker', ['--version'], {

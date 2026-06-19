@@ -15,7 +15,7 @@ if (!existsSync(envPath)) {
   process.exit(1);
 }
 
-config({ path: envPath });
+config({ path: envPath, quiet: true });
 
 const [, , command, ...args] = process.argv;
 

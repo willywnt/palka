@@ -33,13 +33,13 @@ const port = Number(process.env.PORT ?? 3000);
 const app = next({ dev, hostname, port, turbopack: dev });
 const handle = app.getRequestHandler();
 
-function createNodeServer(useHttps: boolean): HttpServerInstance {
+async function createNodeServer(useHttps: boolean): Promise<HttpServerInstance> {
   if (!useHttps) {
     return createHttpServer();
   }
 
-  const cert = selfsigned.generate([{ name: 'commonName', value: 'falka-local-dev' }], {
-    days: 365,
+  // selfsigned v5+ generates asynchronously; validity defaults to 365 days.
+  const cert = await selfsigned.generate([{ name: 'commonName', value: 'falka-local-dev' }], {
     keySize: 2048,
   });
 
@@ -50,11 +50,11 @@ function isSocketIoPath(pathname: string): boolean {
   return pathname === SOCKET_PATH || pathname.startsWith(`${SOCKET_PATH}/`);
 }
 
-app.prepare().then(() => {
+app.prepare().then(async () => {
   // Next reloads apps/web/.env.local during prepare — read DEV_HTTPS after that.
   const useDevHttps = isDevHttpsEnabled();
 
-  const httpServer = createNodeServer(useDevHttps);
+  const httpServer = await createNodeServer(useDevHttps);
 
   // Attach Socket.IO before Next so Engine.IO polling is not swallowed by the App Router
   initPairingSocketServer(httpServer);

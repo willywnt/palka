@@ -11,7 +11,7 @@ const rootEnv = resolve(monorepoRoot, '.env');
 const searchRoots = [packageRoot, monorepoRoot];
 
 if (existsSync(rootEnv)) {
-  config({ path: rootEnv });
+  config({ path: rootEnv, quiet: true });
 }
 
 const [, , command, ...args] = process.argv;

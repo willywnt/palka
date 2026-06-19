@@ -21,7 +21,7 @@
   "devDependencies": {
     "@falka/eslint-config": "workspace:*",
     "@falka/typescript-config": "workspace:*",
-    "@types/node": "^22.19.21",
+    "@types/node": "^26.0.0",
     "eslint": "^9.39.4",
     "typescript": "^5.9.3"
   }

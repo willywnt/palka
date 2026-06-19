@@ -10,7 +10,7 @@ const monorepoRoot = resolve(packageRoot, '../..');
 const envPath = resolve(monorepoRoot, '.env');
 
 if (existsSync(envPath)) {
-  config({ path: envPath });
+  config({ path: envPath, quiet: true });
 }
 
 if (!process.env.DATABASE_URL) {
