@@ -63,6 +63,25 @@ Full guide: [docs/onboarding.md](docs/onboarding.md)
 | `pnpm db:seed`              | Seed sample data                  |
 | `pnpm db:studio`            | Open Prisma Studio                |
 
+## Testing
+
+| Command                             | Description                                 |
+| ----------------------------------- | ------------------------------------------- |
+| `pnpm typecheck`                    | TypeScript across the workspace             |
+| `pnpm lint`                         | ESLint (`--max-warnings 0`)                 |
+| `pnpm test`                         | Unit/integration (Vitest) — `web` + `queue` |
+| `pnpm --filter @falka/web test:e2e` | End-to-end (Playwright)                     |
+
+- **The four gates** — `typecheck` · `lint` · `build` · `test` — must be green after
+  every change. CI (`.github/workflows/ci.yml`) re-runs them on push/PR to `main`.
+- **Unit/integration** tests mock Prisma (Node env, no DB/R2), so a DB- or
+  runtime-level regression (e.g. a bad raw query) won't surface here — cover those
+  with E2E or a real-DB probe.
+- **E2E** (Playwright, `apps/web/e2e`) drives the real app. Prereqs: `pnpm dev`
+  running + the demo seed (`pnpm db:seed-demo`). First run only:
+  `pnpm --filter @falka/web exec playwright install chromium`. Override the login
+  via `E2E_EMAIL` / `E2E_PASSWORD`. See [docs/onboarding.md](docs/onboarding.md#testing).
+
 ## Deployment
 
 | Environment | Hosting       | Database             | Storage       |
