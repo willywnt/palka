@@ -5,6 +5,7 @@ import { runJobWithLogging } from '../utils/job-logger.js';
 import { createWorker } from './create-worker.js';
 import {
   processCleanupAuditLogsJob,
+  processCleanupNotificationsJob,
   processCleanupFailedUploadsJob,
   processCleanupRecordingsJob,
   processPropagateInventoryStockJob,
@@ -41,6 +42,11 @@ export function registerAllWorkers() {
   createWorker(QUEUE_NAMES.AUDIT_CLEANUP, {
     concurrency: 1,
     processor: async (job: Job) => runJobWithLogging(job, processCleanupAuditLogsJob),
+  });
+
+  createWorker(QUEUE_NAMES.NOTIFICATION_CLEANUP, {
+    concurrency: 1,
+    processor: async (job: Job) => runJobWithLogging(job, processCleanupNotificationsJob),
   });
 
   createWorker(QUEUE_NAMES.MARKETPLACE_PROPAGATE, {

@@ -5,6 +5,7 @@ export const QUEUE_NAMES = {
   STORAGE_RECALCULATION: 'storage-recalculation',
   UPLOAD_RECOVERY: 'upload-recovery',
   AUDIT_CLEANUP: 'audit-cleanup',
+  NOTIFICATION_CLEANUP: 'notification-cleanup',
   MARKETPLACE_PROPAGATE: 'marketplace-propagate',
   MARKETPLACE_STOCK_SYNC: 'marketplace-stock-sync',
   MARKETPLACE_RECONCILE: 'marketplace-reconcile',
@@ -17,6 +18,7 @@ export const JOB_NAMES = {
   RECALCULATE_STORAGE: 'recalculate-storage',
   CLEANUP_FAILED_UPLOADS: 'cleanup-failed-uploads',
   CLEANUP_AUDIT_LOGS: 'cleanup-audit-logs',
+  CLEANUP_NOTIFICATIONS: 'cleanup-notifications',
   VERIFY_STORAGE_CONSISTENCY: 'verify-storage-consistency',
   PROPAGATE_INVENTORY_STOCK: 'propagate-inventory-stock',
   SYNC_MARKETPLACE_STOCK: 'sync-marketplace-stock',
@@ -58,6 +60,14 @@ export const cleanupAuditLogsJobSchema = z.object({
 });
 
 export type CleanupAuditLogsJobPayload = z.infer<typeof cleanupAuditLogsJobSchema>;
+
+export const cleanupNotificationsJobSchema = z.object({
+  retentionDays: z.number().int().positive().default(90),
+  batchSize: z.number().int().positive().max(1000).default(500),
+  dryRun: z.boolean().default(false),
+});
+
+export type CleanupNotificationsJobPayload = z.infer<typeof cleanupNotificationsJobSchema>;
 
 export const verifyStorageConsistencyJobSchema = z.object({
   batchSize: z.number().int().positive().max(500).default(100),
@@ -113,6 +123,7 @@ export type JobPayloadMap = {
   [JOB_NAMES.RECALCULATE_STORAGE]: RecalculateStorageJobPayload;
   [JOB_NAMES.CLEANUP_FAILED_UPLOADS]: CleanupFailedUploadsJobPayload;
   [JOB_NAMES.CLEANUP_AUDIT_LOGS]: CleanupAuditLogsJobPayload;
+  [JOB_NAMES.CLEANUP_NOTIFICATIONS]: CleanupNotificationsJobPayload;
   [JOB_NAMES.VERIFY_STORAGE_CONSISTENCY]: VerifyStorageConsistencyJobPayload;
   [JOB_NAMES.PROPAGATE_INVENTORY_STOCK]: PropagateInventoryStockJobPayload;
   [JOB_NAMES.SYNC_MARKETPLACE_STOCK]: SyncMarketplaceStockJobPayload;

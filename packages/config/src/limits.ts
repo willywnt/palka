@@ -71,6 +71,9 @@ export const INVENTORY_SYNC_BATCH_SIZE = 100;
 /** Audit log retention in days. */
 export const AUDIT_LOG_RETENTION_DAYS = 90;
 
+/** In-app notification retention in days (one row per business event). */
+export const NOTIFICATION_RETENTION_DAYS = 90;
+
 /** Completed recording retention before automated cleanup (days). */
 export const RECORDING_RETENTION_DAYS = 30;
 

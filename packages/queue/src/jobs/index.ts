@@ -3,6 +3,10 @@ import {
   processCleanupAuditLogsJob,
 } from './cleanup-audit-logs.job.js';
 import {
+  getDefaultCleanupNotificationsPayload,
+  processCleanupNotificationsJob,
+} from './cleanup-notifications.job.js';
+import {
   getDefaultCleanupFailedUploadsPayload,
   processCleanupFailedUploadsJob,
 } from './cleanup-failed-uploads.job.js';
@@ -41,6 +45,8 @@ export {
   getDefaultCleanupFailedUploadsPayload,
   processCleanupAuditLogsJob,
   getDefaultCleanupAuditLogsPayload,
+  processCleanupNotificationsJob,
+  getDefaultCleanupNotificationsPayload,
   processVerifyStorageConsistencyJob,
   getDefaultVerifyStorageConsistencyPayload,
   processPropagateInventoryStockJob,

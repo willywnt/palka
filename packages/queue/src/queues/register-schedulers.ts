@@ -5,6 +5,7 @@ import { buildScheduledJobId } from '../utils/index.js';
 import {
   getDefaultCleanupAuditLogsPayload,
   getDefaultCleanupFailedUploadsPayload,
+  getDefaultCleanupNotificationsPayload,
   getDefaultCleanupRecordingsPayload,
   getDefaultReconcileMarketplaceDriftPayload,
   getDefaultRefreshMarketplaceTokensPayload,
@@ -18,6 +19,7 @@ export async function registerScheduledJobs(): Promise<void> {
   const storageQueue = createQueue(QUEUE_NAMES.STORAGE_RECALCULATION);
   const uploadRecoveryQueue = createQueue(QUEUE_NAMES.UPLOAD_RECOVERY);
   const auditCleanupQueue = createQueue(QUEUE_NAMES.AUDIT_CLEANUP);
+  const notificationCleanupQueue = createQueue(QUEUE_NAMES.NOTIFICATION_CLEANUP);
   const marketplaceReconcileQueue = createQueue(QUEUE_NAMES.MARKETPLACE_RECONCILE);
 
   await recordingCleanupQueue.add(
@@ -72,6 +74,19 @@ export async function registerScheduledJobs(): Promise<void> {
     jobId: buildScheduledJobId(QUEUE_NAMES.AUDIT_CLEANUP, JOB_NAMES.CLEANUP_AUDIT_LOGS, 'daily'),
     repeat: { pattern: '0 4 * * *' },
   });
+
+  await notificationCleanupQueue.add(
+    JOB_NAMES.CLEANUP_NOTIFICATIONS,
+    getDefaultCleanupNotificationsPayload(),
+    {
+      jobId: buildScheduledJobId(
+        QUEUE_NAMES.NOTIFICATION_CLEANUP,
+        JOB_NAMES.CLEANUP_NOTIFICATIONS,
+        'daily',
+      ),
+      repeat: { pattern: '0 7 * * *' },
+    },
+  );
 
   await marketplaceReconcileQueue.add(
     JOB_NAMES.RECONCILE_MARKETPLACE_DRIFT,
