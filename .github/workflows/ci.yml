@@ -34,6 +34,11 @@ jobs:
       R2_ACCESS_KEY_ID: ci
       R2_SECRET_ACCESS_KEY: ci
       R2_RECORDINGS_BUCKET_NAME: ci-recordings
+      # The storage client builds its config at module load and throws if the public
+      # bucket URLs are unset — provide valid placeholder URLs (build never connects).
+      R2_PUBLIC_URL: https://r2-recordings.ci.example.com
+      R2_PRODUCTS_BUCKET_NAME: ci-products
+      R2_PRODUCTS_PUBLIC_URL: https://r2-products.ci.example.com
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     steps:
       - name: Checkout
