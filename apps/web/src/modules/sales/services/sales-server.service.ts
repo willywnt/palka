@@ -266,7 +266,7 @@ export class SalesServerService {
       // Serialize void/refund for this sale (mirrors the per-variant lock in the
       // inventory service): the status + refund-count re-read below then sees any
       // concurrently-committed void/refund, so two clicks can't both restock.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${sale.id}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${sale.id}))`;
       const fresh = await tx.sale.findUnique({
         where: { id: sale.id },
         select: { status: true, _count: { select: { refunds: true } } },
@@ -388,7 +388,7 @@ export class SalesServerService {
         // any concurrently-committed refund — otherwise two refunds of the same
         // line both read the same "remaining" (computed before the tx) and
         // double-restock / over-refund.
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${sale.id}))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${sale.id}))`;
 
         const fresh = await tx.sale.findUnique({
           where: { id: sale.id },

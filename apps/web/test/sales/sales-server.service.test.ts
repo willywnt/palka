@@ -19,8 +19,8 @@ type TxClient = {
     create: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
   };
-  // void/refund take a per-sale advisory lock (pg_advisory_xact_lock) via $queryRaw.
-  $queryRaw: ReturnType<typeof vi.fn>;
+  // void/refund take a per-sale advisory lock (pg_advisory_xact_lock) via $executeRaw.
+  $executeRaw: ReturnType<typeof vi.fn>;
 };
 
 const { prismaMock, txMock, enqueueMock, inventoryMock, catalogMock, notificationMock } =
@@ -28,7 +28,7 @@ const { prismaMock, txMock, enqueueMock, inventoryMock, catalogMock, notificatio
     const txMock: TxClient = {
       sale: { count: vi.fn(), create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
       saleRefund: { count: vi.fn(), create: vi.fn(), findMany: vi.fn() },
-      $queryRaw: vi.fn(),
+      $executeRaw: vi.fn(),
     };
     return {
       txMock,
@@ -96,7 +96,7 @@ beforeEach(() => {
   txMock.saleRefund.count.mockResolvedValue(0);
   txMock.saleRefund.create.mockResolvedValue({ id: 'rf1', code: 'RF00001' });
   txMock.saleRefund.findMany.mockResolvedValue([]);
-  txMock.$queryRaw.mockResolvedValue([]);
+  txMock.$executeRaw.mockResolvedValue(1);
   catalogMock.resolveBundles.mockResolvedValue(new Map());
 });
 

@@ -92,7 +92,10 @@ export class InventoryServerService {
     tx: TransactionClient,
     variantId: string,
   ): Promise<Inventory | null> {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${variantId}))`;
+    // $executeRaw (not $queryRaw): pg_advisory_xact_lock returns `void`, which
+    // $queryRaw cannot deserialize. $executeRaw runs the statement for its lock
+    // side effect and returns a row count we ignore.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${variantId}))`;
     return tx.inventory.findUnique({ where: { variantId } });
   }
 
