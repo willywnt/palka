@@ -15,7 +15,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: [['list']],
+  // CI also emits an HTML report (uploaded as an artifact on failure); locally the
+  // list reporter is enough.
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
   // Generous timeouts: against the DEV server, Next compiles each route on first
   // visit (20–40s cold), which a tight per-assertion timeout would mis-flag as a
   // failure. (A production build would remove this; deferred to Phase 2/CI.)
@@ -36,11 +38,12 @@ export default defineConfig({
       dependencies: ['setup'],
     },
   ],
-  // Reuse the dev server the developer already runs; only start one if absent.
+  // CI runs against a production build (`next start`) — instant route serving, no
+  // dev cold-compile; locally reuse the dev server the developer already runs.
   webServer: {
-    command: 'pnpm dev',
+    command: process.env.CI ? 'pnpm start:next' : 'pnpm dev',
     url: baseURL,
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },
 });

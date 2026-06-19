@@ -2,7 +2,9 @@ name: CI
 
 # Enforce the §9 quality gate (typecheck · lint · build · test) on every change
 # to main and every PR targeting it — the same four commands the contributor guide
-# requires green locally, now enforced automatically.
+# requires green locally, now enforced automatically. A second `e2e` job then runs
+# the Playwright suite against a production build + a seeded Postgres, catching the
+# real-DB/runtime regressions the Prisma-mocked unit tests structurally can't.
 on:
   push:
     branches: [main]
@@ -70,3 +72,109 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  e2e:
+    name: e2e (playwright)
+    runs-on: ubuntu-latest
+    # Only spend the ~10 min E2E run once the cheap gates are green.
+    needs: gates
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: falka_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Real Postgres (service container) — migrations + the demo seed run against it.
+      # DIRECT_URL = DATABASE_URL: no PgBouncer in CI, so migrate uses the same endpoint.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/falka_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/falka_ci
+      # `next start` runs NODE_ENV=production; the env schema requires REDIS_URL there
+      # and the `write`-scope rate limiter actually evals against it.
+      REDIS_URL: redis://localhost:6379
+      # Throwaway CI placeholders (NOT secrets) — same as the gates job; nothing connects out.
+      AUTH_SECRET: ci-placeholder-auth-secret-padding-0000000000
+      MARKETPLACE_ENCRYPTION_SECRET: ci-placeholder-encryption-secret-padding-00
+      R2_ACCOUNT_ID: ci
+      R2_ACCESS_KEY_ID: ci
+      R2_SECRET_ACCESS_KEY: ci
+      R2_RECORDINGS_BUCKET_NAME: ci-recordings
+      R2_PUBLIC_URL: https://r2-recordings.ci.example.com
+      R2_PRODUCTS_BUCKET_NAME: ci-products
+      R2_PRODUCTS_PUBLIC_URL: https://r2-products.ci.example.com
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      E2E_BASE_URL: http://localhost:3000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The db scripts (db:seed-demo → with-env.mjs) require a monorepo-root .env to
+      # exist. The values mirror the job env — dotenv won't override the already-set
+      # process.env vars, so this only satisfies the existence check.
+      - name: Write .env for db scripts
+        run: |
+          cat > .env <<EOF
+          DATABASE_URL=${DATABASE_URL}
+          DIRECT_URL=${DIRECT_URL}
+          REDIS_URL=${REDIS_URL}
+          AUTH_SECRET=${AUTH_SECRET}
+          MARKETPLACE_ENCRYPTION_SECRET=${MARKETPLACE_ENCRYPTION_SECRET}
+          EOF
+
+      # Build first (also builds the @falka/* package dist the seed imports), then
+      # apply migrations + seed the demo org against the live service DB.
+      - name: Build
+        run: pnpm build
+
+      - name: Apply migrations
+        run: pnpm --filter @falka/db db:migrate:deploy
+
+      - name: Seed demo data
+        run: pnpm --filter @falka/db db:seed-demo
+
+      - name: Install Playwright browser
+        run: pnpm --filter @falka/web exec playwright install --with-deps chromium
+
+      # Playwright boots `next start` itself (webServer, CI branch) and runs the suite.
+      - name: Run E2E
+        run: pnpm --filter @falka/web test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
