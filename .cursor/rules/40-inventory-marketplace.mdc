@@ -52,7 +52,11 @@ Org-scoped (`organizationId`), internal-first. Roadmap + locked decisions:
   `POST /products/variants/printed`.
 - **inventory** — `Inventory` (fast-read cache: available/reserved/damaged/incoming) +
   **`StockLedger` (append-only = the real source of truth, available-centric)**. Every mutation =
-  1 ledger row + 1 Inventory update in ONE tx. `adjustStock` (manual, never negative). Inbound-order
+  1 ledger row + 1 Inventory update in ONE tx, **serialized per variant** by `lockAndReadInventory`
+  (`pg_advisory_xact_lock(hashtext(variantId))` via **`$executeRaw`** — the lock returns `void`, so
+  `$queryRaw` throws "deserialize column of type 'void'"; this is why POS pay once 500'd). The lock
+  closes the read-compute-write lost-update on the absolute `availableStock`/`balanceAfter` write.
+  `adjustStock` (manual, never negative). Inbound-order
   stock **lifecycle trio** (all `(tx,…)`, available MAY go negative): `applyOrderReserveTx`
   (available−, reserved+; `ORDER_RESERVE`), `applyOrderShipTx` (reserved− only, available unchanged;
   `ORDER_SHIP` delta 0), `applyOrderReleaseTx` (available+, reserved−; `ORDER_RELEASE`). Reserved
@@ -160,9 +164,14 @@ Org-scoped (`organizationId`), internal-first. Roadmap + locked decisions:
 SoT change → `enqueuePropagateInventoryStock` (web, best-effort, only if `syncEnabled` mappings
 exist) → `propagate-inventory-stock` job (fan-out, idempotent per ledger event) →
 `sync-marketplace-stock` job → `executeStockSync` (per-provider rate-limit, push LATEST
-available via the provider adapter; `Dev` stub simulates success, `Unwired` stub rejects) →
-marks `MarketplaceSyncJob` + mapping `lastSyncStatus` + listing snapshot. Retryable failures
-throw so BullMQ retries. **Retry UX (2026-06-16):** a retryable hiccup (e.g. Lazada **code 1002**
+available via the provider adapter) → marks `MarketplaceSyncJob` + mapping `lastSyncStatus` +
+listing snapshot. Retryable failures throw so BullMQ retries. **Provider fallback (guarded):**
+`getMarketplaceStockProvider` returns the `Dev` simulator for an unwired provider ONLY outside
+production; in **production** it falls back to `Unwired` (rejects, retryable) so a worker booted
+without a live connection's creds fails loudly instead of faking `SYNCED` (silent oversell). The
+three provider HTTP clients bound each call with an AbortController **timeout** (default 15s, maps to
+a retryable error) so one hung provider can't exhaust the sync workers. `executeStockSync` +
+`getMarketplaceStockProvider` are unit-tested in `packages/queue/test` (its own vitest config). **Retry UX (2026-06-16):** a retryable hiccup (e.g. Lazada **code 1002**
 sentinel/flow-control, "E501: Update product failed") succeeds on the next attempt, so `failSyncJob`
 only sets the user-facing `mapping.lastSyncStatus = FAILED` on **finalFailure** (not each attempt) —
 no "sinkronisasi gagal" flash mid-retry; `getInFlightSyncProductIds` counts a retry-pending job
@@ -324,8 +333,11 @@ paginates client-side over its capped overview. See `50-ui-design-system.mdc`.
 A **`Bundle`** (`Bundle`/`BundleItem` tables; own sku/barcode/price/image/labelPrintedAt) groups several
 variants for buy/sell — it is NOT a `ProductVariant`, holds NO stock, and never appears in product/inventory
 lists. Stock + accounting stay per component variant; the bundle is only a one-line / one-scan shortcut in
-**New Sale (POS)** and **New PO**. Catalog owns it: CRUD + `resolveBundles(bundleIds)` / `resolveBundleByCode`
-+ image + `listBundleLabels`/`markBundleLabelsPrinted`; sales/purchasing call those (never the tables).
+**New Sale (POS)** and **New PO**. Bundle logic lives in the catalog module's **`bundle-server.service.ts`**
+(`bundleServerService`): CRUD + `resolveBundles(bundleIds)` / `resolveBundleByCode` + image +
+`listBundleLabels`/`markBundleLabelsPrinted` + `cascadeBundleComponentRemoval(tx,…)`; sales/purchasing
+import `bundleServerService` (never the tables). Shared helpers (`takenSkus`/`deleteStorageObject`/
+`isUniqueConstraintError`) live in `catalog/utils`.
 **Selling/buying explodes a bundle into per-component `SaleItem`/`PurchaseOrderItem` rows at create time**
 (`quantity = bundleQty × perBundleQty`), each tagged with `bundleName`, so receive / partial-receive / incoming
 / void / propagate reuse the existing per-row paths unchanged. The single bundle price (POS) / cost (entered
