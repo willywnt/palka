@@ -7,7 +7,9 @@ style. These rules are derived from the actual refactored code — keep them tru
 
 - **apps/web** — Next.js 15 App Router + React 19. Custom Node server
   `apps/web/server.ts` (run via `tsx watch server.ts`) attaches Socket.IO.
-  Prod build = `next build` (Vercel) — **the custom server is NOT run on Vercel**.
+  Prod build = `next build` (Vercel today) — **the custom server is NOT run on Vercel**, so
+  marketplace sync / scheduled jobs / scanner socket are dormant in prod until the **VPS cutover**
+  (committed direction: self-hosted Docker runs the custom server + worker; `docs/deployment`).
 - **apps/worker** — BullMQ background jobs.
 - **packages/** = shared `@falka/*`: `db` (Prisma+schema), `config` (env+limits),
   `logger`, `types`, `utils`, `metrics`, `health`, `queue`, `storage`, `rate-limit`,
@@ -32,7 +34,7 @@ web: `noEmit`, `jsx: preserve`, `allowJs`, next plugin. Alias **`@/*` → `apps/
 
 ## 3. Module boundaries (apps/web/src/modules/<feature>/)
 
-Modules: `admin audit auth catalog inventory marketplace orders purchasing recordings returns sales scanner-pairing storage users`.
+Modules: `admin audit auth catalog inventory marketplace notifications orders purchasing recordings reporting returns sales scanner-pairing storage users`.
 
 - A module owns its feature. Talk to another module ONLY through its conventional
   layer files (`services/`, `hooks/`, `validators/`, `types/`) — never reach into

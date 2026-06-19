@@ -49,8 +49,9 @@ actorUserId, action, resource, resourceId?, metadata? })` — never throws, neve
 ## Layering
 - **Service** (`*.service.ts`): business logic, HTTP-free; server svc start `import 'server-only'`;
   throw module errors extending `DomainError(code, message, statusCode, details?)`.
-- **Repository** (`*.repository.ts`): the ONLY place Prisma is touched for that module
-  (e.g. `pairingRepository.findSessionUser`). Services call repositories, not `prisma` directly.
+- **Data layer**: Prisma lives in a `repository` (`*.repository.ts`) WHERE ONE EXISTS — today only
+  `scanner-pairing` (e.g. `pairingRepository.findSessionUser`); every other module touches `prisma`
+  directly in its server service. Prisma is NEVER in a Route Handler or UI — only the data layer.
 - **Validators**: Zod schema is the single input source; export `z.infer` types.
 
 ## Errors

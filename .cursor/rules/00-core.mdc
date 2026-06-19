@@ -15,7 +15,8 @@ noUncheckedIndexedAccess · noImplicitOverride · verbatimModuleSyntax. Alias `@
 - DomainError subclass narrows code via `declare readonly code: XErrorCode`.
 
 ## Module boundaries (apps/web/src/modules/<feature>/)
-admin · audit · auth · marketplace · recordings · scanner-pairing · storage · users.
+admin · audit · auth · catalog · inventory · marketplace · notifications · orders · purchasing ·
+recordings · reporting · returns · sales · scanner-pairing · storage · users.
 - Cross-module talk ONLY via the other module's `services/`/`hooks/`/`validators/`/`types/`.
   Never import another module's deep internals.
 - Shared logic → `@falka/*` or `apps/web/src/lib`, never duplicated per module.

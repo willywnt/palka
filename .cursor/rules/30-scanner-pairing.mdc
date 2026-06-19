@@ -10,7 +10,7 @@ Layers: components · config.ts (`SOCKET_PATH`, `isMobileScannerEnabled`) · `st
 (per-purpose copy) · errors (`PairingError extends DomainError`) · hooks (desktop+mobile socket
 hooks, `use-pairing-session-query`) · **repositories/** (`pairing.repository.ts` — Prisma here,
 e.g. `findSessionUser`) · services (`pairing.service.ts`, `scanner-socket-manager.service.ts`,
-`socket-client.service.ts`) · socket (`events.ts` = event contract) · store
+`socket-client.service.ts`, `socket-token.service.ts`) · socket (`events.ts` = event contract) · store
 (`scanner-pairing.store.ts` = UI only) · types · utils (`resolve-public-origin.ts`) · validators
 (`scannedCodeSchema` = lenient scan gate; `pairingPurposeSchema`).
 
