@@ -26,6 +26,10 @@ jobs:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
       AUTH_SECRET: ci-placeholder-auth-secret-padding-0000000000
       MARKETPLACE_ENCRYPTION_SECRET: ci-placeholder-encryption-secret-padding-00
+      # `next build` runs as NODE_ENV=production, and the env schema requires
+      # REDIS_URL in production (rate-limit/metrics/BullMQ). Placeholder only — the
+      # build collects page data without connecting.
+      REDIS_URL: redis://localhost:6379
       R2_ACCOUNT_ID: ci
       R2_ACCESS_KEY_ID: ci
       R2_SECRET_ACCESS_KEY: ci
