@@ -17,7 +17,7 @@
     "@falka/logger": "workspace:*",
     "@falka/queue": "workspace:*",
     "@falka/utils": "workspace:*",
-    "@sentry/node": "^9.47.1",
+    "@sentry/node": "^10.59.0",
     "dotenv": "^17.4.2"
   },
   "devDependencies": {
