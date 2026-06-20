@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Download, MoreHorizontal, Package, Plus, Trash2 } from 'lucide-react';
+import { Download, MoreHorizontal, Package, Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,7 @@ import {
 import type { ProductListItem } from '../types';
 import { DeleteProductDialog } from './delete-product-dialog';
 import { ProductFormDialog } from './product-form-dialog';
+import { ProductImportDialog } from './product-import-dialog';
 
 export function ProductsDashboard() {
   const [filters, setFilters] = useUrlFilters({ search: '', page: '1' });
@@ -49,8 +50,10 @@ export function ProductsDashboard() {
   const debouncedSearch = useDebouncedValue(searchInput, 300);
   const { pageSize, setPageSize } = usePagination();
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProductListItem | null>(null);
   const { allowed: canDelete } = useHasPermission('catalog.delete');
+  const { allowed: canImport } = useHasPermission('catalog.import');
 
   useEffect(() => {
     if (debouncedSearch !== filters.search) setFilters({ search: debouncedSearch, page: '1' });
@@ -124,6 +127,12 @@ export function ProductsDashboard() {
               Ekspor CSV
             </a>
           </Button>
+          {canImport ? (
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="size-4" />
+              Impor CSV
+            </Button>
+          ) : null}
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
             Produk baru
@@ -273,6 +282,8 @@ export function ProductsDashboard() {
       )}
 
       <ProductFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      <ProductImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       <DeleteProductDialog
         product={deleteTarget}

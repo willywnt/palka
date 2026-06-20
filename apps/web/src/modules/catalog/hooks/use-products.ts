@@ -15,6 +15,7 @@ import type {
   DeletionBlockers,
   LabelVariant,
   ProductDetail,
+  ProductImportReport,
   ProductListItem,
   ProductVariantItem,
 } from '../types';
@@ -39,6 +40,36 @@ export type ProductsPage = {
 /** URL for the bulk product CSV export (a plain browser download, not apiFetch). */
 export function productsExportUrl(): string {
   return `${apiRoutes.products}/export`;
+}
+
+/**
+ * Bulk product CSV import. Called twice by the wizard: `commit:false` for a
+ * dry-run preview (no writes), then `commit:true` to apply. Refreshes catalog +
+ * inventory views only once the import is actually committed.
+ */
+export function useImportProductsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ csv, commit }: { csv: string; commit: boolean }) => {
+      const result = await apiFetch<ProductImportReport>(`${apiRoutes.products}/import`, {
+        method: 'POST',
+        body: { csv, commit },
+      });
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    onSuccess: (report) => {
+      if (report.committed) {
+        void queryClient.invalidateQueries({ queryKey: catalogKeys.all });
+        void queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+      }
+    },
+  });
 }
 
 export function useProductsQuery(search: string | undefined, page: number, pageSize: number) {
