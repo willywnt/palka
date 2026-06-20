@@ -260,6 +260,13 @@ developer.tokopedia.com API is terminated. `docs/roadmap/shopee-tokopedia-integr
   client-compressed to WebP, shown in a `VariantImage` popover by the name. R2 uses **per-bucket public
   URLs** (`<base>/<key>`, NO bucket in the path): `R2_RECORDINGS_BUCKET_NAME`+`R2_PUBLIC_URL`,
   `R2_PRODUCTS_BUCKET_NAME`+`R2_PRODUCTS_PUBLIC_URL`.
+- **Bulk product CSV import/export** (`catalog`, no schema change) on the Produk dashboard: **export**
+  (ungated) flattens one row per live variant (`listForExport`); **import** (gated `catalog.import`) is a
+  dry-run-preview-then-commit wizard, upsert by **exact SKU** (unknown/blank → CREATE, grouped by product
+  name → existing/new/ambiguous; matched → `updateVariantDetails` for name/group/barcode/price/cost — SKU
+  never changes). **Stock seeds NEW variants only** (via `initialStock` → inventory service); a stock cell
+  on an existing SKU is ignored. Transport = JSON `{ csv, commit }` via `apiFetch` (hand-rolled RFC4180
+  parser + pure `planProductImport`, no parse dep). Detail: `docs/roadmap/backlog.md` (2026-06-20).
 - **Outbound sync** lives in `packages/queue/src/marketplace-sync` (worker): a SoT change enqueues
   `propagate-inventory-stock` → `sync-marketplace-stock` → provider adapter (Dev stub simulates).
   **AUTO changes are COALESCED** per `(org, variant)` — a stable BullMQ jobId + 60s delay

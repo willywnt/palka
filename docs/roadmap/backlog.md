@@ -114,6 +114,28 @@ order actions (mark-shipped / edit resi / cancel-with-reason) · DAMAGE write-of
     interaction, new caching defaults (`cacheComponents`/`dynamicIO`), typedRoutes. Needs browser QA of
     both happy flows + auth + scanner. Owner deferred to a dedicated session.
 
+## ✅ Shipped (2026-06-20)
+
+- **Bulk product CSV import / export** (`catalog`, branch `session/2026-06-20-product-csv-import-export`,
+  no schema change) — on the Produk dashboard. **Export** (ungated, like the page): "Ekspor CSV"
+  downloads every live variant flattened one row per SKU (`catalogServerService.listForExport`, capped
+  at `PRODUCT_EXPORT_CAP`). **Import** (new `catalog.import` ACTION key, ADMIN-on/STAFF-off) is a wizard:
+  pick a CSV → server **dry-run preview** (per-row Buat/Perbarui/Lewati/Error + notes, no writes) →
+  confirm to commit. Upsert by **exact SKU**: unknown/blank SKU = CREATE (rows grouped by product name →
+  add to the 1 matching live product / create a new one / flag ambiguous ≥2; blank SKUs auto-generate via
+  `suggestVariantSku`); matched SKU = UPDATE name/group/barcode/price/cost via a new
+  `catalogServerService.updateVariantDetails` (SKU is the match key, never changed). **Stock seeds NEW
+  variants only** (through `createProduct`/`addVariants` → `initialStock` → inventory service, reason
+  RESTOCK); a stock cell on an existing SKU is reported but ignored (use Opname). Transport = JSON
+  `{ csv, commit }` via `apiFetch` (no multipart, no parse dep — hand-rolled RFC4180 parser + a pure,
+  unit-tested `planProductImport`); each create-group/update runs on its own so one bad row never aborts
+  the batch. Files: `utils/{product-csv,parse-products-csv,product-import-plan}.ts`,
+  `services/product-import.service.ts`, `validators/{import-products,update-variant-details}.ts`,
+  `app/api/v1/products/{export,import}/route.ts`, `components/product-import-dialog.tsx`. 4 gates green;
+  47 catalog vitest. **Owner manual QA owed:** a real round-trip (export → edit → re-import) against a
+  live DB. **Deferred:** bulk stock update on existing SKUs, product-level (category/description) bulk
+  edit, recurring/streaming/very-large async import (worker job).
+
 ## 🎯 Mid-size features (1 session each)
 
 | #   | Item                                                                 | Module            | Effort | Gate | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
