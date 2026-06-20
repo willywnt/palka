@@ -17,6 +17,10 @@ export {
 } from './add-variant';
 export { updateProductSchema, type UpdateProductInput } from './update-product';
 export {
+  updateVariantDetailsSchema,
+  type UpdateVariantDetailsInput,
+} from './update-variant-details';
+export {
   updateVariantSchema,
   variantRouteParamSchema,
   editVariantFormSchema,

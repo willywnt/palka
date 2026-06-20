@@ -31,6 +31,7 @@ import type { CreateProductInput } from '../validators/create-product';
 import type { LabelVariantsQuery } from '../validators/label-variants';
 import type { ListProductsQuery } from '../validators/list-products';
 import type { UpdateProductInput } from '../validators/update-product';
+import type { UpdateVariantDetailsInput } from '../validators/update-variant-details';
 import type { UpdateVariantInput } from '../validators/update-variant';
 import type { CreateVariantInput } from '../validators/variant';
 import type { SetVariantImageInput } from '../validators/variant-image';
@@ -474,6 +475,85 @@ export class CatalogServerService {
     });
 
     return mapVariant(updated);
+  }
+
+  /**
+   * Patch a live variant's core fields (name/group/barcode/price/cost) — the
+   * bulk-import update path. SKU is the match key and is NOT changed here. Omitted
+   * input fields are left unchanged (a price-only update won't clobber a barcode).
+   */
+  async updateVariantDetails(
+    organizationId: string,
+    variantId: string,
+    input: UpdateVariantDetailsInput,
+  ): Promise<ProductVariantItem> {
+    const owned = await prisma.productVariant.findFirst({
+      where: { id: variantId, organizationId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!owned) throw CatalogError.notFound('Variant not found.');
+
+    const updated = await prisma.productVariant.update({
+      where: { id: variantId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.variantGroup !== undefined ? { variantGroup: input.variantGroup } : {}),
+        ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
+        ...(input.price !== undefined ? { price: input.price } : {}),
+        ...(input.cost !== undefined ? { cost: input.cost } : {}),
+      },
+      include: { inventory: true },
+    });
+
+    appLogger.info('catalog.variant.details_updated', { organizationId, variantId });
+
+    return mapVariant(updated);
+  }
+
+  /**
+   * Map the given SKUs to their live variant + owning product (org-scoped, exact
+   * SKU match = the unique-index identity). Used by the importer to decide
+   * create-vs-update per row. Missing SKUs are simply absent from the map.
+   */
+  async findVariantsBySkus(
+    organizationId: string,
+    skus: string[],
+  ): Promise<Map<string, { variantId: string; productId: string }>> {
+    const unique = [...new Set(skus)];
+    if (unique.length === 0) return new Map();
+
+    const rows = await prisma.productVariant.findMany({
+      where: { organizationId, deletedAt: null, sku: { in: unique } },
+      select: { id: true, sku: true, productId: true },
+    });
+
+    return new Map(rows.map((row) => [row.sku, { variantId: row.id, productId: row.productId }]));
+  }
+
+  /**
+   * Map a product name to the live product ids that bear it (exact match). The
+   * importer groups new variant rows by product name: 1 match → add the variants
+   * to it; 0 → create a new product; ≥2 → ambiguous (the importer flags the rows).
+   */
+  async findLiveProductIdsByName(
+    organizationId: string,
+    names: string[],
+  ): Promise<Map<string, string[]>> {
+    const unique = [...new Set(names)];
+    if (unique.length === 0) return new Map();
+
+    const rows = await prisma.product.findMany({
+      where: { organizationId, deletedAt: null, name: { in: unique } },
+      select: { id: true, name: true },
+    });
+
+    const map = new Map<string, string[]>();
+    for (const row of rows) {
+      const list = map.get(row.name) ?? [];
+      list.push(row.id);
+      map.set(row.name, list);
+    }
+    return map;
   }
 
   async updateProduct(
