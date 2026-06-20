@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MoreHorizontal, Package, Plus, Trash2 } from 'lucide-react';
+import { Download, MoreHorizontal, Package, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,11 @@ import { useUrlFilters } from '@/hooks/use-url-filters';
 import { cn } from '@/lib/utils';
 import { useHasPermission } from '@/modules/users/hooks/use-org';
 
-import { useDeleteProductMutation, useProductsQuery } from '../hooks/use-products';
+import {
+  productsExportUrl,
+  useDeleteProductMutation,
+  useProductsQuery,
+} from '../hooks/use-products';
 import type { ProductListItem } from '../types';
 import { DeleteProductDialog } from './delete-product-dialog';
 import { ProductFormDialog } from './product-form-dialog';
@@ -113,10 +117,18 @@ export function ProductsDashboard() {
           placeholder="Cari produk..."
           className="sm:max-w-xs"
         />
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          Produk baru
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" asChild>
+            <a href={productsExportUrl()} download>
+              <Download className="size-4" />
+              Ekspor CSV
+            </a>
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            Produk baru
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

@@ -36,6 +36,11 @@ export type ProductsPage = {
   meta: { page?: number; pageSize?: number; total?: number } | undefined;
 };
 
+/** URL for the bulk product CSV export (a plain browser download, not apiFetch). */
+export function productsExportUrl(): string {
+  return `${apiRoutes.products}/export`;
+}
+
 export function useProductsQuery(search: string | undefined, page: number, pageSize: number) {
   const trimmed = search?.trim() || undefined;
   const query: ListProductsQuery = { page, pageSize, search: trimmed };

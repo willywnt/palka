@@ -17,10 +17,12 @@ import type {
   DeletionBlockers,
   LabelVariant,
   ProductDetail,
+  ProductExportRow,
   ProductListItem,
   ProductVariantItem,
   VariantMappingRef,
 } from '../types';
+import { PRODUCT_EXPORT_CAP } from '../utils/product-csv';
 import { isUniqueConstraintError } from '../utils/prisma-errors';
 import { takenSkus } from '../utils/sku';
 import { deleteStorageObject } from '../utils/storage';
@@ -255,6 +257,45 @@ export class CatalogServerService {
     }));
 
     return buildPaginatedResult(items, total, query.page, query.pageSize);
+  }
+
+  /**
+   * Every live variant of the org, flattened one row per variant (product columns
+   * repeated), for the bulk CSV export. Capped at PRODUCT_EXPORT_CAP — oldest
+   * products first so the dropped tail (if any) is the newest, and logged on
+   * overflow. Variant-less products produce no rows (no sellable leaf to export).
+   */
+  async listForExport(organizationId: string): Promise<ProductExportRow[]> {
+    const variants = await prisma.productVariant.findMany({
+      where: { organizationId, deletedAt: null, product: { deletedAt: null } },
+      orderBy: [{ product: { createdAt: 'asc' } }, { createdAt: 'asc' }],
+      take: PRODUCT_EXPORT_CAP + 1,
+      include: {
+        product: { select: { name: true, category: true, description: true } },
+        inventory: { select: { availableStock: true } },
+      },
+    });
+
+    if (variants.length > PRODUCT_EXPORT_CAP) {
+      appLogger.warn('catalog.export.truncated', {
+        organizationId,
+        cap: PRODUCT_EXPORT_CAP,
+        returned: PRODUCT_EXPORT_CAP,
+      });
+    }
+
+    return variants.slice(0, PRODUCT_EXPORT_CAP).map((variant) => ({
+      productName: variant.product.name,
+      category: variant.product.category,
+      description: variant.product.description,
+      variantGroup: variant.variantGroup,
+      variantName: variant.name,
+      sku: variant.sku,
+      barcode: variant.barcode,
+      price: variant.price.toString(),
+      cost: variant.cost?.toString() ?? null,
+      stock: variant.inventory?.availableStock ?? 0,
+    }));
   }
 
   async getProductById(organizationId: string, productId: string): Promise<ProductDetail> {

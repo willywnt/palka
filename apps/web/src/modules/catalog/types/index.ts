@@ -70,6 +70,26 @@ export type ProductListItem = {
   updatedAt: string;
 };
 
+/**
+ * One CSV row per variant for bulk export/import — flat (product columns repeat
+ * across a product's variants). Symmetric with the import format so an exported
+ * file can be edited and re-imported.
+ */
+export type ProductExportRow = {
+  productName: string;
+  category: string | null;
+  description: string | null;
+  variantGroup: string | null;
+  variantName: string;
+  sku: string;
+  barcode: string | null;
+  /** Decimal serialized as a string. */
+  price: string;
+  cost: string | null;
+  /** Available stock (the inventory cache); 0 when no inventory row yet. */
+  stock: number;
+};
+
 /** Why a product/variant/group can't (or can, with warnings) be deleted. */
 export type DeletionBlockers = {
   /** True when at least one hard reason blocks deletion. */
