@@ -141,6 +141,17 @@ order actions (mark-shipped / edit resi / cancel-with-reason) · DAMAGE write-of
   build, not npm); used client-side on the seller's own files + server-side for generation. **Deferred:**
   bulk stock update on existing SKUs, product-level (category/description) bulk edit, recurring/streaming/
   very-large async import (worker job).
+- **Import-wizard UX rework** (same branch, owner feedback) — **xlsx-only** now (CSV upload dropped). Two
+  separate modals: a **compact upload modal** (`max-w-md` draggable dropzone + a centered "Unduh template"
+  text **link**; required columns are now marked **in the template header itself**, e.g. `Nama Produk*`,
+  so the in-dialog legend is gone) and a **separate wide editable preview modal** (`max-w-5xl`). Preview
+  table mirrors the template columns **minus Barcode and the old Catatan column**: validation errors moved
+  **inline per cell**, system-generated SKUs get an **"auto" badge**, an existing-SKU's stock cell is shown
+  greyed/ignored, each row has **edit (prefilled inputs, live re-validation) + delete** actions, an **"Unggah
+  ulang"** button overrides with a new file, and the summary badges carry **tooltips**. The plan now returns
+  **per-field errors + `skuGenerated` + `resolvedSku`**; the wizard plans/re-plans edits **on the client**
+  via a new `POST /products/import/resolve` (existing SKUs + product names) and only the final commit hits
+  the server (authoritative). 4 gates green; 50 catalog vitest. Same owner QA owed.
 
 ## 🎯 Mid-size features (1 session each)
 

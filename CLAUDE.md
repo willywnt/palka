@@ -260,16 +260,19 @@ developer.tokopedia.com API is terminated. `docs/roadmap/shopee-tokopedia-integr
   client-compressed to WebP, shown in a `VariantImage` popover by the name. R2 uses **per-bucket public
   URLs** (`<base>/<key>`, NO bucket in the path): `R2_RECORDINGS_BUCKET_NAME`+`R2_PUBLIC_URL`,
   `R2_PRODUCTS_BUCKET_NAME`+`R2_PRODUCTS_PUBLIC_URL`.
-- **Bulk product import/export (XLSX-first)** (`catalog`, no schema change) on the Produk dashboard:
+- **Bulk product import/export (XLSX-only)** (`catalog`, no schema change) on the Produk dashboard:
   **export** (ungated) downloads an .xlsx, one row per live variant (`listForExport`→`buildProductsXlsx`,
-  SheetJS `xlsx`); **import** (gated `catalog.import`) is a draggable-dropzone + header-only-template
-  (`/products/import/template`) + dry-run-preview-then-commit wizard, upsert by **exact SKU** (unknown/blank
-  → CREATE, grouped by product name → existing/new/ambiguous; matched → `updateVariantDetails` for
-  name/group/barcode/price/cost — SKU never changes). **Stock seeds NEW variants only** (via `initialStock`
-  → inventory service); a stock cell on an existing SKU is ignored. The client parses .xlsx (lazy
-  `import('xlsx')`) → CSV; server contract stays JSON `{ csv, commit }` (hand-rolled RFC4180 parser + pure
-  `planProductImport`; rejects a file missing a required column). Detail: `docs/roadmap/backlog.md`
-  (2026-06-20).
+  SheetJS `xlsx`); **import** (gated `catalog.import`) is a **two-modal** wizard — a compact upload modal
+  (draggable .xlsx dropzone + a centered "Unduh template" link; the header-only template marks required
+  columns as `Nama Produk*`) and a separate **wide editable preview** (per-cell errors, "auto" badge on
+  generated SKUs, inline row edit + delete, "Unggah ulang", summary tooltips). Upsert by **exact SKU**
+  (unknown/blank → CREATE, grouped by product name → existing/new/ambiguous; matched → `updateVariantDetails`
+  for name/group/barcode/price/cost — SKU never changes). **Stock seeds NEW variants only** (via
+  `initialStock` → inventory service); a stock cell on an existing SKU is ignored. The wizard plans/re-plans
+  edits **on the client** (`planProductImport` is pure; existing data via `POST /products/import/resolve`);
+  the client parses .xlsx (lazy `import('xlsx')`) and only the final commit (`{ csv, commit }`, server
+  re-validates) is authoritative. `planProductImport` returns per-field errors + `skuGenerated` +
+  `resolvedSku`. Detail: `docs/roadmap/backlog.md` (2026-06-20).
 - **Outbound sync** lives in `packages/queue/src/marketplace-sync` (worker): a SoT change enqueues
   `propagate-inventory-stock` → `sync-marketplace-stock` → provider adapter (Dev stub simulates).
   **AUTO changes are COALESCED** per `(org, variant)` — a stable BullMQ jobId + 60s delay
