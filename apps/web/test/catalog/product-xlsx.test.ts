@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
 
-import { PRODUCT_CSV_HEADERS } from '@/modules/catalog/utils/product-csv';
+import { PRODUCT_CSV_HEADERS, PRODUCT_TEMPLATE_HEADERS } from '@/modules/catalog/utils/product-csv';
 import { buildProductTemplateXlsx, buildProductsXlsx } from '@/modules/catalog/utils/product-xlsx';
 import type { ProductExportRow } from '@/modules/catalog/types';
 
@@ -14,11 +14,13 @@ function readRows(bytes: ArrayBuffer): unknown[][] {
 }
 
 describe('buildProductTemplateXlsx', () => {
-  it('produces a single header row and no data', () => {
+  it('produces a single header row (required columns marked with *) and no data', () => {
     const rows = readRows(buildProductTemplateXlsx());
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toEqual([...PRODUCT_CSV_HEADERS]);
+    expect(rows[0]).toEqual([...PRODUCT_TEMPLATE_HEADERS]);
+    expect(rows[0]).toContain('Nama Produk*');
+    expect(rows[0]).toContain('Kategori'); // optional column stays unmarked
   });
 });
 

@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 
 import type { ProductExportRow } from '../types';
-import { PRODUCT_CSV_HEADERS } from './product-csv';
+import { PRODUCT_CSV_HEADERS, PRODUCT_TEMPLATE_HEADERS } from './product-csv';
 
 const SHEET_NAME = 'Produk';
 
@@ -34,7 +34,7 @@ export function buildProductsXlsx(rows: ProductExportRow[]): ArrayBuffer {
   return workbookBytes([PRODUCT_CSV_HEADERS, ...rows.map(rowToCells)]);
 }
 
-/** Header-only template workbook (no data rows) as .xlsx bytes. */
+/** Header-only template workbook (required columns marked "*") as .xlsx bytes. */
 export function buildProductTemplateXlsx(): ArrayBuffer {
-  return workbookBytes([PRODUCT_CSV_HEADERS]);
+  return workbookBytes([PRODUCT_TEMPLATE_HEADERS]);
 }

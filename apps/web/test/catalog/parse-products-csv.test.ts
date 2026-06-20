@@ -55,4 +55,16 @@ describe('tableToRawRows', () => {
     expect(error).toMatch(/Nama Produk/);
     expect(rows).toHaveLength(0);
   });
+
+  it('accepts template headers that mark required columns with a trailing *', () => {
+    const { rows, error } = tableToRawRows(
+      parseCsv('Nama Produk*,Nama Varian*,Harga*,SKU\nKaos,Merah,50000,K-1'),
+    );
+
+    expect(error).toBeUndefined();
+    expect(rows[0]?.productName).toBe('Kaos');
+    expect(rows[0]?.variantName).toBe('Merah');
+    expect(rows[0]?.price).toBe('50000');
+    expect(rows[0]?.sku).toBe('K-1');
+  });
 });

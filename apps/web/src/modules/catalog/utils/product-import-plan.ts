@@ -1,4 +1,4 @@
-import type { ProductImportRowResult, ProductImportSummary } from '../types';
+import type { ProductImportField, ProductImportRowResult, ProductImportSummary } from '../types';
 import type { CreateVariantInput } from '../validators/variant';
 import type { UpdateVariantDetailsInput } from '../validators/update-variant-details';
 import type { RawProductRow } from './parse-products-csv';
@@ -50,10 +50,10 @@ function parseNumber(raw: string, max: number, integer: boolean): ParsedNumber {
   const text = raw.trim();
   if (text === '') return {};
   const value = Number(text);
-  if (!Number.isFinite(value)) return { error: 'bukan angka' };
-  if (value < 0) return { error: 'tidak boleh negatif' };
-  if (integer && !Number.isInteger(value)) return { error: 'harus bilangan bulat' };
-  if (value > max) return { error: 'terlalu besar' };
+  if (!Number.isFinite(value)) return { error: 'Bukan angka' };
+  if (value < 0) return { error: 'Tidak boleh negatif' };
+  if (integer && !Number.isInteger(value)) return { error: 'Harus bilangan bulat' };
+  if (value > max) return { error: 'Terlalu besar' };
   return { value };
 }
 
@@ -74,19 +74,19 @@ function uniqueSku(base: string, used: Set<string>): string {
 }
 
 /**
- * Decide, per CSV row, what the import will do — pure (no DB). Classify by SKU:
- * an exact match of a live variant = UPDATE its core fields (price/cost/name/
- * barcode/group); an unmatched/blank SKU = CREATE (blank SKUs auto-generate a
- * unique one). Create rows are grouped by product name and routed to an existing
- * product (1 match), a new product (0), or flagged ambiguous (≥2). Stock only
- * seeds NEW variants — a stock cell on an existing SKU is reported but ignored.
+ * Decide, per row, what the import will do — pure (no DB). Classify by SKU: an
+ * exact match of a live variant = UPDATE its core fields (price/cost/name/barcode/
+ * group); an unmatched/blank SKU = CREATE (blank SKUs auto-generate a unique one,
+ * flagged `skuGenerated`). Create rows are grouped by product name and routed to an
+ * existing product (1 match), a new product (0), or flagged ambiguous (≥2). Stock
+ * only seeds NEW variants — a stock cell on an existing SKU is left to the UI to
+ * show as ignored. Errors are attributed to the offending column (`fieldErrors`).
  */
 export function planProductImport(rows: RawProductRow[], context: ImportPlanContext): ImportPlan {
   const resultByLine = new Map<number, ProductImportRowResult>();
   const updates: UpdateOp[] = [];
   const usedSkus = new Set(context.existingVariantsBySku.keys());
 
-  // Create rows are resolved after grouping; stash them with their parsed variant.
   type CreateCandidate = {
     line: number;
     name: string;
@@ -102,14 +102,8 @@ export function planProductImport(rows: RawProductRow[], context: ImportPlanCont
     const sku = row.sku.trim();
     const variantGroup = row.variantGroup.trim();
     const barcode = row.barcode.trim();
-    const base: ProductImportRowResult = {
-      line: row.line,
-      status: 'error',
-      sku: sku || null,
-      productName,
-      variantName,
-      message: null,
-    };
+    const fieldErrors: Partial<Record<ProductImportField, string>> = {};
+    let message: string | null = null;
 
     const matched = sku ? context.existingVariantsBySku.get(sku) : undefined;
 
@@ -117,15 +111,22 @@ export function planProductImport(rows: RawProductRow[], context: ImportPlanCont
       // UPDATE — patch only the non-blank editable cells.
       const price = parseNumber(row.price, MAX_MONEY, false);
       const cost = parseNumber(row.cost, MAX_MONEY, false);
-      const errors: string[] = [];
-      if (price.error) errors.push(`Harga ${price.error}.`);
-      if (cost.error) errors.push(`Modal ${cost.error}.`);
-      if (variantName.length > MAX_NAME) errors.push('Nama varian terlalu panjang.');
-      if (variantGroup.length > MAX_GROUP) errors.push('Grup varian terlalu panjang.');
-      if (barcode.length > MAX_BARCODE) errors.push('Barcode terlalu panjang.');
+      if (price.error) fieldErrors.price = price.error;
+      if (cost.error) fieldErrors.cost = cost.error;
+      if (variantName.length > MAX_NAME) fieldErrors.variantName = 'Terlalu panjang';
+      if (variantGroup.length > MAX_GROUP) fieldErrors.variantGroup = 'Terlalu panjang';
+      if (barcode.length > MAX_BARCODE) message = 'Barcode terlalu panjang.';
 
-      if (errors.length > 0) {
-        resultByLine.set(row.line, { ...base, message: errors.join(' ') });
+      const base = {
+        line: row.line,
+        resolvedSku: sku,
+        skuGenerated: false,
+        productName,
+        variantName,
+      };
+
+      if (Object.keys(fieldErrors).length > 0 || message) {
+        resultByLine.set(row.line, { ...base, status: 'error', fieldErrors, message });
         continue;
       }
 
@@ -140,14 +141,14 @@ export function planProductImport(rows: RawProductRow[], context: ImportPlanCont
         resultByLine.set(row.line, {
           ...base,
           status: 'skip',
-          message: 'Tidak ada kolom yang bisa diperbarui.',
+          fieldErrors,
+          message: 'Tidak ada kolom untuk diperbarui.',
         });
         continue;
       }
 
-      const note = row.stock.trim() ? 'Stok diabaikan untuk SKU yang sudah ada.' : null;
       updates.push({ line: row.line, variantId: matched.variantId, input });
-      resultByLine.set(row.line, { ...base, status: 'update', message: note });
+      resultByLine.set(row.line, { ...base, status: 'update', fieldErrors, message: null });
       continue;
     }
 
@@ -155,26 +156,34 @@ export function planProductImport(rows: RawProductRow[], context: ImportPlanCont
     const price = parseNumber(row.price, MAX_MONEY, false);
     const cost = parseNumber(row.cost, MAX_MONEY, false);
     const stock = parseNumber(row.stock, MAX_STOCK, true);
-    const errors: string[] = [];
-    if (!productName) errors.push('Nama produk wajib diisi untuk produk baru.');
-    else if (productName.length > MAX_NAME) errors.push('Nama produk terlalu panjang.');
-    if (!variantName) errors.push('Nama varian wajib diisi.');
-    else if (variantName.length > MAX_NAME) errors.push('Nama varian terlalu panjang.');
-    if (variantGroup.length > MAX_GROUP) errors.push('Grup varian terlalu panjang.');
-    if (barcode.length > MAX_BARCODE) errors.push('Barcode terlalu panjang.');
-    if (row.price.trim() === '') errors.push('Harga wajib diisi.');
-    else if (price.error) errors.push(`Harga ${price.error}.`);
-    if (cost.error) errors.push(`Modal ${cost.error}.`);
-    if (stock.error) errors.push(`Stok ${stock.error}.`);
-    if (sku && sku.length > MAX_SKU) errors.push('SKU terlalu panjang (maks 64).');
-    if (sku && sku.length <= MAX_SKU && usedSkus.has(sku))
-      errors.push(`SKU "${sku}" duplikat di file atau sudah dipakai.`);
+    if (!productName) fieldErrors.productName = 'Wajib diisi';
+    else if (productName.length > MAX_NAME) fieldErrors.productName = 'Terlalu panjang';
+    if (!variantName) fieldErrors.variantName = 'Wajib diisi';
+    else if (variantName.length > MAX_NAME) fieldErrors.variantName = 'Terlalu panjang';
+    if (variantGroup.length > MAX_GROUP) fieldErrors.variantGroup = 'Terlalu panjang';
+    if (barcode.length > MAX_BARCODE) message = 'Barcode terlalu panjang.';
+    if (row.price.trim() === '') fieldErrors.price = 'Wajib diisi';
+    else if (price.error) fieldErrors.price = price.error;
+    if (cost.error) fieldErrors.cost = cost.error;
+    if (stock.error) fieldErrors.stock = stock.error;
+    if (sku && sku.length > MAX_SKU) fieldErrors.sku = 'Maks 64 karakter';
+    else if (sku && usedSkus.has(sku)) fieldErrors.sku = 'Duplikat di file atau sudah dipakai';
 
-    if (errors.length > 0) {
-      resultByLine.set(row.line, { ...base, message: errors.join(' ') });
+    if (Object.keys(fieldErrors).length > 0 || message) {
+      resultByLine.set(row.line, {
+        line: row.line,
+        status: 'error',
+        resolvedSku: sku || null,
+        skuGenerated: false,
+        productName,
+        variantName,
+        fieldErrors,
+        message,
+      });
       continue;
     }
 
+    const skuGenerated = sku === '';
     let finalSku: string;
     if (sku) {
       usedSkus.add(sku);
@@ -202,8 +211,16 @@ export function planProductImport(rows: RawProductRow[], context: ImportPlanCont
       description: row.description.trim() || undefined,
       variant,
     });
-    // Provisional — finalized (or flagged ambiguous) during grouping below.
-    resultByLine.set(row.line, { ...base, status: 'create', sku: finalSku, message: null });
+    resultByLine.set(row.line, {
+      line: row.line,
+      status: 'create',
+      resolvedSku: finalSku,
+      skuGenerated,
+      productName,
+      variantName,
+      fieldErrors: {},
+      message: null,
+    });
   }
 
   // Group create rows by product name and route each group.
@@ -224,7 +241,10 @@ export function planProductImport(rows: RawProductRow[], context: ImportPlanCont
           resultByLine.set(candidate.line, {
             ...previous,
             status: 'error',
-            message: `Ada beberapa produk bernama "${name}" — tambah varian lewat halaman produk.`,
+            fieldErrors: {
+              ...previous.fieldErrors,
+              productName: 'Nama produk ambigu (ada beberapa produk)',
+            },
           });
         }
       }
@@ -246,9 +266,11 @@ export function planProductImport(rows: RawProductRow[], context: ImportPlanCont
       resultByLine.get(row.line) ?? {
         line: row.line,
         status: 'error' as const,
-        sku: null,
+        resolvedSku: null,
+        skuGenerated: false,
         productName: row.productName.trim(),
         variantName: row.variantName.trim(),
+        fieldErrors: {},
         message: 'Baris tidak dapat diproses.',
       },
   );

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MAX_IMPORT_CSV_LENGTH } from '../utils/product-csv';
+import { MAX_IMPORT_CSV_LENGTH, MAX_IMPORT_ROWS } from '../utils/product-csv';
 
 /**
  * Bulk product import payload. The raw CSV text is sent as a JSON string (apiFetch
@@ -16,3 +16,11 @@ export const importProductsSchema = z.object({
 });
 
 export type ImportProductsInput = z.infer<typeof importProductsSchema>;
+
+/** Lookup payload for the preview: resolve which SKUs/product names already exist. */
+export const resolveImportSchema = z.object({
+  skus: z.array(z.string().max(128)).max(MAX_IMPORT_ROWS),
+  names: z.array(z.string().max(256)).max(MAX_IMPORT_ROWS),
+});
+
+export type ResolveImportInput = z.infer<typeof resolveImportSchema>;

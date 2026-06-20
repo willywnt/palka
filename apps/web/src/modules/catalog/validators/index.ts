@@ -29,7 +29,12 @@ export {
   type EditVariantFormInput,
 } from './update-variant';
 export { deleteVariantsSchema, type DeleteVariantsInput } from './delete-variants';
-export { importProductsSchema, type ImportProductsInput } from './import-products';
+export {
+  importProductsSchema,
+  resolveImportSchema,
+  type ImportProductsInput,
+  type ResolveImportInput,
+} from './import-products';
 export { listProductsQuerySchema, type ListProductsQuery } from './list-products';
 export { labelVariantsQuerySchema, type LabelVariantsQuery } from './label-variants';
 export { markLabelsPrintedSchema, type MarkLabelsPrintedInput } from './mark-labels-printed';

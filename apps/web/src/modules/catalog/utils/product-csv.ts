@@ -24,8 +24,32 @@ export type ProductCsvField = (typeof PRODUCT_CSV_COLUMNS)[number]['field'];
 
 export const PRODUCT_CSV_HEADERS = PRODUCT_CSV_COLUMNS.map((column) => column.header);
 
+/** Template header — required columns marked with a trailing "*" (e.g. "Nama Produk*"). */
+export const PRODUCT_TEMPLATE_HEADERS = PRODUCT_CSV_COLUMNS.map((column) =>
+  column.required ? `${column.header}*` : column.header,
+);
+
 /** Columns that must be present in an uploaded file (and whose cell is required on create). */
 export const REQUIRED_PRODUCT_CSV_COLUMNS = PRODUCT_CSV_COLUMNS.filter((column) => column.required);
+
+/** Quote a field only when it contains a comma, quote, or newline (RFC 4180). */
+function escapeCsv(value: string): string {
+  if (/["\n\r,]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Serialize editable rows back to CSV (canonical plain header, CRLF) — the import
+ * wizard rebuilds this from its in-memory rows to send to the server on commit.
+ */
+export function rowsToImportCsv(rows: Record<ProductCsvField, string>[]): string {
+  const lines = rows.map((row) =>
+    PRODUCT_CSV_COLUMNS.map((column) => escapeCsv(row[column.field] ?? '')).join(','),
+  );
+  return [PRODUCT_CSV_HEADERS.join(','), ...lines].join('\r\n');
+}
 
 /** Safety cap so a huge catalog can't pull the whole table into one response. */
 export const PRODUCT_EXPORT_CAP = 50_000;

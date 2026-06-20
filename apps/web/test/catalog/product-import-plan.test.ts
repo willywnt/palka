@@ -58,6 +58,7 @@ describe('planProductImport', () => {
       cost: 30000,
       initialStock: 7,
     });
+    expect(plan.rows[0]).toMatchObject({ resolvedSku: 'KAOS-M', skuGenerated: false });
   });
 
   it('groups rows sharing a product name into one product', () => {
@@ -99,12 +100,12 @@ describe('planProductImport', () => {
     );
 
     expect(plan.summary).toMatchObject({ create: 0, update: 1, error: 0 });
+    expect(plan.rows[0]?.status).toBe('update');
     expect(plan.updates[0]).toMatchObject({
       variantId: 'v1',
       input: { name: 'Merah', price: 60000 },
     });
     expect(plan.updates[0]?.input).not.toHaveProperty('cost'); // blank → unchanged
-    expect(plan.rows[0]?.message).toMatch(/Stok diabaikan/);
   });
 
   it('skips an existing SKU row that has nothing to update', () => {
@@ -124,10 +125,10 @@ describe('planProductImport', () => {
     );
 
     expect(plan.summary.error).toBe(1);
-    expect(plan.rows[0]?.message).toMatch(/Harga wajib/);
+    expect(plan.rows[0]?.fieldErrors.price).toMatch(/Wajib/);
   });
 
-  it('auto-generates unique SKUs when blank', () => {
+  it('auto-generates unique SKUs when blank and flags them', () => {
     const plan = planProductImport(
       [
         row({ line: 2, productName: 'iPhone 16', variantName: 'Hitam', price: '1000' }),
@@ -139,6 +140,8 @@ describe('planProductImport', () => {
     const skus = plan.createGroups.flatMap((group) => group.variants.map((variant) => variant.sku));
     expect(skus).toHaveLength(2);
     expect(new Set(skus).size).toBe(2);
+    expect(plan.rows[0]?.skuGenerated).toBe(true);
+    expect(plan.rows[0]?.resolvedSku).toBeTruthy();
   });
 
   it('flags a duplicate SKU within the file', () => {
@@ -151,7 +154,7 @@ describe('planProductImport', () => {
     );
 
     expect(plan.summary).toMatchObject({ create: 1, error: 1 });
-    expect(plan.rows[1]?.message).toMatch(/duplikat/i);
+    expect(plan.rows[1]?.fieldErrors.sku).toMatch(/duplikat/i);
   });
 
   it('errors create rows when the product name is ambiguous (≥2 live products)', () => {
@@ -162,7 +165,7 @@ describe('planProductImport', () => {
 
     expect(plan.summary.error).toBe(1);
     expect(plan.createGroups).toHaveLength(0);
-    expect(plan.rows[0]?.message).toMatch(/beberapa produk/i);
+    expect(plan.rows[0]?.fieldErrors.productName).toMatch(/ambigu|beberapa/i);
   });
 
   it('rejects a non-numeric price on a new row', () => {
@@ -172,6 +175,6 @@ describe('planProductImport', () => {
     );
 
     expect(plan.summary.error).toBe(1);
-    expect(plan.rows[0]?.message).toMatch(/Harga bukan angka/);
+    expect(plan.rows[0]?.fieldErrors.price).toMatch(/Bukan angka/);
   });
 });

@@ -98,7 +98,8 @@ export function tableToRawRows(table: string[][]): RawProductTable {
   const header = table[0] ?? [];
   const indexByField = new Map<ProductCsvField, number>();
   for (let col = 0; col < header.length; col += 1) {
-    const name = (header[col] ?? '').trim().toLowerCase();
+    // Strip a trailing "*" — the template marks required columns as "Nama Produk*".
+    const name = (header[col] ?? '').trim().replace(/\*+$/, '').trim().toLowerCase();
     const match = PRODUCT_CSV_COLUMNS.find((column) => column.header.toLowerCase() === name);
     if (match && !indexByField.has(match.field)) indexByField.set(match.field, col);
   }

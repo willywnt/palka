@@ -5,7 +5,12 @@ import { auditService } from '@/modules/audit/services/audit.service';
 
 import { catalogServerService } from './catalog-server.service';
 import { CatalogError } from '../errors/catalog-errors';
-import type { ProductImportReport, ProductImportRowResult, ProductImportSummary } from '../types';
+import type {
+  ProductImportContextData,
+  ProductImportReport,
+  ProductImportRowResult,
+  ProductImportSummary,
+} from '../types';
 import { MAX_IMPORT_ROWS } from '../utils/product-csv';
 import { parseCsv, tableToRawRows } from '../utils/parse-products-csv';
 import { planProductImport } from '../utils/product-import-plan';
@@ -121,6 +126,27 @@ class ProductImportService {
     });
 
     return { committed: true, summary, rows };
+  }
+
+  /**
+   * Existing-data lookup for the preview: which of the given SKUs map to a live
+   * variant, and which product names already exist. The wizard uses these to plan
+   * create-vs-update (and re-plan edits) instantly on the client.
+   */
+  async resolveContext(
+    organizationId: string,
+    skus: string[],
+    names: string[],
+  ): Promise<ProductImportContextData> {
+    const [variants, products] = await Promise.all([
+      catalogServerService.findVariantsBySkus(organizationId, skus),
+      catalogServerService.findLiveProductIdsByName(organizationId, names),
+    ]);
+
+    return {
+      variantsBySku: Object.fromEntries(variants),
+      productIdsByName: Object.fromEntries(products),
+    };
   }
 }
 
