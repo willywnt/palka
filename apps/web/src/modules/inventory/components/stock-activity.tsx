@@ -219,7 +219,7 @@ export function StockActivity() {
           {/* Dim the previous page while the next one loads so paging feels alive. */}
           <div
             className={cn(
-              'rounded-xl border transition-opacity',
+              'overflow-x-auto rounded-xl border transition-opacity',
               isFetching ? 'opacity-60' : 'opacity-100',
             )}
           >
