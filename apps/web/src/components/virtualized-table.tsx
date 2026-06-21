@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useRef, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { Fragment, useState, type CSSProperties, type ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { TableBody } from '@/components/ui/table';
@@ -38,8 +38,9 @@ type VirtualizedTableProps<T> = {
  * @tanstack/react-virtual) so it can render thousands of rows cheaply. Owns a single
  * scroll container (both axes), keeps the semantic `<table>` (column alignment via
  * top/bottom spacer rows), and lets the caller control width via `style.minWidth` +
- * column widths (so it follows the container and scrolls horizontally when it
- * overflows). Set `virtualized={false}` (or gate on row count) for small lists.
+ * column widths. The scroll element is tracked in state (callback ref) so the
+ * virtualizer renders immediately once it mounts — important inside an animated
+ * dialog. Set `virtualized={false}` (or gate on row count) for small lists.
  */
 export function VirtualizedTable<T>({
   items,
@@ -54,18 +55,18 @@ export function VirtualizedTable<T>({
   className,
   style,
 }: VirtualizedTableProps<T>) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
   return (
     <div
-      ref={scrollRef}
+      ref={setScrollEl}
       className={cn('relative overflow-auto rounded-xl border', containerClassName)}
     >
       <table className={cn('w-full caption-bottom text-sm', className)} style={style}>
         {header}
         {virtualized ? (
           <VirtualBody
-            scrollRef={scrollRef}
+            scrollEl={scrollEl}
             items={items}
             getKey={getKey}
             renderRow={renderRow}
@@ -86,7 +87,7 @@ export function VirtualizedTable<T>({
 }
 
 function VirtualBody<T>({
-  scrollRef,
+  scrollEl,
   items,
   getKey,
   renderRow,
@@ -94,7 +95,7 @@ function VirtualBody<T>({
   estimateRowHeight,
   overscan,
 }: {
-  scrollRef: RefObject<HTMLDivElement | null>;
+  scrollEl: HTMLDivElement | null;
   items: T[];
   getKey: (item: T, index: number) => string | number;
   renderRow: (item: T, rowProps: VirtualRowProps) => ReactNode;
@@ -104,7 +105,7 @@ function VirtualBody<T>({
 }) {
   const virtualizer = useVirtualizer({
     count: items.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => scrollEl,
     estimateSize: () => estimateRowHeight,
     overscan,
   });

@@ -5,16 +5,6 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { Check, Loader2, Pencil, RefreshCw, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -391,205 +381,210 @@ export function ProductImportPreview({
   };
 
   return (
-    <>
-      <Dialog
-        open={open}
-        onOpenChange={(next) => {
-          if (!next) requestClose();
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) requestClose();
+      }}
+    >
+      <DialogContent
+        className="max-h-[92vh] !max-w-5xl overflow-hidden"
+        onInteractOutside={(event) => {
+          // The discard confirm renders in its own layer; clicking it counts as
+          // "outside" here and must NOT re-trigger a close. Otherwise warn-then-keep.
+          if (pendingDiscard !== null) {
+            event.preventDefault();
+            return;
+          }
+          if (dirty) {
+            event.preventDefault();
+            setPendingDiscard('close');
+          }
+        }}
+        onEscapeKeyDown={(event) => {
+          if (pendingDiscard !== null) {
+            event.preventDefault();
+            setPendingDiscard(null); // Esc dismisses the confirm (= "Tetap di sini")
+            return;
+          }
+          if (dirty) {
+            event.preventDefault();
+            setPendingDiscard('close');
+          }
         }}
       >
-        <DialogContent
-          className="max-h-[92vh] !max-w-5xl overflow-hidden"
-          onInteractOutside={(event) => {
-            // The discard confirm renders in its own layer; clicking it counts as
-            // "outside" here and must NOT re-trigger a close. Otherwise warn-then-keep.
-            if (pendingDiscard !== null) {
-              event.preventDefault();
-              return;
-            }
-            if (dirty) {
-              event.preventDefault();
-              setPendingDiscard('close');
-            }
-          }}
-          onEscapeKeyDown={(event) => {
-            if (pendingDiscard !== null) {
-              event.preventDefault();
-              return;
-            }
-            if (dirty) {
-              event.preventDefault();
-              setPendingDiscard('close');
-            }
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Pratinjau impor</DialogTitle>
-            <DialogDescription>
-              Periksa, edit, atau hapus baris sebelum mengimpor. SKU bertanda “auto” dibuat otomatis
-              oleh sistem.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Pratinjau impor</DialogTitle>
+          <DialogDescription>
+            Periksa, edit, atau hapus baris sebelum mengimpor. SKU bertanda “auto” dibuat otomatis
+            oleh sistem.
+          </DialogDescription>
+        </DialogHeader>
 
-          {resolving ? (
-            <div className="text-muted-foreground flex items-center justify-center gap-2 py-16 text-sm">
-              <Loader2 className="size-4 animate-spin" />
-              Memvalidasi data…
-            </div>
-          ) : (
-            <TooltipProvider delayDuration={300}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-1.5">
-                  <SummaryBadge
-                    tone="info"
-                    count={summary.create}
-                    label="baru"
-                    help={STATUS_META.create.help}
-                  />
-                  <SummaryBadge
-                    tone="ok"
-                    count={summary.update}
-                    label="perbarui"
-                    help={STATUS_META.update.help}
-                  />
-                  <SummaryBadge
-                    tone="neutral"
-                    count={summary.skip}
-                    label="lewati"
-                    help={STATUS_META.skip.help}
-                  />
-                  <SummaryBadge
-                    tone="danger"
-                    count={summary.error}
-                    label="error"
-                    help={STATUS_META.error.help}
-                  />
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {summary.error > 0 ? (
-                    <label className="flex cursor-pointer items-center gap-2 text-sm">
-                      <Switch checked={showErrorsOnly} onCheckedChange={setShowErrorsOnly} />
-                      Hanya error
-                    </label>
-                  ) : null}
-                  {!readOnly ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={requestReupload}
-                      disabled={committing}
-                    >
-                      <RefreshCw className="size-4" />
-                      Unggah ulang
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-
-              {committed ? (
-                <div className="border-status-ok/30 bg-status-ok/10 text-status-ok mt-2 rounded-lg border px-3 py-2 text-sm">
-                  Impor selesai. {summary.create} produk dibuat, {summary.update} diperbarui
-                  {summary.error > 0 ? `, ${summary.error} gagal` : ''}.
-                </div>
-              ) : null}
-
-              <VirtualizedTable
-                items={visibleRows}
-                getKey={(res) => res.line}
-                renderRow={renderRow}
-                colSpan={colSpan}
-                estimateRowHeight={56}
-                virtualized={visibleRows.length > VIRTUALIZE_THRESHOLD}
-                containerClassName="max-h-[55vh]"
-                className="table-fixed"
-                style={{ minWidth: tableMinWidth }}
-                header={
-                  <TableHeader className="bg-muted sticky top-0 z-10">
-                    <TableRow>
-                      <TableHead style={{ width: STATUS_WIDTH }}>Status</TableHead>
-                      {PREVIEW_COLUMNS.map((column) => (
-                        <TableHead
-                          key={column.field}
-                          style={{ width: columnWidth(column.field) }}
-                          className="whitespace-nowrap"
-                        >
-                          {column.header}
-                          {column.required ? <span className="text-destructive">*</span> : null}
-                        </TableHead>
-                      ))}
-                      {!readOnly ? (
-                        <TableHead style={{ width: ACTIONS_WIDTH }} className="text-right">
-                          Aksi
-                        </TableHead>
-                      ) : null}
-                    </TableRow>
-                  </TableHeader>
-                }
-              />
-            </TooltipProvider>
-          )}
-
-          {committing && progress ? (
-            <div className="space-y-1">
-              <div className="text-muted-foreground text-xs">
-                Mengimpor… {progress.done}/{progress.total}
-              </div>
-              <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
-                <div
-                  className="bg-primary h-full rounded-full transition-all"
-                  style={{
-                    width: `${progress.total ? Math.round((progress.done / progress.total) * 100) : 0}%`,
-                  }}
+        {resolving ? (
+          <div className="text-muted-foreground flex items-center justify-center gap-2 py-16 text-sm">
+            <Loader2 className="size-4 animate-spin" />
+            Memvalidasi data…
+          </div>
+        ) : (
+          <TooltipProvider delayDuration={300}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1.5">
+                <SummaryBadge
+                  tone="info"
+                  count={summary.create}
+                  label="baru"
+                  help={STATUS_META.create.help}
+                />
+                <SummaryBadge
+                  tone="ok"
+                  count={summary.update}
+                  label="perbarui"
+                  help={STATUS_META.update.help}
+                />
+                <SummaryBadge
+                  tone="neutral"
+                  count={summary.skip}
+                  label="lewati"
+                  help={STATUS_META.skip.help}
+                />
+                <SummaryBadge
+                  tone="danger"
+                  count={summary.error}
+                  label="error"
+                  help={STATUS_META.error.help}
                 />
               </div>
+
+              <div className="flex items-center gap-3">
+                {summary.error > 0 ? (
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <Switch checked={showErrorsOnly} onCheckedChange={setShowErrorsOnly} />
+                    Hanya error
+                  </label>
+                ) : null}
+                {!readOnly ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={requestReupload}
+                    disabled={committing}
+                  >
+                    <RefreshCw className="size-4" />
+                    Unggah ulang
+                  </Button>
+                ) : null}
+              </div>
             </div>
-          ) : null}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={requestClose} disabled={committing}>
-              {readOnly ? 'Tutup' : 'Batal'}
-            </Button>
-            {!readOnly ? (
-              <Button
-                type="button"
-                onClick={handleCommit}
-                disabled={committing || resolving || actionable === 0 || editingLine !== null}
-              >
-                {committing ? 'Mengimpor…' : `Impor ${actionable} item`}
-              </Button>
+            {committed ? (
+              <div className="border-status-ok/30 bg-status-ok/10 text-status-ok mt-2 rounded-lg border px-3 py-2 text-sm">
+                Impor selesai. {summary.create} produk dibuat, {summary.update} diperbarui
+                {summary.error > 0 ? `, ${summary.error} gagal` : ''}.
+              </div>
             ) : null}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      <AlertDialog
-        open={pendingDiscard !== null}
-        onOpenChange={(next) => {
-          if (!next) setPendingDiscard(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Buang data impor?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Data yang sudah diunggah dan diedit di pratinjau ini akan hilang dan tidak bisa
-              dikembalikan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Tetap di sini</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDiscard}
-              className="bg-destructive hover:bg-destructive/90 text-white"
+            <VirtualizedTable
+              items={visibleRows}
+              getKey={(res) => res.line}
+              renderRow={renderRow}
+              colSpan={colSpan}
+              estimateRowHeight={56}
+              virtualized={visibleRows.length > VIRTUALIZE_THRESHOLD}
+              containerClassName="max-h-[55vh]"
+              className="table-fixed"
+              style={{ minWidth: tableMinWidth }}
+              header={
+                <TableHeader className="bg-muted sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead style={{ width: STATUS_WIDTH }}>Status</TableHead>
+                    {PREVIEW_COLUMNS.map((column) => (
+                      <TableHead
+                        key={column.field}
+                        style={{ width: columnWidth(column.field) }}
+                        className="whitespace-nowrap"
+                      >
+                        {column.header}
+                        {column.required ? <span className="text-destructive">*</span> : null}
+                      </TableHead>
+                    ))}
+                    {!readOnly ? (
+                      <TableHead style={{ width: ACTIONS_WIDTH }} className="text-right">
+                        Aksi
+                      </TableHead>
+                    ) : null}
+                  </TableRow>
+                </TableHeader>
+              }
+            />
+          </TooltipProvider>
+        )}
+
+        {committing && progress ? (
+          <div className="space-y-1">
+            <div className="text-muted-foreground text-xs">
+              Mengimpor… {progress.done}/{progress.total}
+            </div>
+            <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
+              <div
+                className="bg-primary h-full rounded-full transition-all"
+                style={{
+                  width: `${progress.total ? Math.round((progress.done / progress.total) * 100) : 0}%`,
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={requestClose} disabled={committing}>
+            {readOnly ? 'Tutup' : 'Batal'}
+          </Button>
+          {!readOnly ? (
+            <Button
+              type="button"
+              onClick={handleCommit}
+              disabled={committing || resolving || actionable === 0 || editingLine !== null}
             >
-              Ya, buang
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+              {committing ? 'Mengimpor…' : `Impor ${actionable} item`}
+            </Button>
+          ) : null}
+        </DialogFooter>
+
+        {pendingDiscard !== null ? (
+          <div
+            className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-black/40 p-4"
+            onClick={() => setPendingDiscard(null)}
+          >
+            <div
+              className="bg-background w-full max-w-sm space-y-4 rounded-lg border p-6 shadow-lg"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="space-y-1">
+                <h3 className="text-lg font-semibold">Buang data impor?</h3>
+                <p className="text-muted-foreground text-sm">
+                  Data yang sudah diunggah dan diedit di pratinjau ini akan hilang dan tidak bisa
+                  dikembalikan.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setPendingDiscard(null)}>
+                  Tetap di sini
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-destructive hover:bg-destructive/90 text-white"
+                  onClick={confirmDiscard}
+                >
+                  Ya, buang
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 
