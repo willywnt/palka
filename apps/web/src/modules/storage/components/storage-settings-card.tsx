@@ -9,7 +9,9 @@ export function StorageSettingsCard() {
     <Card>
       <CardHeader>
         <CardTitle>Penyimpanan</CardTitle>
-        <CardDescription>Kuota dan pemakaian penyimpanan cloud untuk akun kamu</CardDescription>
+        <CardDescription>
+          Kuota dan pemakaian penyimpanan cloud (video packing + foto produk) untuk akun kamu
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <StorageQuotaIndicator showIcon={false} />

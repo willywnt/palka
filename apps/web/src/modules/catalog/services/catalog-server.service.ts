@@ -587,18 +587,33 @@ export class CatalogServerService {
   ): Promise<ProductDetail> {
     const variant = await prisma.productVariant.findFirst({
       where: { id: variantId, productId, organizationId, deletedAt: null },
-      select: { id: true, imageKey: true },
+      select: { id: true, imageKey: true, imageSizeBytes: true },
     });
     if (!variant) throw CatalogError.notFound('Variant not found.');
     if (!storageService.ownsKey(input.imageKey, organizationId)) {
       throw CatalogError.validation('Invalid image reference.');
     }
 
-    await prisma.productVariant.update({
-      where: { id: variantId },
-      data: { imageKey: input.imageKey, imageUrl: input.imageUrl },
+    const newSize = BigInt(input.fileSizeBytes);
+    const previousSize = variant.imageSizeBytes ?? 0n;
+
+    // Persist the photo + book the net quota delta in one tx (mirrors completeRecording):
+    // a fresh set adds the full size; a replace releases the old bytes and books the new.
+    await prisma.$transaction(async (tx) => {
+      await tx.productVariant.update({
+        where: { id: variantId },
+        data: { imageKey: input.imageKey, imageUrl: input.imageUrl, imageSizeBytes: newSize },
+      });
+      const delta = newSize - previousSize;
+      if (delta !== 0n) {
+        await tx.organization.update({
+          where: { id: organizationId },
+          data: { storageUsedBytes: { increment: delta } },
+        });
+      }
     });
 
+    // Drop the replaced R2 object after the booking commits (best-effort).
     if (variant.imageKey && variant.imageKey !== input.imageKey) {
       await deleteStorageObject(variant.imageKey);
     }
@@ -615,13 +630,23 @@ export class CatalogServerService {
   ): Promise<ProductDetail> {
     const variant = await prisma.productVariant.findFirst({
       where: { id: variantId, productId, organizationId, deletedAt: null },
-      select: { id: true, imageKey: true },
+      select: { id: true, imageKey: true, imageSizeBytes: true },
     });
     if (!variant) throw CatalogError.notFound('Variant not found.');
 
-    await prisma.productVariant.update({
-      where: { id: variantId },
-      data: { imageKey: null, imageUrl: null },
+    const previousSize = variant.imageSizeBytes ?? 0n;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.productVariant.update({
+        where: { id: variantId },
+        data: { imageKey: null, imageUrl: null, imageSizeBytes: null },
+      });
+      if (previousSize > 0n) {
+        await tx.organization.update({
+          where: { id: organizationId },
+          data: { storageUsedBytes: { decrement: previousSize } },
+        });
+      }
     });
 
     if (variant.imageKey) await deleteStorageObject(variant.imageKey);

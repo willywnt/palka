@@ -399,17 +399,31 @@ export class BundleServerService {
   ): Promise<BundleDetail> {
     const bundle = await prisma.bundle.findFirst({
       where: { id: bundleId, organizationId },
-      select: { id: true, imageKey: true },
+      select: { id: true, imageKey: true, imageSizeBytes: true },
     });
     if (!bundle) throw CatalogError.notFound('Bundle not found.');
     if (!storageService.ownsKey(input.imageKey, organizationId)) {
       throw CatalogError.validation('Invalid image reference.');
     }
 
-    await prisma.bundle.update({
-      where: { id: bundleId },
-      data: { imageKey: input.imageKey, imageUrl: input.imageUrl },
+    const newSize = BigInt(input.fileSizeBytes);
+    const previousSize = bundle.imageSizeBytes ?? 0n;
+
+    // Persist + book the net quota delta in one tx (a replace releases the old bytes).
+    await prisma.$transaction(async (tx) => {
+      await tx.bundle.update({
+        where: { id: bundleId },
+        data: { imageKey: input.imageKey, imageUrl: input.imageUrl, imageSizeBytes: newSize },
+      });
+      const delta = newSize - previousSize;
+      if (delta !== 0n) {
+        await tx.organization.update({
+          where: { id: organizationId },
+          data: { storageUsedBytes: { increment: delta } },
+        });
+      }
     });
+
     if (bundle.imageKey && bundle.imageKey !== input.imageKey) {
       await deleteStorageObject(bundle.imageKey);
     }
@@ -418,18 +432,29 @@ export class BundleServerService {
     return this.buildBundleDetail(organizationId, bundleId);
   }
 
-  /** Remove a bundle's image (clears the fields + deletes the R2 object). */
+  /** Remove a bundle's image (clears the fields, releases quota + deletes the R2 object). */
   async removeBundleImage(organizationId: string, bundleId: string): Promise<BundleDetail> {
     const bundle = await prisma.bundle.findFirst({
       where: { id: bundleId, organizationId },
-      select: { id: true, imageKey: true },
+      select: { id: true, imageKey: true, imageSizeBytes: true },
     });
     if (!bundle) throw CatalogError.notFound('Bundle not found.');
 
-    await prisma.bundle.update({
-      where: { id: bundleId },
-      data: { imageKey: null, imageUrl: null },
+    const previousSize = bundle.imageSizeBytes ?? 0n;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.bundle.update({
+        where: { id: bundleId },
+        data: { imageKey: null, imageUrl: null, imageSizeBytes: null },
+      });
+      if (previousSize > 0n) {
+        await tx.organization.update({
+          where: { id: organizationId },
+          data: { storageUsedBytes: { decrement: previousSize } },
+        });
+      }
     });
+
     if (bundle.imageKey) await deleteStorageObject(bundle.imageKey);
 
     appLogger.info('catalog.bundle.image.removed', { organizationId, bundleId });

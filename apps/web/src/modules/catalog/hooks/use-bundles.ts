@@ -175,7 +175,11 @@ export function useUploadBundleImageMutation(bundleId: string) {
 
       const result = await apiFetch<BundleDetail>(`${apiRoutes.bundles}/${bundleId}/image`, {
         method: 'PATCH',
-        body: { imageKey: presign.data.storageKey, imageUrl: presign.data.publicUrl },
+        body: {
+          imageKey: presign.data.storageKey,
+          imageUrl: presign.data.publicUrl,
+          fileSizeBytes: blob.size,
+        },
       });
       if (!result.success) throw new Error(formatApiErrorMessage(result.error));
       return result.data;

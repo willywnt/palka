@@ -411,6 +411,8 @@ model ProductVariant {
   // Per-variant photo: R2 object key + its public URL. null = none.
   imageKey          String?
   imageUrl          String?
+  // Photo byte size — billed against the org's storage quota (mirrors Recording.fileSizeBytes).
+  imageSizeBytes    BigInt?
   isActive          Boolean      @default(true)
   lowStockThreshold Int          @default(0)
   alertEnabled      Boolean      @default(true)
@@ -463,6 +465,8 @@ model Bundle {
   isActive       Boolean      @default(true) // inactive bundles can't be sold/bought (hidden from POS/PO pickers + scan)
   imageKey       String?
   imageUrl       String?
+  // Image byte size — billed against the org's storage quota (mirrors Recording.fileSizeBytes).
+  imageSizeBytes BigInt?
   labelPrintedAt DateTime? // when a QR/barcode label was last printed; null = never
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

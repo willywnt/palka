@@ -22,11 +22,11 @@ export function isStorageQuotaExceeded(quota: {
 export function getStorageQuotaWarningMessage(level: StorageQuotaLevel): string | null {
   switch (level) {
     case 'full':
-      return 'Kuota penyimpanan penuh. Hapus rekaman atau hubungi admin kamu untuk menambah kuota.';
+      return 'Kuota penyimpanan penuh. Hapus file lama (rekaman/foto produk) atau hubungi admin kamu untuk menambah kuota.';
     case 'critical':
-      return 'Penyimpanan hampir penuh. Hapus rekaman lama supaya unggahan tidak gagal.';
+      return 'Penyimpanan hampir penuh. Hapus file lama supaya unggahan tidak gagal.';
     case 'warning':
-      return 'Pemakaian penyimpanan mulai tinggi. Pertimbangkan hapus rekaman lama untuk melegakan ruang.';
+      return 'Pemakaian penyimpanan mulai tinggi. Pertimbangkan hapus file lama untuk melegakan ruang.';
     default:
       return null;
   }

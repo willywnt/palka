@@ -150,7 +150,9 @@ export function EditOrgSheet({
                   <FormControl>
                     <NumberInput min={0} step={1} {...field} />
                   </FormControl>
-                  <FormDescription>Total ruang video packing untuk organisasi ini.</FormDescription>
+                  <FormDescription>
+                    Total ruang penyimpanan (video packing + foto produk) untuk organisasi ini.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

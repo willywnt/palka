@@ -43,18 +43,33 @@ export async function processRecalculateStorageJob(
   for (const organization of organizations) {
     stats.processed += 1;
 
-    const aggregate = await prisma.recording.aggregate({
-      where: {
-        organizationId: organization.id,
-        status: RecordingStatus.COMPLETED,
-        deletedAt: null,
-      },
-      _sum: {
-        fileSizeBytes: true,
-      },
-    });
+    // The org's storage footprint = COMPLETED recordings + every product/bundle photo.
+    // Recordings free their R2 object + quota on soft-delete, so they're filtered to
+    // non-deleted; product/bundle images persist through archive (kept for restore), so
+    // their bytes are summed wherever an imageSizeBytes is set, regardless of deletedAt.
+    const [recordingAgg, variantImageAgg, bundleImageAgg] = await Promise.all([
+      prisma.recording.aggregate({
+        where: {
+          organizationId: organization.id,
+          status: RecordingStatus.COMPLETED,
+          deletedAt: null,
+        },
+        _sum: { fileSizeBytes: true },
+      }),
+      prisma.productVariant.aggregate({
+        where: { organizationId: organization.id },
+        _sum: { imageSizeBytes: true },
+      }),
+      prisma.bundle.aggregate({
+        where: { organizationId: organization.id },
+        _sum: { imageSizeBytes: true },
+      }),
+    ]);
 
-    const calculatedUsed = aggregate._sum.fileSizeBytes ?? 0n;
+    const calculatedUsed =
+      (recordingAgg._sum.fileSizeBytes ?? 0n) +
+      (variantImageAgg._sum.imageSizeBytes ?? 0n) +
+      (bundleImageAgg._sum.imageSizeBytes ?? 0n);
     const currentUsed = organization.storageUsedBytes;
 
     if (calculatedUsed === currentUsed) {

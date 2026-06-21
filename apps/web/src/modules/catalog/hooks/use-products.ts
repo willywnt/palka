@@ -418,7 +418,11 @@ export function useUploadVariantImageMutation(productId: string) {
         `${apiRoutes.products}/${productId}/variants/${variantId}/image`,
         {
           method: 'PATCH',
-          body: { imageKey: presign.data.storageKey, imageUrl: presign.data.publicUrl },
+          body: {
+            imageKey: presign.data.storageKey,
+            imageUrl: presign.data.publicUrl,
+            fileSizeBytes: blob.size,
+          },
         },
       );
       if (!result.success) throw new Error(formatApiErrorMessage(result.error));
