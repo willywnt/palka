@@ -280,7 +280,8 @@ developer.tokopedia.com API is terminated. `docs/roadmap/shopee-tokopedia-integr
 - **In-detail product editing**: the product detail page has an **"Edit"** toggle that flips the SAME layout
   into **inline inputs** (text→input in place; no separate form): product name (header) + category/description
   (aside), each variant/subvariant name, **harga, modal** (a Modal column was added to the variant table), and
-  the **group name**. Save diff-then-PATCHes only changes via `updateProduct` + the now-exposed
+  the **group name**; in edit mode only the editable columns show (Tersedia/Koneksi/Aksi hide). Save
+  diff-then-PATCHes only changes via `updateProduct` + the now-exposed
   `updateVariantDetails` (`PATCH /products/[id]/variants/[variantId]/details`), behind a confirm. **SKU stays
   read-only** (barcode isn't edited here); stock via "Sesuaikan"; reorder-planning via the ⋯ **"Ubah informasi
   tambahan"** action (the old "Ubah varian" — an `EditVariantDialog` that edits planning fields only, distinct

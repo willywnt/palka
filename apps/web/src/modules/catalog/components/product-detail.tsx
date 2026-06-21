@@ -319,7 +319,9 @@ export function ProductDetail({
   const product = data;
   const totalAvailable = product.variants.reduce((sum, variant) => sum + variant.availableStock, 0);
   const variantBlocks = buildVariantBlocks(product.variants);
-  const columnCount = editMode ? 5 : 6; // Varian | Harga | Modal | Tersedia | Koneksi (+ Aksi when read-only)
+  // Edit mode shows only editable columns (Varian | Harga | Modal); read-only adds
+  // Tersedia | Koneksi | Aksi.
+  const columnCount = editMode ? 3 : 6;
 
   function dedupeConnections(variant: ProductVariantItem) {
     return Array.from(
@@ -464,25 +466,27 @@ export function ProductDetail({
             </span>
           )}
         </TableCell>
-        <TableCell className="text-right">
-          <span className="num font-medium">{variant.availableStock}</span>
-          {variant.isLowStock ? (
-            <LowStockBadge threshold={variant.lowStockThreshold} className="ml-2" />
-          ) : null}
-        </TableCell>
-        <TableCell className="max-w-[200px]">
-          <ConnectionBadges connections={connections} />
-        </TableCell>
         {!editMode ? (
-          <TableCell className="text-right">
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => onAdjustVariant(variant)}>
-                <SlidersHorizontal className="size-4" />
-                Sesuaikan
-              </Button>
-              {renderVariantMenu(variant, grouped)}
-            </div>
-          </TableCell>
+          <>
+            <TableCell className="text-right">
+              <span className="num font-medium">{variant.availableStock}</span>
+              {variant.isLowStock ? (
+                <LowStockBadge threshold={variant.lowStockThreshold} className="ml-2" />
+              ) : null}
+            </TableCell>
+            <TableCell className="max-w-[200px]">
+              <ConnectionBadges connections={connections} />
+            </TableCell>
+            <TableCell className="text-right">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => onAdjustVariant(variant)}>
+                  <SlidersHorizontal className="size-4" />
+                  Sesuaikan
+                </Button>
+                {renderVariantMenu(variant, grouped)}
+              </div>
+            </TableCell>
+          </>
         ) : null}
       </TableRow>
     );
@@ -555,10 +559,12 @@ export function ProductDetail({
             {variant.isLowStock ? <LowStockBadge threshold={variant.lowStockThreshold} /> : null}
           </div>
         )}
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-muted-foreground text-xs">Koneksi</span>
-          <ConnectionBadges connections={connections} />
-        </div>
+        {!editMode ? (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className="text-muted-foreground text-xs">Koneksi</span>
+            <ConnectionBadges connections={connections} />
+          </div>
+        ) : null}
         {!editMode ? (
           <div className="mt-3 flex items-center gap-2">
             <Button variant="outline" className="flex-1" onClick={() => onAdjustVariant(variant)}>
@@ -654,8 +660,8 @@ export function ProductDetail({
                       <TableHead>Varian</TableHead>
                       <TableHead className="text-right">Harga</TableHead>
                       <TableHead className="text-right">Modal</TableHead>
-                      <TableHead className="text-right">Tersedia</TableHead>
-                      <TableHead>Koneksi</TableHead>
+                      {!editMode ? <TableHead className="text-right">Tersedia</TableHead> : null}
+                      {!editMode ? <TableHead>Koneksi</TableHead> : null}
                       {!editMode ? <TableHead className="text-right">Aksi</TableHead> : null}
                     </TableRow>
                   </TableHeader>

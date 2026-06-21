@@ -171,7 +171,8 @@ order actions (mark-shipped / edit resi / cancel-with-reason) · DAMAGE write-of
   data, the product **detail page** gets an **"Edit"** toggle (beside "Tambah varian") that flips the SAME
   layout into **inline inputs** (text→input in place — NOT a separate form): product name + category/
   description + each variant/subvariant **name/harga(Rp)/modal(Rp)** + a per-group **"Nama grup"** rename. A
-  new **Modal column** was added to the variant table (shown as Rp read-only, NumberInput in edit). **SKU
+  new **Modal column** was added to the variant table (shown as Rp read-only, NumberInput in edit); in edit
+  mode only the editable columns show — **Tersedia/Koneksi/Aksi hide**. **SKU
   read-only** (import match key); barcode not edited here; stock via "Sesuaikan"; reorder-planning via the
   renamed ⋯ **"Ubah informasi tambahan"** (was "Ubah varian/subvarian"). "Simpan" diffs vs the original and
   PATCHes only what changed (`updateProduct` + per-variant `updateVariantDetails`) behind a confirm; Batal
