@@ -168,15 +168,16 @@ order actions (mark-shipped / edit resi / cancel-with-reason) · DAMAGE write-of
   the background-job design for very large files (VPS era) is prepared in
   `docs/roadmap/product-import-scaling.md`. 4 gates green; 52 catalog vitest.
 - **In-detail product editing** (`catalog`, same branch) — since the bulk import can now change existing
-  data, the product **detail page** gets an **"Edit"** toggle (beside "Tambah varian") that swaps the
-  read-only view for `components/product-edit-form.tsx`: editable product name/category/description + each
-  variant's **name/price (Rp)/cost (Rp)/barcode** + a per-group **"Nama grup"** rename. **SKU stays
-  read-only** (import match key); stock via "Sesuaikan", reorder-planning via the renamed **"Ubah informasi
-  tambahan"** action (was the ⋯ "Ubah varian/subvarian"). "Simpan" diffs vs the original and PATCHes only
-  what changed (`updateProduct` + per-variant `updateVariantDetails`) behind a confirm; Batal confirms if
-  dirty. Wiring added: NEW `PATCH /products/[id]/variants/[variantId]/details` (exposes the previously
+  data, the product **detail page** gets an **"Edit"** toggle (beside "Tambah varian") that flips the SAME
+  layout into **inline inputs** (text→input in place — NOT a separate form): product name + category/
+  description + each variant/subvariant **name/harga(Rp)/modal(Rp)** + a per-group **"Nama grup"** rename. A
+  new **Modal column** was added to the variant table (shown as Rp read-only, NumberInput in edit). **SKU
+  read-only** (import match key); barcode not edited here; stock via "Sesuaikan"; reorder-planning via the
+  renamed ⋯ **"Ubah informasi tambahan"** (was "Ubah varian/subvarian"). "Simpan" diffs vs the original and
+  PATCHes only what changed (`updateProduct` + per-variant `updateVariantDetails`) behind a confirm; Batal
+  confirms if dirty. Wiring: NEW `PATCH /products/[id]/variants/[variantId]/details` (exposes the previously
   import-only `updateVariantDetails`) + `useUpdateProductMutation`/`useUpdateVariantDetailsMutation`. Gated
-  `{ requireAuth: true }` (no new permission key — matches sibling catalog writes). 4 gates green.
+  `{ requireAuth: true }`. 4 gates green.
 
 ## 🎯 Mid-size features (1 session each)
 

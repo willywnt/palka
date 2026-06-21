@@ -277,12 +277,14 @@ developer.tokopedia.com API is terminated. `docs/roadmap/shopee-tokopedia-integr
   100-row chunks with a progress bar**; partial failures are safe to re-run because the import is
   **idempotent** (created→update by SKU on retry). Large-file/BullMQ path (VPS era) is prepared in
   `docs/roadmap/product-import-scaling.md`. Detail: `docs/roadmap/backlog.md` (2026-06-20).
-- **In-detail product editing**: the product detail page has an **"Edit"** toggle (`product-edit-form.tsx`)
-  that edits product name/category/description + each variant's name/price/cost/barcode + group name
-  (diff-then-PATCH via `updateProduct` + the now-exposed `updateVariantDetails` at
-  `PATCH /products/[id]/variants/[variantId]/details`), behind a confirm. **SKU stays read-only**; stock via
-  "Sesuaikan"; reorder-planning via the ⋯ **"Ubah informasi tambahan"** action (the old "Ubah varian", an
-  `EditVariantDialog` that only edits planning fields — distinct from the core-field editor).
+- **In-detail product editing**: the product detail page has an **"Edit"** toggle that flips the SAME layout
+  into **inline inputs** (text→input in place; no separate form): product name (header) + category/description
+  (aside), each variant/subvariant name, **harga, modal** (a Modal column was added to the variant table), and
+  the **group name**. Save diff-then-PATCHes only changes via `updateProduct` + the now-exposed
+  `updateVariantDetails` (`PATCH /products/[id]/variants/[variantId]/details`), behind a confirm. **SKU stays
+  read-only** (barcode isn't edited here); stock via "Sesuaikan"; reorder-planning via the ⋯ **"Ubah informasi
+  tambahan"** action (the old "Ubah varian" — an `EditVariantDialog` that edits planning fields only, distinct
+  from the inline core-field editor).
 - **Outbound sync** lives in `packages/queue/src/marketplace-sync` (worker): a SoT change enqueues
   `propagate-inventory-stock` → `sync-marketplace-stock` → provider adapter (Dev stub simulates).
   **AUTO changes are COALESCED** per `(org, variant)` — a stable BullMQ jobId + 60s delay
