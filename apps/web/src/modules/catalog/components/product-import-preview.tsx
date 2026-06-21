@@ -209,11 +209,13 @@ export function ProductImportPreview({
     (readOnly ? 0 : ACTIONS_WIDTH);
 
   function requestClose() {
+    if (pendingDiscard !== null) return; // a confirm is already open
     if (dirty) setPendingDiscard('close');
     else onOpenChange(false);
   }
 
   function requestReupload() {
+    if (pendingDiscard !== null) return;
     if (dirty) setPendingDiscard('reupload');
     else onReupload();
   }
@@ -396,7 +398,31 @@ export function ProductImportPreview({
           if (!next) requestClose();
         }}
       >
-        <DialogContent className="max-h-[92vh] !max-w-5xl overflow-hidden">
+        <DialogContent
+          className="max-h-[92vh] !max-w-5xl overflow-hidden"
+          onInteractOutside={(event) => {
+            // The discard confirm renders in its own layer; clicking it counts as
+            // "outside" here and must NOT re-trigger a close. Otherwise warn-then-keep.
+            if (pendingDiscard !== null) {
+              event.preventDefault();
+              return;
+            }
+            if (dirty) {
+              event.preventDefault();
+              setPendingDiscard('close');
+            }
+          }}
+          onEscapeKeyDown={(event) => {
+            if (pendingDiscard !== null) {
+              event.preventDefault();
+              return;
+            }
+            if (dirty) {
+              event.preventDefault();
+              setPendingDiscard('close');
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Pratinjau impor</DialogTitle>
             <DialogDescription>
@@ -469,41 +495,39 @@ export function ProductImportPreview({
                 </div>
               ) : null}
 
-              <div className="mt-2">
-                <VirtualizedTable
-                  items={visibleRows}
-                  getKey={(res) => res.line}
-                  renderRow={renderRow}
-                  colSpan={colSpan}
-                  estimateRowHeight={56}
-                  virtualized={visibleRows.length > VIRTUALIZE_THRESHOLD}
-                  containerClassName="max-h-[55vh]"
-                  className="table-fixed"
-                  style={{ minWidth: tableMinWidth }}
-                  header={
-                    <TableHeader className="bg-muted sticky top-0 z-10">
-                      <TableRow>
-                        <TableHead style={{ width: STATUS_WIDTH }}>Status</TableHead>
-                        {PREVIEW_COLUMNS.map((column) => (
-                          <TableHead
-                            key={column.field}
-                            style={{ width: columnWidth(column.field) }}
-                            className="whitespace-nowrap"
-                          >
-                            {column.header}
-                            {column.required ? <span className="text-destructive">*</span> : null}
-                          </TableHead>
-                        ))}
-                        {!readOnly ? (
-                          <TableHead style={{ width: ACTIONS_WIDTH }} className="text-right">
-                            Aksi
-                          </TableHead>
-                        ) : null}
-                      </TableRow>
-                    </TableHeader>
-                  }
-                />
-              </div>
+              <VirtualizedTable
+                items={visibleRows}
+                getKey={(res) => res.line}
+                renderRow={renderRow}
+                colSpan={colSpan}
+                estimateRowHeight={56}
+                virtualized={visibleRows.length > VIRTUALIZE_THRESHOLD}
+                containerClassName="max-h-[55vh]"
+                className="table-fixed"
+                style={{ minWidth: tableMinWidth }}
+                header={
+                  <TableHeader className="bg-muted sticky top-0 z-10">
+                    <TableRow>
+                      <TableHead style={{ width: STATUS_WIDTH }}>Status</TableHead>
+                      {PREVIEW_COLUMNS.map((column) => (
+                        <TableHead
+                          key={column.field}
+                          style={{ width: columnWidth(column.field) }}
+                          className="whitespace-nowrap"
+                        >
+                          {column.header}
+                          {column.required ? <span className="text-destructive">*</span> : null}
+                        </TableHead>
+                      ))}
+                      {!readOnly ? (
+                        <TableHead style={{ width: ACTIONS_WIDTH }} className="text-right">
+                          Aksi
+                        </TableHead>
+                      ) : null}
+                    </TableRow>
+                  </TableHeader>
+                }
+              />
             </TooltipProvider>
           )}
 
