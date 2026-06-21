@@ -37,10 +37,6 @@ const serverEnvSchema = z
     SHOPEE_API_BASE_URL: optionalUrl,
     // OAuth redirect/callback URL registered in the Shopee app (must match exactly).
     SHOPEE_OAUTH_REDIRECT_URI: optionalUrl,
-    // Legacy placeholders from the dead standalone Tokopedia API — superseded by the
-    // TOKOPEDIA_APP_* vars below (the Tokopedia channel now runs on the TikTok Shop Open API).
-    TOKOPEDIA_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
-    TOKOPEDIA_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
     // TikTok Shop Open API (Tokopedia channel) app credentials + onboarding config.
     TOKOPEDIA_APP_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
     TOKOPEDIA_APP_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),

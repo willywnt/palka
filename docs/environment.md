@@ -86,9 +86,6 @@ scaffolded** (Tokopedia runs on the **TikTok Shop Open API**).
 | Shopee    | `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_API_BASE_URL`, `SHOPEE_OAUTH_REDIRECT_URI`                                 |
 | Tokopedia | `TOKOPEDIA_APP_KEY`, `TOKOPEDIA_APP_SECRET`, `TOKOPEDIA_SERVICE_ID`, `TOKOPEDIA_API_BASE_URL`, `TOKOPEDIA_OAUTH_REDIRECT_URI` |
 
-`TOKOPEDIA_CLIENT_ID` / `TOKOPEDIA_CLIENT_SECRET` are **legacy/unused** (the standalone
-Tokopedia API is terminated) — kept only to avoid churn; do not set them.
-
 ## Validation
 
 Server env is validated at runtime via `getServerEnv()` in `@falka/config/env.server`.

@@ -438,5 +438,6 @@ typecheck (typed routes); never `next build` while the dev server is up.
    into `TOKOPEDIA` (folded is simplest for ID sellers).
 5. **Env for Tokopedia — RESOLVED (additive, NOT a rename).** Shipped by ADDING
    `TOKOPEDIA_APP_KEY/APP_SECRET`, `TOKOPEDIA_SERVICE_ID`, `TOKOPEDIA_API_BASE_URL`,
-   `TOKOPEDIA_OAUTH_REDIRECT_URI` while KEEPING the existing `TOKOPEDIA_CLIENT_ID/CLIENT_SECRET`
-   placeholders; also added `SHOPEE_API_BASE_URL`/`SHOPEE_OAUTH_REDIRECT_URI`.
+   `TOKOPEDIA_OAUTH_REDIRECT_URI`; also added `SHOPEE_API_BASE_URL`/`SHOPEE_OAUTH_REDIRECT_URI`.
+   (The old standalone-Tokopedia `TOKOPEDIA_CLIENT_ID/CLIENT_SECRET` placeholders were later
+   removed as dead config — 2026-06-21.)
