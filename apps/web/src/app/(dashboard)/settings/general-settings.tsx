@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { useCurrentUser } from '@/modules/auth/hooks/use-current-user';
 import { useOrg, useRenameOrgMutation } from '@/modules/users/hooks/use-org';
+import { SecuritySection } from './security-section';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -57,6 +58,10 @@ export function GeneralSettings() {
             Nama dan email dikelola lewat akun kamu — belum bisa diubah dari sini.
           </p>
         </section>
+
+        <Separator />
+
+        <SecuritySection />
 
         <Separator />
 
