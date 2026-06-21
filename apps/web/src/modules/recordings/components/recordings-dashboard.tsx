@@ -38,6 +38,7 @@ import { RecordingDetailModal } from './recording-detail-modal';
 import { RecordingPlayerModal } from './recording-player-modal';
 import { ShareEvidenceDialog } from './share-evidence-dialog';
 import { OperationalStatusBadge } from './operational-status-badge';
+import { RecordingRetentionBadge } from './recording-retention-badge';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { BuoyArt } from '@/components/maritime-art';
@@ -340,9 +341,12 @@ export function RecordingsDashboard() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1 space-y-1.5">
                           <p className="num truncate font-medium">{recording.noResi}</p>
-                          <OperationalStatusBadge
-                            status={mapServerStatusToOperational(recording.status)}
-                          />
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <OperationalStatusBadge
+                              status={mapServerStatusToOperational(recording.status)}
+                            />
+                            <RecordingRetentionBadge recording={recording} />
+                          </div>
                         </div>
                         <RecordingRowActions
                           recording={recording}
@@ -436,9 +440,12 @@ export function RecordingsDashboard() {
                         <TableRow key={recording.id}>
                           <TableCell className="num font-medium">{recording.noResi}</TableCell>
                           <TableCell>
-                            <OperationalStatusBadge
-                              status={mapServerStatusToOperational(recording.status)}
-                            />
+                            <div className="flex flex-col items-start gap-1">
+                              <OperationalStatusBadge
+                                status={mapServerStatusToOperational(recording.status)}
+                              />
+                              <RecordingRetentionBadge recording={recording} />
+                            </div>
                           </TableCell>
                           <TableCell className="num">
                             {formatRecordingDuration(recording.durationSeconds)}
