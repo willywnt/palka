@@ -16,6 +16,14 @@ export type NotificationListItem = {
   read: boolean;
 };
 
+/** A member's per-category tray preference (IN_APP channel). `enabled` defaults on. */
+export type NotificationPreferenceItem = {
+  category: NotificationCategory;
+  label: string;
+  description: string;
+  enabled: boolean;
+};
+
 /** What a producer hands `notificationServerService.emit` (best-effort, after its tx). */
 export type EmitNotificationInput = {
   organizationId: string;
