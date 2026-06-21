@@ -345,7 +345,7 @@ export function ProductDetail({
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setEditTarget(variant)}>
             <Settings2 className="size-4" />
-            Ubah informasi tambahan
+            Ubah informasi
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href={`/dashboard/inventory/activity?search=${encodeURIComponent(variant.sku)}`}>
@@ -445,7 +445,7 @@ export function ProductDetail({
             <NumberInput
               value={edited.price}
               onChange={(value) => setVariantField(variant.id, 'price', value)}
-              className="h-8 w-28 text-right"
+              className="h-8 w-full text-right"
               aria-label="Harga"
             />
           ) : (
@@ -457,7 +457,7 @@ export function ProductDetail({
             <NumberInput
               value={edited.cost}
               onChange={(value) => setVariantField(variant.id, 'cost', value)}
-              className="h-8 w-28 text-right"
+              className="h-8 w-full text-right"
               aria-label="Modal"
             />
           ) : (
@@ -687,7 +687,7 @@ export function ProductDetail({
                                           event.target.value,
                                         )
                                       }
-                                      className="h-8 max-w-xs font-medium"
+                                      className="h-8 w-[300px] font-medium"
                                       aria-label="Nama grup"
                                     />
                                   ) : (
