@@ -76,6 +76,7 @@ model User {
   notifications              Notification[]              @relation("NotificationRecipient")
   actedNotifications         Notification[]              @relation("NotificationActor")
   notificationReads          NotificationRead[]
+  notificationPreferences    NotificationPreference[]
 
   @@map("users")
 }
@@ -132,6 +133,7 @@ model Organization {
   suppliers                  Supplier[]
   stockOpnames               StockOpname[]
   notifications              Notification[]
+  notificationPreferences    NotificationPreference[]
 
   @@map("organizations")
 }
@@ -1221,4 +1223,33 @@ model NotificationRead {
   @@unique([notificationId, userId])
   @@index([userId])
   @@map("notification_reads")
+}
+
+/// Delivery channels for a notification. Only IN_APP is wired today; WHATSAPP / EMAIL
+/// are reserved for the Phase 4 outbox (worker era) so the preference unique key is
+/// stable when those land.
+enum DeliveryChannel {
+  IN_APP
+  WHATSAPP
+  EMAIL
+}
+
+/// Per-member notification preference: which categories reach the member's tray.
+/// `userId` null = org default (reserved for a later phase); non-null = a member's own
+/// setting. A MISSING row means "on" — only opt-outs are stored. Phase 3 writes IN_APP.
+model NotificationPreference {
+  id             String               @id @default(cuid())
+  organizationId String
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?                @relation(fields: [userId], references: [id])
+  category       NotificationCategory
+  channel        DeliveryChannel      @default(IN_APP)
+  enabled        Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([organizationId, userId, category, channel])
+  @@index([organizationId, userId])
+  @@map("notification_preferences")
 }
