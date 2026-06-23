@@ -40,6 +40,7 @@ function mapConnection(connection: MarketplaceConnection): MarketplaceConnection
     createdAt: connection.createdAt.toISOString(),
     updatedAt: connection.updatedAt.toISOString(),
     lastImportedAt: connection.lastImportedAt?.toISOString() ?? null,
+    lastOrdersPulledAt: connection.lastOrdersPulledAt?.toISOString() ?? null,
     syncWarehouseCode: connection.syncWarehouseCode,
     knownWarehouseCodes: connection.knownWarehouseCodes,
   };

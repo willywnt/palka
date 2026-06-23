@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { ErrorState } from '@/components/error-state';
+import { formatRelativeTime } from '@/lib/formatters';
 import { useMarketplaceConnectionsQuery } from '@/modules/marketplace/hooks/use-marketplace-connections';
 
 import { usePullFromConnectionsMutation } from '../hooks/use-orders';
@@ -98,9 +99,16 @@ export function PullOrdersDialog({
             {activeStores.map((store) => (
               <div
                 key={store.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
               >
-                <span className="text-sm font-medium">{store.shopName}</span>
+                <div className="min-w-0">
+                  <span className="block truncate text-sm font-medium">{store.shopName}</span>
+                  <span className="text-muted-foreground text-xs" suppressHydrationWarning>
+                    {store.lastOrdersPulledAt
+                      ? `Terakhir ditarik ${formatRelativeTime(store.lastOrdersPulledAt)}`
+                      : 'Belum pernah ditarik'}
+                  </span>
+                </div>
                 <Switch
                   checked={selected.has(store.id)}
                   onCheckedChange={(on) => toggle(store.id, on)}

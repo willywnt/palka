@@ -23,6 +23,8 @@ export type MarketplaceConnectionListItem = {
   updatedAt: string;
   /** When this shop's listings were last imported (null = never). */
   lastImportedAt: string | null;
+  /** When this shop's orders were last pulled (null = never) — shown in the pull dialog. */
+  lastOrdersPulledAt: string | null;
   /**
    * Lazada multi-warehouse: the ONE warehouse Falka owns (stock push targets only it, leaving
    * the others untouched). null = single-warehouse bare path (behavior unchanged).
