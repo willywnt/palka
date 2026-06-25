@@ -102,6 +102,13 @@ export type LazadaOrderRecord = {
   raw: Record<string, unknown>;
 };
 
+/**
+ * Result of a windowed order pull. `complete` is false when the page loop stopped early
+ * (throttle-tail kept partial, or the MAX_PAGES safety cap was hit) — the caller must then NOT
+ * advance its incremental cursor past the un-fetched (newest-updated) tail.
+ */
+export type LazadaOrdersResult = { records: LazadaOrderRecord[]; complete: boolean };
+
 type LazadaApiOrder = {
   order_id?: number | string;
   order_number?: number | string;
@@ -310,13 +317,16 @@ export async function fetchLazadaOrders(
      */
     onThrottle?: 'throw' | 'partial';
   },
-): Promise<LazadaOrderRecord[]> {
+): Promise<LazadaOrdersResult> {
   if (!params.updateAfter && !params.createdAfter) {
     throw new LazadaApiError('PARAM', 'Lazada GetOrders requires updateAfter or createdAfter.');
   }
 
   const sortBy = params.updateAfter ? 'updated_at' : 'created_at';
   const headers: LazadaApiOrder[] = [];
+  // Only "complete" if the loop reached the window's natural end (empty/short page); a
+  // throttle-partial break or the MAX_PAGES cap leaves it false so the cursor won't skip the tail.
+  let complete = false;
 
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const queryParams = {
@@ -351,21 +361,27 @@ export async function fetchLazadaOrders(
     }
 
     const orders = response.data?.orders ?? [];
-    if (orders.length === 0) break;
+    if (orders.length === 0) {
+      complete = true;
+      break;
+    }
     headers.push(...orders);
 
-    if (orders.length < PAGE_LIMIT) break;
+    if (orders.length < PAGE_LIMIT) {
+      complete = true;
+      break;
+    }
     await sleep(PAGE_DELAY_MS);
   }
 
-  if (headers.length === 0) return [];
+  if (headers.length === 0) return { records: [], complete };
 
   const orderIds = headers
     .map((order) => readString(order.order_id))
     .filter((id): id is string => id !== null && id !== '');
   const itemsByOrder = await fetchOrderItems(client, params.accessToken, orderIds);
 
-  return headers.map((order) => {
+  const records = headers.map((order) => {
     const orderId = readString(order.order_id) ?? '';
     const lines = aggregateLines(itemsByOrder.get(orderId) ?? []);
     return {
@@ -383,4 +399,6 @@ export async function fetchLazadaOrders(
       raw: { order, items: itemsByOrder.get(orderId) ?? [] } as Record<string, unknown>,
     };
   });
+
+  return { records, complete };
 }

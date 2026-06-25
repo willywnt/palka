@@ -28,6 +28,13 @@ export type NormalizedOrder = {
   raw: Record<string, unknown>;
 };
 
+/**
+ * A page of pulled orders. `complete` is false when the provider truncated the window (throttle
+ * tail / page cap); the ingest service must then NOT advance the incremental cursor past the
+ * un-fetched newest-updated tail, or those orders are skipped forever.
+ */
+export type FetchOrdersResult = { orders: NormalizedOrder[]; complete: boolean };
+
 export interface MarketplaceOrderAdapter {
   readonly provider: MarketplaceProvider;
   fetchOrders(params: {
@@ -39,7 +46,7 @@ export interface MarketplaceOrderAdapter {
     since?: Date;
     /** Ignore `since` and re-pull the provider's full backfill window (manual re-sync). */
     full?: boolean;
-  }): Promise<NormalizedOrder[]>;
+  }): Promise<FetchOrdersResult>;
 }
 
 function stubItem(
@@ -84,7 +91,7 @@ export class StubMarketplaceOrderAdapter implements MarketplaceOrderAdapter {
 
   private readonly pullCount = new Map<string, number>();
 
-  fetchOrders(params: { shopId: string }): Promise<NormalizedOrder[]> {
+  fetchOrders(params: { shopId: string }): Promise<FetchOrdersResult> {
     const s = params.shopId;
     const step = this.pullCount.get(s) ?? 0;
     this.pullCount.set(s, step + 1);
@@ -155,8 +162,11 @@ export class StubMarketplaceOrderAdapter implements MarketplaceOrderAdapter {
     ];
 
     // The stub has no separate marketplace update time — use placedAt so the recency sort
-    // (externalUpdatedAt desc) stays stable across pulls.
-    return Promise.resolve(orders.map((order) => ({ ...order, updatedAt: order.placedAt })));
+    // (externalUpdatedAt desc) stays stable across pulls. A scripted pull is always complete.
+    return Promise.resolve({
+      orders: orders.map((order) => ({ ...order, updatedAt: order.placedAt })),
+      complete: true,
+    });
   }
 }
 

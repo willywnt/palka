@@ -539,7 +539,13 @@ export class OrdersServerService {
     );
     await prisma.marketplaceConnection.update({
       where: { id: connection.id },
-      data: { lastOrdersPulledAt: new Date(), ordersSyncedThrough: pullStartedAt },
+      data: {
+        lastOrdersPulledAt: new Date(),
+        // Advance the incremental cursor ONLY when the pull saw the whole window. A truncated
+        // (throttled/page-capped) pull leaves it put so the next run re-covers the un-fetched,
+        // newest-updated tail instead of skipping it forever.
+        ...(result.complete ? { ordersSyncedThrough: pullStartedAt } : {}),
+      },
     });
     await this.propagateAffected(
       connection.organizationId,
@@ -668,9 +674,11 @@ export class OrdersServerService {
     shipped: number;
     reverted: number;
     affected: Set<string>;
+    /** False when the provider truncated the window — caller must not advance the cursor. */
+    complete: boolean;
   }> {
     const adapter = getMarketplaceOrderAdapter(connection.provider);
-    const orders = await adapter.fetchOrders({
+    const { orders, complete } = await adapter.fetchOrders({
       shopId: connection.shopId,
       shopCipher: connection.externalShopCipher,
       // Stub adapters ignore these; a real adapter decrypts the connection token and pulls the
@@ -890,7 +898,7 @@ export class OrdersServerService {
       }
     }
 
-    return { pulled, applied, shipped, reverted, affected: affectedVariantIds };
+    return { pulled, applied, shipped, reverted, affected: affectedVariantIds, complete };
   }
 
   /** Best-effort: push each decremented variant's new available stock to its other channels. */

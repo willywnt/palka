@@ -166,7 +166,9 @@ beforeEach(() => {
   txMock.orderItem.createMany.mockResolvedValue({});
   txMock.orderItem.updateMany.mockResolvedValue({});
   txMock.productVariant.findMany.mockResolvedValue([]);
-  fetchOrdersMock.mockImplementation(() => Promise.resolve(state.orders));
+  fetchOrdersMock.mockImplementation(() =>
+    Promise.resolve({ orders: state.orders, complete: true }),
+  );
 
   state.variantId = 'v1';
 });
@@ -190,6 +192,40 @@ describe('pullFromConnections — reserve (PAID)', () => {
       variantId: 'v1',
       excludeConnectionId: CONN_ID,
     });
+  });
+});
+
+describe('pullFromConnections — incremental cursor', () => {
+  it('advances ordersSyncedThrough when the pull is complete', async () => {
+    state.orders = [orderFromAdapter('PAID')];
+    state.saved = savedOrder({ status: 'PAID' });
+    fetchOrdersMock.mockResolvedValueOnce({ orders: state.orders, complete: true });
+
+    await service.pullFromConnections(ORG, USER);
+
+    const data = (
+      prismaMock.marketplaceConnection.update.mock.calls[0]?.[0] as {
+        data: Record<string, unknown>;
+      }
+    ).data;
+    expect(data.lastOrdersPulledAt).toBeInstanceOf(Date);
+    expect(data.ordersSyncedThrough).toBeInstanceOf(Date);
+  });
+
+  it('does NOT advance ordersSyncedThrough when the pull was truncated (incomplete)', async () => {
+    state.orders = [orderFromAdapter('PAID')];
+    state.saved = savedOrder({ status: 'PAID' });
+    fetchOrdersMock.mockResolvedValueOnce({ orders: state.orders, complete: false });
+
+    await service.pullFromConnections(ORG, USER);
+
+    const data = (
+      prismaMock.marketplaceConnection.update.mock.calls[0]?.[0] as {
+        data: Record<string, unknown>;
+      }
+    ).data;
+    expect(data.lastOrdersPulledAt).toBeInstanceOf(Date);
+    expect(data).not.toHaveProperty('ordersSyncedThrough');
   });
 });
 

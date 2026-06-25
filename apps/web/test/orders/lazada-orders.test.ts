@@ -81,11 +81,13 @@ describe('fetchLazadaOrders — header + item stitching and per-unit aggregation
       },
     ];
 
-    const records = await fetchLazadaOrders(fakeClient([ORDER_HEADER], itemsData), {
+    const { records, complete } = await fetchLazadaOrders(fakeClient([ORDER_HEADER], itemsData), {
       accessToken: 'tok',
       updateAfter: '2026-05-01T00:00:00+07:00',
     });
 
+    // A short page (< 100) is the window's natural end → the pull is complete.
+    expect(complete).toBe(true);
     expect(records).toHaveLength(1);
     const record = records[0]!;
     expect(record.orderId).toBe('100663397');
@@ -125,7 +127,7 @@ describe('fetchLazadaOrders — header + item stitching and per-unit aggregation
       },
     ];
 
-    const records = await fetchLazadaOrders(fakeClient([ORDER_HEADER], flatItems), {
+    const { records } = await fetchLazadaOrders(fakeClient([ORDER_HEADER], flatItems), {
       accessToken: 'tok',
       updateAfter: '2026-05-01T00:00:00+07:00',
     });
@@ -154,7 +156,7 @@ describe('fetchLazadaOrders — header + item stitching and per-unit aggregation
       },
     ];
 
-    const records = await fetchLazadaOrders(fakeClient([ORDER_HEADER], realItems), {
+    const { records } = await fetchLazadaOrders(fakeClient([ORDER_HEADER], realItems), {
       accessToken: 'tok',
       updateAfter: '2026-05-01T00:00:00+07:00',
     });
@@ -169,7 +171,7 @@ describe('fetchLazadaOrders — header + item stitching and per-unit aggregation
 
   it('sends update_after with sort_by=updated_at and skips items when no orders', async () => {
     const log: CallLog[] = [];
-    const records = await fetchLazadaOrders(fakeClient([], [], log), {
+    const { records } = await fetchLazadaOrders(fakeClient([], [], log), {
       accessToken: 'tok',
       updateAfter: '2026-05-01T00:00:00+07:00',
     });

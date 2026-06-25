@@ -11,6 +11,7 @@ import type { MarketplaceProvider } from '@prisma/client';
 
 import { OrderError } from '../errors/order-errors';
 import type {
+  FetchOrdersResult,
   MarketplaceOrderAdapter,
   NormalizedOrder,
   NormalizedOrderItem,
@@ -201,7 +202,7 @@ export class LazadaOrderAdapter implements MarketplaceOrderAdapter {
     accessToken: string;
     since?: Date;
     full?: boolean;
-  }): Promise<NormalizedOrder[]> {
+  }): Promise<FetchOrdersResult> {
     // A full re-pull (or a never-synced store) backfills a fixed window; otherwise resume from
     // the cursor minus an overlap that absorbs clock skew + Lazada's eventual consistency.
     const windowStart =
@@ -210,12 +211,12 @@ export class LazadaOrderAdapter implements MarketplaceOrderAdapter {
         : new Date(Date.now() - BACKFILL_MS);
 
     try {
-      const records = await fetchLazadaOrders(this.client, {
+      const result = await fetchLazadaOrders(this.client, {
         accessToken: params.accessToken,
         updateAfter: formatLazadaWindow(windowStart),
         onThrottle: 'partial',
       });
-      return records.map(toNormalizedOrder);
+      return { orders: result.records.map(toNormalizedOrder), complete: result.complete };
     } catch (error) {
       wrapLazadaError(error);
     }

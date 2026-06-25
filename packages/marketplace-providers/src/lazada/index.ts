@@ -7,7 +7,7 @@ export type { LazadaStockPayloadInput } from './stock-payload.js';
 export { fetchLazadaItemsStock, fetchLazadaListings, LazadaApiError } from './listings.js';
 export type { LazadaListingItem, LazadaWarehouseStock } from './listings.js';
 export { fetchLazadaOrders } from './orders.js';
-export type { LazadaOrderLine, LazadaOrderRecord } from './orders.js';
+export type { LazadaOrderLine, LazadaOrderRecord, LazadaOrdersResult } from './orders.js';
 export type {
   LazadaCallOptions,
   LazadaClient,
