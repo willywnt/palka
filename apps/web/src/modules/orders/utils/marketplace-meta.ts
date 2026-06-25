@@ -14,7 +14,10 @@ const EMPTY_META: OrderMarketplaceMeta = {
 };
 
 function readString(value: unknown): string | null {
-  if (typeof value === 'string') return value.trim() === '' ? null : value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
+  }
   if (typeof value === 'number') return String(value);
   return null;
 }
@@ -41,8 +44,8 @@ function meaningful(value: string | null): string | null {
  */
 function parseCourier(value: string | null): string | null {
   if (!value) return null;
-  const match = /Delivery:\s*(.+)$/i.exec(value);
-  return (match?.[1] ?? value).trim() || null;
+  const tail = /Delivery:\s*(.+)$/i.exec(value)?.[1]?.trim();
+  return (tail && tail.length > 0 ? tail : value.trim()) || null;
 }
 
 /**
@@ -100,12 +103,15 @@ export function extractOrderItemMedia(
   const items = Array.isArray(raw.items) ? (raw.items as Record<string, unknown>[]) : [];
 
   for (const item of items) {
-    const skuId = readString(item.sku_id);
-    if (!skuId || media.has(skuId)) continue;
-    media.set(skuId, {
+    const entry = {
       imageUrl: readString(item.product_main_image),
       detailUrl: readString(item.product_detail_url),
-    });
+    };
+    // Key under every id the adapter might have chosen as externalVariantId (sku_id → shop_sku →
+    // sku) so the detail-page lookup hits even when Lazada omits sku_id.
+    for (const key of [readString(item.sku_id), readString(item.shop_sku), readString(item.sku)]) {
+      if (key && !media.has(key)) media.set(key, entry);
+    }
   }
   return media;
 }

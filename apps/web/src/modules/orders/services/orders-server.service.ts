@@ -77,7 +77,12 @@ export class OrdersServerService {
         // Most-recently-changed first, by the marketplace's own update time; orders pulled
         // before that was captured (externalUpdatedAt null) fall to the bottom, tie-broken by
         // when they were placed.
-        orderBy: [{ externalUpdatedAt: { sort: 'desc', nulls: 'last' } }, { placedAt: 'desc' }],
+        orderBy: [
+          { externalUpdatedAt: { sort: 'desc', nulls: 'last' } },
+          { placedAt: 'desc' },
+          // Unique final tiebreak so offset pagination is stable when the dates collide.
+          { id: 'desc' },
+        ],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

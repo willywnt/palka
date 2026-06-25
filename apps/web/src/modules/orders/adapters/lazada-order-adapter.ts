@@ -143,9 +143,9 @@ function toNormalizedOrder(record: LazadaOrderRecord): NormalizedOrder {
   const items: NormalizedOrderItem[] = record.lines.map((line) => ({
     externalProductId: line.itemId,
     // Prefer Lazada's SkuId (matches the imported listing's external variant id); fall back to
-    // shop_sku/sku so the line still carries a stable id. seller_sku → externalSku lets the
-    // pull resolve by SKU when the variant-id join misses (see resolveOrderItemVariantIds).
-    externalVariantId: line.skuId ?? line.shopSku ?? line.sku ?? line.itemId,
+    // shop_sku/sku — but NOT itemId (product-level, not variant-unique: it would collapse a
+    // product's variants to one key). seller_sku → externalSku lets the pull resolve by SKU.
+    externalVariantId: line.skuId ?? line.shopSku ?? line.sku ?? '',
     externalSku: line.sellerSku ?? line.shopSku ?? null,
     externalName: line.name,
     quantity: line.quantity,

@@ -53,7 +53,9 @@ function deriveItemId(item: LazadaApiOrderItem): string {
   const shopSku = readString(item.shop_sku);
   if (!shopSku) return '';
   const underscore = shopSku.indexOf('_');
-  return underscore > 0 ? shopSku.slice(0, underscore) : '';
+  // `<itemId>_<region>-<skuId>` → the itemId prefix; if there's no usable prefix, keep the whole
+  // shop_sku rather than '' (a blank product id would just fail every join).
+  return underscore > 0 ? shopSku.slice(0, underscore) : shopSku;
 }
 
 /** One Lazada order line aggregated from its per-unit item objects (see {@link aggregateLines}). */
