@@ -22,6 +22,7 @@ import { InventoryDashboard } from '@/modules/inventory/components/inventory-das
 import { cn } from '@/lib/utils';
 
 import { Briefing } from './briefing';
+import { NetProfitCard } from './net-profit-card';
 import { TutupHariDialog } from './tutup-hari-dialog';
 
 type QuickAction = {
@@ -89,6 +90,9 @@ function todayLabel(): string {
 export function DashboardHome() {
   const { user } = useCurrentUser();
   const { allowed: canViewReports } = useHasPermission('reports.view');
+  // Money is OWNER/ADMIN-only — gate the card so STAFF never sees it NOR fires the
+  // finance.view-gated /reports/net-profit fetch (which would 403).
+  const { allowed: canViewFinance } = useHasPermission('finance.view');
   const firstName = (user?.displayName ?? user?.email ?? '').split(/[\s@]/)[0];
   const [tutupHariOpen, setTutupHariOpen] = useState(false);
 
@@ -122,6 +126,8 @@ export function DashboardHome() {
         </div>
 
         <Briefing />
+
+        {canViewFinance ? <NetProfitCard /> : null}
 
         <div className="space-y-2">
           <p className="eyebrow text-muted-foreground">Pintasan</p>
