@@ -21,6 +21,7 @@ export const PERMISSION_KEYS = [
   'reports.view',
   'purchasing.view',
   'marketplace.view',
+  'finance.view',
   // Action keys — hide the button; the page stays visible.
   'sales.refund',
   'purchasing.cancel',
@@ -30,6 +31,7 @@ export const PERMISSION_KEYS = [
   'opname.post',
   'marketplace.manage',
   'team.manage',
+  'finance.manage',
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -54,6 +56,11 @@ export const PERMISSION_META: Record<PermissionKey, { label: string; description
   'marketplace.view': {
     label: 'Akses marketplace',
     description: 'Lihat menu Marketplace dan koneksi toko. Tanpa ini menunya disembunyikan.',
+  },
+  'finance.view': {
+    label: 'Akses keuangan & laba bersih',
+    description:
+      'Lihat menu Pengeluaran dan laporan Laba bersih (Net P&L). Tanpa ini menunya disembunyikan.',
   },
   'sales.refund': {
     label: 'Refund & void penjualan',
@@ -87,6 +94,10 @@ export const PERMISSION_META: Record<PermissionKey, { label: string; description
     label: 'Kelola tim',
     description:
       'Lihat anggota dan buat/cabut undangan staf. Ubah peran & hapus anggota tetap milik pemilik.',
+  },
+  'finance.manage': {
+    label: 'Kelola pengeluaran',
+    description: 'Catat, ubah, dan hapus biaya operasional.',
   },
 };
 
