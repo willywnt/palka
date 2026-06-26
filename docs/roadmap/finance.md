@@ -26,6 +26,12 @@
   already accepted them), with a running total of the filtered rows + a distinct "no match" empty state.
 - **CSV export** — an "Ekspor CSV" button → `GET /api/v1/expenses/export` (finance.view) honoring the
   active filters; pure `expensesToCsv` (RFC-4180 escaping, CRLF, ISO dates, id-ID labels). Unit-tested.
+- **Net P&L home mini-card** — a "Keuangan · bulan ini" card on the dashboard home (after the work
+  queue) showing this month's net profit + omzet + biaya + margin, reusing `useNetProfitReportQuery`
+  (monthly, since opex is monthly). Gated `finance.view` at the call site so STAFF never sees it nor
+  fires the gated fetch; the panel links to the full report. (Tutup hari recap deliberately NOT touched
+  — it's daily, where net ≈ gross since opex is monthly, and it's gated `reports.view` not `finance.view`.)
+  Built understand→implement→adversarial-review (3 reviewers clean: no STAFF money-leak).
 
 ## 🔭 Phase 2 — backlog (prioritized)
 
@@ -34,9 +40,8 @@
 | 1   | **Recurring expenses**       | M      | 🟡   | Mark an expense recurring (monthly sewa/gaji). v1 = a template + a one-click "add this month" (manual); **auto-generation needs the VPS worker/cron** (dormant on Vercel), so the auto part is VPS-era. Migration. |
 | 2   | **Auto-derived fees**        | M      | 🟡   | Auto-create opex from data we already have: marketplace commission per shipped order, QRIS/payment fee per POS sale. Needs a per-channel fee-rate config + idempotent generation. Migration (fee config).          |
 | 3   | **Expense → order/sale ref** | S      | 🟡   | Optional FK from an expense to the order/sale it relates to (traceability). Migration.                                                                                                                             |
-| 4   | **Net P&L dashboard card**   | S      | 🟢   | A net-profit mini-card on the dashboard home / "Tutup hari" recap.                                                                                                                                                 |
-| 5   | **Budget vs actual**         | L      | 🟡   | Per-category monthly budgets + variance in the report. Migration.                                                                                                                                                  |
+| 4   | **Budget vs actual**         | L      | 🟡   | Per-category monthly budgets + variance in the report. Migration.                                                                                                                                                  |
 
-Order of pull: the filter + CSV quick wins shipped (Phase 2a); next non-gated is the **dashboard card
-(#4)**. **Recurring (#1)** is the highest-value but its auto-generation rides the VPS cutover;
-auto-derived fees (#2) + budget (#5) are larger and need design.
+Order of pull: the filter + CSV + home card quick wins shipped (Phase 2a). The remaining items all
+need a schema migration: **recurring (#1)** is the highest-value but its auto-generation rides the VPS
+cutover; auto-derived fees (#2) + budget (#4) are larger and need design.
