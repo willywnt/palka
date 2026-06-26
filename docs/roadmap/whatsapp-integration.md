@@ -45,7 +45,8 @@ typing the order by hand, the customer's structured WhatsApp submission creates 
 ## 3. Hard prerequisites (owner / non-code — START NOW, this is the long pole)
 
 Meta business verification is the multi-week critical path and **hasn't started**. Begin
-in parallel with everything else:
+in parallel with everything else (concrete legal-docs → verification checklist in
+**Appendix A** — the owner plans to form a **PT Perseorangan** for these docs):
 
 1. Create a **Meta Business Portfolio** (Business Manager) for the company.
 2. Prepare verification docs — Indonesia needs: legal company name, business address,
@@ -211,6 +212,41 @@ Log every send (category, est. cost, template) to audit so the owner sees spend.
 6. Which ID payment gateway for the external pay link (Midtrans / Xendit / QRIS)? Required for v1?
 7. One-WA-number-per-org permanent, or eventually multiple numbers/departments? (Affects the connection schema.)
 8. Confirm the exact current ID per-message rate card + the Catalog Batch endpoint/limits + the ~500-product cap against live Meta docs (research used third-party + FX-derived figures).
+
+## Appendix A — owner onboarding checklist (legal entity → Meta verification)
+
+> Practical sequence, **NOT legal advice** — verify against OSS (oss.go.id), AHU
+> Kemenkumham (ahu.go.id), and Meta's current requirements + the chosen BSP. The owner
+> plans to form a **PT Perseorangan** to obtain the documents this needs.
+
+**1. Form the legal entity (PT Perseorangan).** Single-founder micro/small PT (UU Cipta
+Kerja / PP 8/2021): register online at AHU Kemenkumham — file the _Pernyataan Pendirian_,
+receive the _Sertifikat Pendirian PT Perseorangan_. No notary required; usually fast/cheap;
+founder must be a WNI with a KTP. This entity is also the legal home for the whole SaaS
+(billing, ToS, the Falka→**Palka** rename) — not only WhatsApp.
+
+**2. Get the business identifiers Meta checks.**
+
+- **NIB** via OSS (oss.go.id) with the right **KBLI** codes (online retail / software) — the
+  headline business-registration doc Meta accepts.
+- **NPWP** (badan / business tax ID) for the PT.
+- A **business address** matching the registration docs, a verifiable **business phone**, and
+  ideally a **business-domain email**.
+
+**3. Make the website match (Meta's #1 check).** A live business website whose **domain +
+visible content carry the registered legal name + logo**. The PT name, the website brand, and
+the Meta Business Portfolio legal name must align — mind the Falka→Palka rename and register/
+verify under whatever name the website + PT will actually use.
+
+**4. Meta side (only once docs are in hand).** Create a **Meta Business Portfolio** (enter
+legal name/address/phone **exactly as on the docs**) → submit **business verification** (NIB/
+NPWP/Sertifikat + phone/website checks; days–weeks; a rejection = ~30-day cooldown, so make
+docs consistent first) → then onboard the first number via the **BSP (360dialog)** Embedded
+Signup, _or_ start Falka's own **Tech Provider** App Review for the direct path.
+
+**Critical path:** steps 1–3 (legal + matching website) gate step 4, and step 4 is the
+multi-week Meta clock — so forming the PT + lining up NIB/NPWP + the matching website is the
+real first move. Coding (§4–§8) starts only once a **verified WABA + number exist on the VPS**.
 
 ## Sources (2025-2026, verify before relying)
 
