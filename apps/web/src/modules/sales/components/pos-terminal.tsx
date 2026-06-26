@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Banknote } from 'lucide-react';
+import { Archive, Banknote, PauseCircle } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { SalePaymentMethod } from '@prisma/client';
@@ -25,6 +25,7 @@ import { ConnectScannerDialog } from '@/modules/scanner-pairing/components/conne
 import { useCreateSaleMutation, useSellableVariantsQuery } from '../hooks/use-sales';
 import { usePosScanner, usePosScanResolver } from '../hooks/use-pos-scanner';
 import { usePosFavoritesStore } from '../store/pos-favorites.store';
+import { usePosHeldSalesStore, type HeldSale } from '../store/pos-held-sales.store';
 import { computeSaleTotals } from '../utils/sale-totals';
 import { computeQuickTenderValues } from '../utils/pos-tender';
 import type { ScannedSaleItem, SellableVariant } from '../types';
@@ -35,6 +36,7 @@ import type {
   VariantCartLine,
 } from './pos-cart-types';
 import { PosCart } from './pos-cart';
+import { PosHeldSalesDialog } from './pos-held-sales-dialog';
 import { PosPaymentPanel, PAYMENT_OPTIONS, paymentMethodLabel } from './pos-payment-panel';
 import { PosProductBrowser } from './pos-product-browser';
 
@@ -116,6 +118,10 @@ export function PosTerminal() {
   // Pinned favorites (ids only — the items themselves come from the queries above).
   const { favoriteVariantIds, favoriteBundleIds, toggleFavoriteVariant, toggleFavoriteBundle } =
     usePosFavoritesStore();
+
+  // Parked (held) sales — a client-side draft list (persisted per browser).
+  const { heldSales, holdSale, removeHeldSale } = usePosHeldSalesStore();
+  const [heldDialogOpen, setHeldDialogOpen] = useState(false);
 
   // Unlock Web Audio on the first interaction so scan beeps can play.
   useSoundUnlock();
@@ -371,6 +377,48 @@ export function PosTerminal() {
     );
   }
 
+  /** Snapshot the current cart + its sale settings for parking. */
+  function buildHeldSnapshot(): Omit<HeldSale, 'id' | 'createdAt'> {
+    return {
+      label: customerName.trim() || 'Tanpa nama',
+      cart,
+      customerName,
+      discount: { type: discountType, value: discountValue },
+      tax: { enabled: taxEnabled, rate: taxRate, inclusive: taxInclusive },
+    };
+  }
+
+  /** Park the current cart and clear the terminal for the next customer (PPN setting stays). */
+  function handleHold() {
+    if (cart.length === 0) return;
+    holdSale(buildHeldSnapshot());
+    setCart([]);
+    setCustomerName('');
+    setCashReceived(0);
+    setDiscountValue(0);
+    setSearchInput('');
+    toast.success('Pesanan ditahan', { description: 'Lanjutkan kapan saja dari "Tertahan".' });
+  }
+
+  /** Resume a parked sale into the terminal — parking the current cart first so nothing is lost. */
+  function handleResume(held: HeldSale) {
+    const hadCart = cart.length > 0;
+    if (hadCart) holdSale(buildHeldSnapshot());
+    setCart(held.cart);
+    setCustomerName(held.customerName);
+    setDiscountType(held.discount.type);
+    setDiscountValue(held.discount.value);
+    setTaxEnabled(held.tax.enabled);
+    setTaxRate(held.tax.rate);
+    setTaxInclusive(held.tax.inclusive);
+    setCashReceived(0);
+    removeHeldSale(held.id);
+    setHeldDialogOpen(false);
+    toast.success('Pesanan dilanjutkan', {
+      description: hadCart ? 'Keranjang sebelumnya ikut ditahan.' : undefined,
+    });
+  }
+
   async function handleCheckout() {
     // The disabled button is only a UI hint, not a lock: the F8 shortcut focuses
     // the pay button and a fast Enter/double-tap can re-enter before isPending
@@ -453,7 +501,21 @@ export function PosTerminal() {
       {/* Cart */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Keranjang</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">Keranjang</CardTitle>
+            <div className="flex items-center gap-1.5">
+              {heldSales.length > 0 ? (
+                <Button variant="ghost" size="sm" onClick={() => setHeldDialogOpen(true)}>
+                  <Archive className="size-4" />
+                  Tertahan ({heldSales.length})
+                </Button>
+              ) : null}
+              <Button variant="outline" size="sm" onClick={handleHold} disabled={cart.length === 0}>
+                <PauseCircle className="size-4" />
+                Tahan
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <PosCart
@@ -517,6 +579,14 @@ export function PosTerminal() {
       ) : null}
 
       <ConnectScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} purpose="POS" />
+
+      <PosHeldSalesDialog
+        open={heldDialogOpen}
+        onOpenChange={setHeldDialogOpen}
+        heldSales={heldSales}
+        onResume={handleResume}
+        onRemove={removeHeldSale}
+      />
     </div>
   );
 }

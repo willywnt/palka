@@ -342,7 +342,10 @@ taxAmount` in BOTH modes** (exclusive PPN adds on top; inclusive PPN is carved o
     via the shared `[data-print-root]` isolation on sale detail; CASH checkout has a kembalian calculator
     **with quick-tender buttons** (Uang pas + the smallest covering notes). POS extras: **pinned
     favorites** (`store/pos-favorites.store.ts`, ids-only UI state, capped 12) render a "Favorit"
-    quick-add strip while search is empty; desktop shortcuts `/` (focus search) and `F8` (jump to pay).
+    quick-add strip while search is empty; desktop shortcuts `/` (focus search) and `F8` (jump to pay);
+    **held / park sale** (`store/pos-held-sales.store.ts`, Zustand+persist, per-browser DRAFT capped 20)
+    — "Tahan" sets the cart aside, the "Tertahan" tray resumes it (lines/customer/discount/PPN restored;
+    resuming an active cart parks it first). Client-side only (single-register scope).
 - **Purchasing / restock** (`purchasing` module — `PurchaseOrder`/`PurchaseOrderItem`,
   `PurchaseOrderStatus` DRAFT→ORDERED→PARTIALLY_RECEIVED→RECEIVED/CANCELLED): lights up the **`incomingStock`**
   bucket. A PO can be saved as a **DRAFT** first (`createPurchaseOrder` with `status:'DRAFT'`) — it reserves

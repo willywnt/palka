@@ -211,6 +211,12 @@ order actions (mark-shipped / edit resi / cancel-with-reason) · DAMAGE write-of
 
 ## ⚡ Quick wins (sub-hour)
 
+- _(shipped 2026-06-26: **POS held / park sale** — "Tahan" sets the current cart aside and a
+  "Tertahan (N)" tray resumes it (lines + customer + discount + PPN restored); resuming with a cart
+  in progress parks that one first. Client-side draft (`store/pos-held-sales.store.ts`, Zustand+persist,
+  per-browser, capped 20), single-register scope. Plus two orders fixes: `snapshotOrderItemCostsTx`
+  now stamps each line once (no overwrite of an earlier reserve), and the `server.ts` auto-pull
+  loopback fetch got an `AbortSignal.timeout` so a hung request can't wedge auto-pull.)_
 - _(shipped 2026-06-16: **bulletproof drift-sync completion** — an active watcher (poll in-flight
   every 1.5s + 6s grace timeout) armed on a manual sync makes the drift re-check + auto-close +
   status revalidation deterministic even for a fast job the 2s background poll skips. Remaining

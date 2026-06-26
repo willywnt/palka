@@ -197,6 +197,24 @@ describe('pullFromConnections — reserve (PAID)', () => {
       excludeConnectionId: CONN_ID,
     });
   });
+
+  it('snapshots a line cost only where unitCost is still null (never overwrites an earlier reserve)', async () => {
+    state.orders = [orderFromAdapter('PAID')];
+    state.saved = savedOrder({ status: 'PAID' });
+    txMock.productVariant.findMany.mockResolvedValue([{ id: 'v1', cost: 100 }]);
+
+    await service.pullFromConnections(ORG, USER);
+
+    const snapshotCall = txMock.orderItem.updateMany.mock.calls.find(
+      (call) => (call[0] as { data?: { unitCost?: unknown } })?.data?.unitCost !== undefined,
+    );
+    expect(snapshotCall).toBeDefined();
+    expect((snapshotCall?.[0] as { where: Record<string, unknown> }).where).toMatchObject({
+      orderId: 'o1',
+      productVariantId: 'v1',
+      unitCost: null,
+    });
+  });
 });
 
 describe('pullFromConnections — incremental cursor', () => {

@@ -71,13 +71,21 @@ function startScheduledOrderPull(useHttps: boolean): void {
   }
 
   const url = `http://127.0.0.1:${port}/api/v1/internal/pull-orders`;
+  // Bound each loopback request so a hung connection can't leave `pulling` stuck true
+  // forever (which would silently wedge auto-pull). Generous — a healthy multi-store pull
+  // finishes well under this; this only catches a truly dead request.
+  const requestTimeoutMs = Math.max(intervalMs, 5 * 60_000);
   let pulling = false;
   console.log(`> Auto-pull enabled: every ${Math.round(intervalMs / 1000)}s`);
 
   const timer = setInterval(() => {
     if (pulling) return; // never overlap a slow pull
     pulling = true;
-    fetch(url, { method: 'POST', headers: { authorization: `Bearer ${secret}` } })
+    fetch(url, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(requestTimeoutMs),
+    })
       .then((res) => {
         if (!res.ok) console.warn(`> Auto-pull HTTP ${res.status}`);
       })

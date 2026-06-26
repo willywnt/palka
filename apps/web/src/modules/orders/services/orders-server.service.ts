@@ -1017,7 +1017,10 @@ export class OrdersServerService {
   /**
    * Snapshots each resolved line's COGS — the variant's cost at reserve time —
    * onto the order items, so margin is computed from the cost that applied then.
-   * Runs once, inside the reserve transaction; later pulls don't overwrite it.
+   * Stamps each line ONCE, at its own reserve time: the `unitCost: null` guard means a
+   * line already costed at an earlier reserve is never overwritten — so when two lines of
+   * one order map to the same variant but reserve at different times (and the variant's
+   * cost changed between), each keeps the cost that applied when IT was reserved.
    */
   private async snapshotOrderItemCostsTx(
     tx: TransactionClient,
@@ -1034,7 +1037,7 @@ export class OrdersServerService {
 
     for (const variant of variants) {
       await tx.orderItem.updateMany({
-        where: { orderId, productVariantId: variant.id },
+        where: { orderId, productVariantId: variant.id, unitCost: null },
         data: { unitCost: variant.cost },
       });
     }

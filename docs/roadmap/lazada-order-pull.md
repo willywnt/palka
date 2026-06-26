@@ -91,16 +91,18 @@ fallback, placedAt-not-rewritten). Plus the earlier fulfilledAt false-stamp fix.
 
 ### Deferred / open
 
-- **Batch 3 — VPS hardening:** the internal `/api/v1/internal/pull-orders` endpoint is deployed +
-  reachable on Vercel (where nothing calls it) and reuses `AUTH_SECRET` with no rate-limit; the
-  `server.ts` loopback timer has no fetch timeout (a hung request wedges auto-pull). Gate to the
-  self-hosted runtime + dedicated `INTERNAL_PULL_SECRET` + 404 on Vercel + `AbortSignal.timeout`. Do this
-  with the VPS cutover.
+- **Batch 3 — VPS hardening:** the `server.ts` loopback fetch now has an `AbortSignal.timeout`
+  (2026-06-26) so a hung request can't wedge auto-pull. **Still deferred to the VPS cutover** (they
+  need a `turbo.json` env declaration, so confirm under HARD CONSTRAINT #3 then): a dedicated
+  `INTERNAL_PULL_SECRET` (instead of reusing `AUTH_SECRET`) + a rate-limit + **404 on Vercel** (the
+  internal `/api/v1/internal/pull-orders` endpoint is reachable on Vercel where nothing calls it).
 - **#7 (skipped, safe):** an items-fetch throttle THROWS → the cursor isn't advanced → safe retry.
   Making it `partial` risks the freeze interaction (a reserved order returned with empty lines), so left
   as-is. Revisit only if a very busy shop perpetually re-throttles the items phase.
-- **snapshotOrderItemCostsTx** overwrites all same-variant lines of an order (narrow low — the manual
-  `resolveOrderItem` path, two listings→one variant + a cost change between). Snapshot by orderItem id.
+- ~~**snapshotOrderItemCostsTx** overwrites all same-variant lines of an order~~ **FIXED 2026-06-26**:
+  a `unitCost: null` guard means each line is stamped once, at its own reserve time, and a later
+  reserve of a sibling line (same variant, manual `resolveOrderItem` path, cost changed between)
+  never overwrites it.
 - **VERIFY against more live data:** exact field casing per region, the GetMultipleOrderItems batch cap
   (set 20), the real SHIPPED/DELIVERED pull (the test shop's drop-off orders don't reach `shipped` in
   sandbox — needs a self-delivery test order or a real shipment).
