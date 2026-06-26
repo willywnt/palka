@@ -414,8 +414,14 @@ taxAmount` in BOTH modes** (exclusive PPN adds on top; inclusive PPN is carved o
   `/dashboard/reports/net-profit` (gated `finance.view`): `getNetProfitReport` reuses `getProfitReport`
   (revenue−COGS) and subtracts `expenseServerService.listExpenseLines` over the same range via the pure
   `aggregateNetProfit` util (same `money()` rounding → reconciles) → **net profit = gross profit − Σ
-  opex**, with per-category + per-period breakdowns. OWNER/ADMIN only (STAFF never sees money). Deferred:
-  recurring/auto-derived expenses, CSV, ledger filter UI.
+  opex**, with per-category + per-period breakdowns. OWNER/ADMIN only (STAFF never sees money). The
+  Pengeluaran page also has a date/category **filter + CSV export**, and the dashboard home shows a
+  `finance.view`-gated **"Laba bersih bulan ini"** mini-card. **Recurring opex** = `ExpenseTemplate`
+  (sewa/gaji; a monthly DEFINITION, not a ledger row) + **"Buat bulan ini"** `generateForMonth` that
+  materializes active templates into `Expense` rows, **idempotent** via `Expense.templateId`+`periodMonth`
+  and a PARTIAL unique index (one live generated expense per template/month; manual rows excluded) — see
+  the schema comment + migration `20260627090000`; auto-gen on the 1st is VPS-era. Deferred:
+  auto-derived fees (marketplace commission / QRIS) · expense→order ref · budget vs actual.
 - **Mapping / pull**: mapping is 1:1 per LISTING but a variant MAY map to many listings (cross-channel
   — do NOT force 1:1). Auto-map is NORMALIZED sku, NEVER edit-distance (`…-M` ≠ `…-L`); non-exact →
   `NEEDS_REVIEW`, sync stays off. `resolveOrderItem` maps an unmapped item (`mapByExternalRef`).
