@@ -37,3 +37,25 @@ export type ExpenseLine = {
   category: ExpenseCategory;
   amount: number;
 };
+
+/** A recurring-expense template (sewa/gaji) — generates monthly Expense rows, never a ledger row itself. */
+export type ExpenseTemplateListItem = {
+  id: string;
+  category: ExpenseCategory;
+  amount: string;
+  /** 1..31 — the nominal day of month for the generated expense (clamped to the month). */
+  dayOfMonth: number;
+  note: string | null;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type ExpenseTemplateDetail = ExpenseTemplateListItem;
+
+/** Result of generating a month's recurring expenses from the active templates. */
+export type GenerateRecurringResult = {
+  month: string;
+  created: number;
+  skipped: number;
+  total: number;
+};
