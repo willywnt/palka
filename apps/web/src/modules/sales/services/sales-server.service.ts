@@ -747,6 +747,24 @@ export class SalesServerService {
       }
     }
   }
+
+  /**
+   * Gross QRIS transaction amount (Sale.totalAmount — what the customer paid) for COMPLETED +
+   * PARTIALLY_REFUNDED sales in a date range. The base for the finance auto-derived QRIS
+   * payment-fee estimate; VOID excluded, refunds NOT netted (the processor charges the gross).
+   */
+  async sumQrisAmountForMonth(organizationId: string, from: Date, to: Date): Promise<number> {
+    const result = await prisma.sale.aggregate({
+      where: {
+        organizationId,
+        paymentMethod: 'QRIS',
+        status: { in: ['COMPLETED', 'PARTIALLY_REFUNDED'] },
+        createdAt: { gte: from, lte: to },
+      },
+      _sum: { totalAmount: true },
+    });
+    return Number(result._sum.totalAmount ?? 0);
+  }
 }
 
 export const salesServerService = new SalesServerService();

@@ -43,6 +43,7 @@ function mapConnection(connection: MarketplaceConnection): MarketplaceConnection
     lastOrdersPulledAt: connection.lastOrdersPulledAt?.toISOString() ?? null,
     syncWarehouseCode: connection.syncWarehouseCode,
     knownWarehouseCodes: connection.knownWarehouseCodes,
+    commissionRate: connection.commissionRate.toString(),
   };
 }
 
@@ -393,6 +394,44 @@ export class MarketplaceServerService {
       action: 'marketplace.sync_warehouse_updated',
       resource: 'marketplace_connection',
       metadata: { connectionId, provider: updated.provider, syncWarehouseCode },
+    });
+
+    return mapConnection(updated);
+  }
+
+  /**
+   * Per-connection commission rate (percent) for the finance auto-derived MARKETPLACE_COMMISSION
+   * fee estimate. 0 = off. Owner-facing config (read/written via the finance fee-config UI).
+   */
+  async updateCommissionRate(
+    organizationId: string,
+    actorUserId: string,
+    connectionId: string,
+    commissionRate: number,
+  ): Promise<MarketplaceConnectionDetail> {
+    await this.getOwnedConnection(connectionId, organizationId);
+
+    const updated = await prisma.marketplaceConnection.update({
+      where: { id: connectionId },
+      data: { commissionRate },
+    });
+
+    appLogger.info('marketplace.commission_rate_updated', {
+      organizationId,
+      connectionId,
+      provider: updated.provider,
+      commissionRate,
+    });
+    void auditService.log({
+      organizationId,
+      actorUserId,
+      action: 'marketplace.commission_rate_updated',
+      resource: 'marketplace_connection',
+      metadata: {
+        connectionId,
+        provider: updated.provider,
+        commissionRate: String(commissionRate),
+      },
     });
 
     return mapConnection(updated);

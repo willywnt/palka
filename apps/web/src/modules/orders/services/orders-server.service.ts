@@ -1076,6 +1076,32 @@ export class OrdersServerService {
       }
     }
   }
+
+  /**
+   * Gross revenue (Order.totalAmount) per connection for orders FULFILLED in a date range —
+   * status SHIPPED/COMPLETED, dated by `inventoryShippedAt` (the once-set fulfillment stamp, so
+   * each order counts exactly once in its ship month, no cross-month gap). The base for the
+   * finance auto-derived MARKETPLACE_COMMISSION estimate. Read-only.
+   */
+  async sumRevenueByConnectionForMonth(
+    organizationId: string,
+    from: Date,
+    to: Date,
+  ): Promise<{ connectionId: string; revenue: number }[]> {
+    const rows = await prisma.order.groupBy({
+      by: ['marketplaceConnectionId'],
+      where: {
+        organizationId,
+        status: { in: ['SHIPPED', 'COMPLETED'] },
+        inventoryShippedAt: { gte: from, lte: to },
+      },
+      _sum: { totalAmount: true },
+    });
+    return rows.map((row) => ({
+      connectionId: row.marketplaceConnectionId,
+      revenue: Number(row._sum.totalAmount ?? 0),
+    }));
+  }
 }
 
 export const ordersServerService = new OrdersServerService();

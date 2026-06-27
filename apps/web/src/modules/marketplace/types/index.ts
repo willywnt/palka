@@ -32,6 +32,8 @@ export type MarketplaceConnectionListItem = {
   syncWarehouseCode: string | null;
   /** Distinct warehouseCodes seen across the shop's listings at import — the picker's options. */
   knownWarehouseCodes: string[];
+  /** Commission rate as a percent string (e.g. "5.00"); "0" = no auto-derived commission. */
+  commissionRate: string;
   /** Listings whose auto-map needs a human look (list endpoint only). */
   needsReviewCount?: number;
   /** Listings whose last stock push failed (list endpoint only). */
