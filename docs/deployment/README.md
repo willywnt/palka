@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> **Legacy / stopgap.** This documents the current **Vercel + Neon** production setup. The committed direction is a **self-hosted single-host VPS** (Docker Compose: web + worker + Postgres + Redis, keeping Cloudflare R2) — see [vps-migration.md](./vps-migration.md) and [vps-setup.md](./vps-setup.md). On Vercel the worker + Socket.IO don't run, so marketplace sync / scheduled jobs / scanner are dormant in prod until cutover.
+> **Legacy / stopgap.** This documents the current **Vercel + Neon** production setup. The committed direction is a **self-hosted Biznet VPS managed by Coolify** (web + worker + Postgres + Redis, keeping Cloudflare R2) — the chosen runbook is [coolify-setup.md](./coolify-setup.md) (start on a 4 GB box + Coolify, grow to 8 GB at go-live); see also [vps-migration.md](./vps-migration.md), the plain-compose reference [vps-setup.md](./vps-setup.md), the cost ladder [vps-cost-packages.md](./vps-cost-packages.md), and the [cloudflare-fallback.md](./cloudflare-fallback.md) resilience plan. On Vercel the worker + Socket.IO don't run, so marketplace sync / scheduled jobs / scanner are dormant in prod until cutover.
 
 Production stack:
 
@@ -99,8 +99,11 @@ Future: pipe Pino output to Sentry, Datadog, or Axiom.
 
 ## Related guides
 
+- [Coolify setup runbook (chosen path)](./coolify-setup.md)
+- [VPS cost packages / staged ladder](./vps-cost-packages.md)
+- [Cloudflare-in-Indonesia fallback](./cloudflare-fallback.md)
+- [VPS migration](./vps-migration.md)
 - [Neon PostgreSQL](./neon.md)
 - [Cloudflare R2](./r2.md)
 - [Auth.js production](./auth.md)
 - [Security](./security.md)
-- [VPS migration](./vps-migration.md)

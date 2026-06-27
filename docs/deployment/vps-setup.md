@@ -1,5 +1,10 @@
 # Single-host VPS deployment (Option A) — runbook
 
+> **Note (2026-06-28): the chosen path is Coolify, not raw `docker compose`.** See
+> [`coolify-setup.md`](./coolify-setup.md). This document remains the **plain-compose reference** — the
+> same image/Dockerfile/compose services Coolify orchestrates under the hood, useful for understanding
+> the stack or as a no-PaaS fallback.
+
 The whole app runs on **one always-on host**: the custom `server.ts` serves Next **and**
 Socket.IO from one origin, alongside the **BullMQ worker**, **Postgres**, and **Redis**.
 Same-origin ⇒ the mobile-scanner realtime flow works with plain cookie auth (no

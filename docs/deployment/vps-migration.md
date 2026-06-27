@@ -2,9 +2,13 @@
 
 **Decision (2026-06-16): production is moving off Vercel+Neon to a self-hosted VPS.** Vercel was a
 stopgap — it can't run the BullMQ **worker** or **Socket.IO**, so marketplace sync, scheduled jobs, the
-scanner, and (later) WhatsApp stay dormant there. The VPS unblocks all of it. The step-by-step runbook is
-[`vps-setup.md`](./vps-setup.md); the provider/cost comparison + chosen package (HEMAT) is
-[`vps-cost-packages.md`](./vps-cost-packages.md).
+scanner, and (later) WhatsApp stay dormant there. The VPS unblocks all of it.
+
+> **UPDATE (2026-06-28): the chosen control plane is Coolify, staged from a 4 GB dev box.** The
+> step-by-step runbook is now [`coolify-setup.md`](./coolify-setup.md) (start on Biznet MS 4.2 + Coolify,
+> grow to 8 GB at go-live). The plain-`docker compose` runbook [`vps-setup.md`](./vps-setup.md) is the
+> under-the-hood reference. Cost ladder: [`vps-cost-packages.md`](./vps-cost-packages.md). Object-storage +
+> DNS resilience fallback: [`cloudflare-fallback.md`](./cloudflare-fallback.md).
 
 This migration is a **clean start** — no data is carried over from Neon (no `pg_dump`/restore; Lazada is
 re-authorized via OAuth on the new domain, so encryption-secret continuity is moot).
@@ -50,13 +54,16 @@ first, switch the DNS record, and keep Vercel as a fallback for ~48 h before tea
 
 ## Monitoring on the VPS
 
-- Pino logs → stdout → `docker compose logs` (or ship to Loki later).
-- Uptime monitoring (Uptime Kuma / Better Stack) hitting `https://<domain>/api/health`.
-- Sentry (optional) via `SENTRY_DSN`.
+- Pino logs → stdout → Coolify's built-in log viewer; **Dozzle + Sentry** as the day-one tier, Grafana
+  Cloud later (see [`coolify-setup.md`](./coolify-setup.md) §6).
+- Uptime monitoring (Uptime Kuma / Better Stack) hitting `https://<domain>/api/health`; Coolify
+  notifications (Telegram/Discord) for deploy/backup/disk/reachability.
+- Sentry (optional) via `SENTRY_DSN`, in both web and worker.
 
 ## Scaling path
 
-Single box now (HEMAT). When load grows: upgrade the box (Biznet NEO Lite Pro / 16 GB), then split
-Postgres and/or the worker onto their own hosts (just change `DATABASE_URL` / `REDIS_URL`), and add a CDN
-in front. The same image + compose scale up without code changes. A managed PaaS layer (Coolify) is the
-SEIMBANG upgrade — it adds git-push deploys, per-env management, and a backup UI on the same VPS.
+Start small (Biznet MS 4.2, 4 GB, Coolify, one env — dev/testing), grow to 8 GB (prod + staging) at
+go-live, then 16 GB at growth. When one box bottlenecks: split Postgres and/or the worker onto their own
+hosts (just change `DATABASE_URL` / `REDIS_URL`), add a CDN, and scale web horizontally (needs the
+Socket.IO Redis adapter + sticky sessions). The same image scales up without code changes. Full ladder +
+setup: [`coolify-setup.md`](./coolify-setup.md).

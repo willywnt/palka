@@ -1,10 +1,18 @@
 # VPS cost packages (self-host migration)
 
+> **UPDATE (2026-06-28) — staged plan + Coolify chosen.** The deploy is staged: **start NOW (dev/testing,
+> pre-go-live) on Biznet NEO Lite MS 4.2 (2 vCPU / 4 GB / 60 GB SSD, ~Rp139rb/mo) with Coolify from day
+> one, a single environment**; grow to the 8 GB box (prod + staging) at go-live; 16 GB at growth; split
+> tiers at scale. The control plane is **Coolify** (chosen over Dokploy — maturity/security/community for
+> a solo, money-handling go-live). Full ladder + setup: [`coolify-setup.md`](./coolify-setup.md). On a 4 GB
+> box, **build the image off-box in CI/GHCR** (never `next build` on the box) and run one env only. The
+> 8 GB "HEMAT" figures below are the **go-live** target, not the starting box.
+>
 > Decision context (2026-06-16): the owner is moving the production deploy **off Vercel+Neon to a
 > self-hosted VPS** (final direction, not a maybe). **Clean start** — no data migration from Neon.
-> Postgres + Redis self-hosted as containers on the VPS; files stay on **Cloudflare R2**; 2 environments
-> (staging + prod). **CHOSEN FOR NOW: the HEMAT package** (temporary — upgrade to Seimbang/Nyaman later as
-> load/budget grows). This file is the cost reference the choice was made from.
+> Postgres + Redis self-hosted as containers on the VPS; files stay on **Cloudflare R2** (with an
+> in-country fallback documented in [`cloudflare-fallback.md`](./cloudflare-fallback.md)). This file is
+> the cost reference the choice was made from.
 
 Prices are IDR/month. Biznet figures are from its public pricelist (verified 2026-06-16) and take −10% on
 annual billing (code `DISKON10`). IDCloudHost's full per-tier matrix isn't publicly scrapeable (confirm in
