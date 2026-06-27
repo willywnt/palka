@@ -82,6 +82,7 @@ model User {
   notificationPreferences    NotificationPreference[]
   expenses                   Expense[]
   expenseTemplates           ExpenseTemplate[]
+  budgets                    Budget[]
 
   @@map("users")
 }
@@ -144,6 +145,7 @@ model Organization {
   notificationPreferences    NotificationPreference[]
   expenses                   Expense[]
   expenseTemplates           ExpenseTemplate[]
+  budgets                    Budget[]
 
   @@map("organizations")
 }
@@ -1364,4 +1366,24 @@ model ExpenseTemplate {
 
   @@index([organizationId])
   @@map("expense_templates")
+}
+
+/// A monthly opex budget per category (set once, applies every month) for the Net P&L
+/// "Anggaran vs realisasi" view. NOT a ledger row — just the target. One per (org, category);
+/// unsetting = deleting the row. Org-scoped, finance.manage-managed.
+model Budget {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  category       ExpenseCategory
+  /// The monthly budget amount (rupiah) for this category.
+  amount         Decimal         @db.Decimal(14, 2)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([organizationId, category])
+  @@index([organizationId])
+  @@map("budgets")
 }
