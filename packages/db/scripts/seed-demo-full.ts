@@ -15,6 +15,7 @@
  */
 import { DEFAULT_STORAGE_QUOTA_BYTES } from '@falka/config/limits';
 import {
+  ExpenseCategory,
   MarketplaceMappingStatus,
   MarketplaceProvider,
   MarketplaceSyncJobStatus,
@@ -81,6 +82,9 @@ async function wipeOrgData(organizationId: string): Promise<void> {
   await prisma.productVariant.deleteMany({ where: { organizationId } }); // cascades inventory
   await prisma.product.deleteMany({ where: { organizationId } });
   await prisma.supplier.deleteMany({ where: { organizationId } });
+  await prisma.expense.deleteMany({ where: { organizationId } }); // before templates (FK SetNull)
+  await prisma.expenseTemplate.deleteMany({ where: { organizationId } });
+  await prisma.budget.deleteMany({ where: { organizationId } });
   await prisma.auditLog.deleteMany({ where: { organizationId } });
 }
 
@@ -277,13 +281,14 @@ async function main() {
   const organizationId = owner.id;
   const org = await prisma.organization.upsert({
     where: { id: organizationId },
-    update: { name: ORG_NAME },
+    update: { name: ORG_NAME, qrisFeeRate: 0.7 },
     create: {
       id: organizationId,
       name: ORG_NAME,
       storageQuotaBytes: BigInt(DEFAULT_STORAGE_QUOTA_BYTES),
       plan: 'Demo',
       memberLimit: 10,
+      qrisFeeRate: 0.7, // QRIS payment-fee rate (%) for the auto-derived fee estimate
     },
   });
   await prisma.organizationMember.upsert({
@@ -645,18 +650,21 @@ async function main() {
       provider: MarketplaceProvider.LAZADA,
       shopId: 'demo-lazada-01',
       shopName: 'Toko Falka (Lazada)',
+      commission: 5,
     },
     {
       key: 'shopee',
       provider: MarketplaceProvider.SHOPEE,
       shopId: 'demo-shopee-01',
       shopName: 'Toko Falka (Shopee)',
+      commission: 4.5,
     },
     {
       key: 'tokopedia',
       provider: MarketplaceProvider.TOKOPEDIA,
       shopId: 'demo-tokopedia-01',
       shopName: 'Toko Falka (Tokopedia)',
+      commission: 3,
     },
   ];
   for (const c of connectionSeeds) {
@@ -673,6 +681,7 @@ async function main() {
         isActive: true,
         lastImportedAt: daysAgo(3),
         knownWarehouseCodes: [],
+        commissionRate: c.commission, // % for the auto-derived MARKETPLACE_COMMISSION estimate
       },
     });
     connections[c.key] = { id: conn.id, shopId: c.shopId, provider: c.provider };
@@ -1211,6 +1220,130 @@ async function main() {
       },
     ],
   });
+
+  // ── Finance: recurring templates, budgets, opex ledger (manual + recurring + auto-fee) ───────
+  const ym = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const thisMonth = ym(new Date());
+
+  const rentTemplate = await prisma.expenseTemplate.create({
+    data: {
+      userId: owner.id,
+      organizationId,
+      category: ExpenseCategory.RENT,
+      amount: '2500000',
+      dayOfMonth: 1,
+      note: 'Sewa ruko bulanan',
+      isActive: true,
+    },
+  });
+  const salaryTemplate = await prisma.expenseTemplate.create({
+    data: {
+      userId: owner.id,
+      organizationId,
+      category: ExpenseCategory.SALARY,
+      amount: '3000000',
+      dayOfMonth: 25,
+      note: 'Gaji staf',
+      isActive: true,
+    },
+  });
+
+  // Monthly budgets per category — UTILITIES is set tight so it shows OVER-budget in the demo.
+  await prisma.budget.createMany({
+    data: [
+      {
+        userId: owner.id,
+        organizationId,
+        category: ExpenseCategory.ADVERTISING,
+        amount: '2000000',
+      },
+      { userId: owner.id, organizationId, category: ExpenseCategory.PACKAGING, amount: '1000000' },
+      { userId: owner.id, organizationId, category: ExpenseCategory.SALARY, amount: '3500000' },
+      { userId: owner.id, organizationId, category: ExpenseCategory.RENT, amount: '2500000' },
+      { userId: owner.id, organizationId, category: ExpenseCategory.UTILITIES, amount: '700000' },
+    ],
+  });
+
+  // A spread of opex across this month + last, mixing manual / recurring / auto-fee sources so
+  // the ledger flags, the Net P&L, and the budget-vs-actual all show realistic data.
+  const expenseSeeds: Array<{
+    category: ExpenseCategory;
+    amount: string;
+    day: number;
+    note: string;
+    templateId?: string;
+    autoSourceKey?: string;
+  }> = [
+    // Manual, this month.
+    {
+      category: ExpenseCategory.ADVERTISING,
+      amount: '850000',
+      day: 4,
+      note: 'Iklan FB minggu ini',
+    },
+    { category: ExpenseCategory.ADVERTISING, amount: '650000', day: 11, note: 'Iklan TikTok' },
+    { category: ExpenseCategory.PACKAGING, amount: '420000', day: 6, note: 'Bubble wrap + kardus' },
+    {
+      category: ExpenseCategory.SHIPPING_SUBSIDY,
+      amount: '300000',
+      day: 8,
+      note: 'Subsidi ongkir promo',
+    },
+    { category: ExpenseCategory.UTILITIES, amount: '760000', day: 13, note: 'Listrik + internet' },
+    { category: ExpenseCategory.OTHER, amount: '180000', day: 16, note: 'ATK + lain-lain' },
+    // Recurring — generated from the templates this month.
+    {
+      category: ExpenseCategory.RENT,
+      amount: '2500000',
+      day: 20,
+      note: 'Sewa ruko bulanan',
+      templateId: rentTemplate.id,
+    },
+    {
+      category: ExpenseCategory.SALARY,
+      amount: '3000000',
+      day: 2,
+      note: 'Gaji staf',
+      templateId: salaryTemplate.id,
+    },
+    // Auto-derived fees this month.
+    {
+      category: ExpenseCategory.PAYMENT_FEE,
+      amount: '63000',
+      day: 19,
+      note: `Estimasi fee QRIS`,
+      autoSourceKey: `qris-fee:${thisMonth}`,
+    },
+    {
+      category: ExpenseCategory.MARKETPLACE_COMMISSION,
+      amount: '210000',
+      day: 19,
+      note: 'Komisi Toko Falka (Lazada)',
+      autoSourceKey: `mp-commission:${connections.lazada!.id}:${thisMonth}`,
+    },
+    // Last month (gives the Net P&L per-period trend some history).
+    { category: ExpenseCategory.ADVERTISING, amount: '1200000', day: 38, note: 'Iklan bulan lalu' },
+    { category: ExpenseCategory.RENT, amount: '2500000', day: 36, note: 'Sewa bulan lalu' },
+  ];
+  for (const e of expenseSeeds) {
+    const generated = e.templateId !== undefined || e.autoSourceKey !== undefined;
+    await prisma.expense.create({
+      data: {
+        userId: owner.id,
+        organizationId,
+        category: e.category,
+        amount: e.amount,
+        date: daysAgo(e.day),
+        note: e.note,
+        ...(e.templateId ? { templateId: e.templateId } : {}),
+        ...(e.autoSourceKey ? { autoSourceKey: e.autoSourceKey } : {}),
+        ...(generated ? { periodMonth: thisMonth } : {}),
+      },
+    });
+  }
+  console.log(
+    `Finance: ${expenseSeeds.length} expenses (manual/recurring/auto-fee), 2 templates, 5 budgets, fee rates set.`,
+  );
 
   console.log('\n✅ Demo org seeded. Sign in (password for all):', PASSWORD);
   console.log(`   OWNER  ${OWNER_EMAIL}`);
