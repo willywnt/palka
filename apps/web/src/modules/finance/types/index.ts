@@ -102,3 +102,29 @@ export type DeriveFeesResult = {
   /** Σ of all derived fees written/updated this run. */
   totalFee: string;
 };
+
+/** A monthly opex budget for one category (set once, applies every month). */
+export type BudgetListItem = {
+  category: ExpenseCategory;
+  amount: string;
+};
+
+/** One category's budget vs this month's actual spend. */
+export type BudgetReportRow = {
+  category: ExpenseCategory;
+  budget: string;
+  actual: string;
+  /** budget − actual (negative when over budget). */
+  remaining: string;
+  /** actual / budget × 100 (null when budget is 0). */
+  pctUsed: number | null;
+  over: boolean;
+};
+
+/** Budget-vs-actual for a month — budgeted categories, most-used first. */
+export type BudgetReport = {
+  month: string;
+  rows: BudgetReportRow[];
+  totalBudget: string;
+  totalActual: string;
+};

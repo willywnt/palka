@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { prisma } from '@falka/db';
-import type { Expense, Prisma } from '@prisma/client';
+import type { Expense, ExpenseCategory, Prisma } from '@prisma/client';
 
 import { appLogger } from '@/lib/logger';
 import { auditService } from '@/modules/audit/services/audit.service';
@@ -77,6 +77,20 @@ export class ExpenseServerService {
       category: row.category,
       amount: Number(row.amount),
     }));
+  }
+
+  /** Σ live expenses per category in a date range — the "actual" for budget-vs-actual. */
+  async sumByCategoryForRange(
+    organizationId: string,
+    from: Date,
+    to: Date,
+  ): Promise<{ category: ExpenseCategory; amount: number }[]> {
+    const rows = await prisma.expense.groupBy({
+      by: ['category'],
+      where: { organizationId, deletedAt: null, date: { gte: from, lte: to } },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({ category: row.category, amount: Number(row._sum.amount ?? 0) }));
   }
 
   async createExpense(
