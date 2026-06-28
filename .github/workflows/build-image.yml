@@ -1,0 +1,75 @@
+name: Build image
+
+# Builds the single monorepo image (web + worker) OFF the VPS and pushes it to GHCR,
+# so Coolify only PULLS it (the 4 GB box must never run `next build` — it peaks ~2 GB
+# and would OOM next to Coolify + Postgres). See docs/deployment/coolify-setup.md §3.
+#
+# Triggers: every push to main (builds `latest` + `sha-<commit>`), and a manual run
+# (workflow_dispatch) that also tags whatever you pass as `tag` (default `prod`) —
+# point Coolify at `:prod` and re-run this to cut a release. Doc-only changes skipped.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Extra image tag to publish (e.g. prod)'
+        required: false
+        default: 'prod'
+
+concurrency:
+  group: build-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build + push → GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Computes the image ref (lowercased) + tags. metadata-action lowercases the
+      # image name for us; ghcr.io/<owner>/<repo> = ghcr.io/willywnt/palka.
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Build + push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # NEXT_PUBLIC_* are inlined into the client bundle at build time, so the prod
+          # URL must be known here (per-env image). Set repo Variable NEXT_PUBLIC_APP_URL
+          # to the real prod origin (e.g. https://palka.app); falls back to a placeholder.
+          build-args: |
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL || 'https://palka.app' }}
+            NEXT_PUBLIC_APP_NAME=Palka
+            NEXT_PUBLIC_ENABLE_MOBILE_SCANNER=true

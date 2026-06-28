@@ -33,6 +33,21 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
     NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME \
     NEXT_PUBLIC_ENABLE_MOBILE_SCANNER=$NEXT_PUBLIC_ENABLE_MOBILE_SCANNER \
     DATABASE_URL=$DATABASE_URL
+# Build-time-ONLY placeholders so the production env schema passes during `next build`
+# (it runs as NODE_ENV=production and the validated schema rejects missing required vars).
+# These live in the BUILD stage only — they do NOT carry into the runtime image (a separate
+# stage), so the real secrets come from the platform (Coolify) at run time. Mirrors the CI
+# `gates` job env in .github/workflows/ci.yml. NOT secrets — nothing connects out at build.
+ENV AUTH_SECRET=build-placeholder-auth-secret-padding-0000000000 \
+    MARKETPLACE_ENCRYPTION_SECRET=build-placeholder-encryption-secret-pad \
+    REDIS_URL=redis://localhost:6379 \
+    R2_ACCOUNT_ID=build \
+    R2_ACCESS_KEY_ID=build \
+    R2_SECRET_ACCESS_KEY=build \
+    R2_RECORDINGS_BUCKET_NAME=build-recordings \
+    R2_PUBLIC_URL=https://r2-recordings.build.example.com \
+    R2_PRODUCTS_BUCKET_NAME=build-products \
+    R2_PRODUCTS_PUBLIC_URL=https://r2-products.build.example.com
 COPY . .
 # postinstall runs `prisma generate`; pnpm store is cached across builds.
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
