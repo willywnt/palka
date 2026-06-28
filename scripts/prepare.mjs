@@ -1,9 +1,9 @@
 /**
- * Skip Husky in CI/Vercel where devDependencies are not installed.
+ * Skip Husky in CI / container builds where devDependencies are not installed.
  */
 import { spawnSync } from 'node:child_process';
 
-const skip = process.env.CI === 'true' || process.env.VERCEL === '1' || process.env.HUSKY === '0';
+const skip = process.env.CI === 'true' || process.env.HUSKY === '0';
 
 if (skip) {
   process.exit(0);

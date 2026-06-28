@@ -103,24 +103,11 @@ openssl rand -base64 32
 
 > **Production = self-hosted VPS + Coolify (LIVE 2026-06-28).** Self-hosted Postgres + Redis in
 > Docker, keeping R2; Vercel/Neon retired. Env is set in the Coolify resource — see
-> [deployment/coolify-setup.md](./deployment/coolify-setup.md). (The Preview/Production rows below
-> were the old Vercel/Neon stopgap — historical.)
+> [deployment/coolify-setup.md](./deployment/coolify-setup.md).
 
-| Environment         | Database             | Redis              | Storage        | Hosting           |
-| ------------------- | -------------------- | ------------------ | -------------- | ----------------- |
-| Local               | Docker Postgres      | Docker Redis       | Cloudflare R2  | `pnpm dev`        |
-| Preview (today)     | Neon (branch)        | Upstash (optional) | R2 dev bucket  | Vercel preview    |
-| Production (today)  | Neon (main)          | Upstash (optional) | R2 prod bucket | Vercel production |
-| Production (target) | Self-hosted Postgres | Self-hosted Redis  | Cloudflare R2  | VPS (Docker)      |
+| Environment | Database                | Redis               | Storage        | Hosting       |
+| ----------- | ----------------------- | ------------------- | -------------- | ------------- |
+| Local / dev | Local Docker Postgres   | Local Docker Redis  | R2 dev bucket  | local         |
+| Production  | Self-hosted Postgres 16 | Self-hosted Redis 7 | R2 prod bucket | Coolify (VPS) |
 
-Use **separate Neon databases** for development and production. Never point preview/production at your local Docker Postgres.
-
-## Vercel configuration
-
-Set all server variables in **Project Settings → Environment Variables**:
-
-- **Production**: `main` branch deploys
-- **Preview**: `develop` and `feature/*` branches
-- **Development**: optional, for `vercel dev`
-
-Mark secrets as **Sensitive**. Do not commit `.env` files.
+Use **separate Postgres databases** for development and production. Never point production at your local Docker Postgres.

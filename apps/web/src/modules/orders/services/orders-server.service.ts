@@ -568,7 +568,7 @@ export class OrdersServerService {
 
   /**
    * Pull EVERY active store across all orgs — the VPS custom-server scheduler calls this on an
-   * interval (dormant on Vercel, where the custom server doesn't run). Per connection: honours
+   * interval (only where the custom server runs — the VPS host). Per connection: honours
    * the per-provider cooldown, uses the connection's own creator as the actor, and never lets
    * one store's failure abort the rest. Incremental only (a full backfill stays a manual action).
    */

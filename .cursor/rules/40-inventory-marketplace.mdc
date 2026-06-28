@@ -123,10 +123,9 @@ Org-scoped (`organizationId`), internal-first. Roadmap + locked decisions:
     `{ orders, complete }`; a throttle/page-cap-truncated pull leaves it so the tail isn't skipped).
     `full:true` ignores the cursor (manual re-sync / fix backlog). Sort = `externalUpdatedAt desc NULLS
     LAST, placedAt, id`.
-  - **VPS auto-pull** (dormant on Vercel): `runScheduledPull()` (all orgs, `connection.userId` as actor)
+  - **VPS auto-pull** (runs on the VPS custom server): `runScheduledPull()` (all orgs, `connection.userId` as actor)
     hit by a `server.ts` loopback timer → secret-gated `POST /api/v1/internal/pull-orders`, env
-    `ORDERS_AUTO_PULL_INTERVAL_MS` (unset=off). [Batch-3 hardening owed: dedicated secret + 404 on Vercel
-    + fetch timeout.]
+    `ORDERS_AUTO_PULL_INTERVAL_MS` (unset=off). [Batch-3 hardening owed: dedicated secret + fetch timeout.]
   - `resolveOrderItem` (manual Kaitkan, also from the peek) maps via `mapByExternalRef` + reserves just
     the newly-resolved PAID-order items (idempotent). Per-status detail (SLA/courier/payment/note/cancel
     reason) + per-item photo/link come from `Order.rawPayload` at read-time (`extractOrderMarketplaceMeta`
@@ -295,7 +294,7 @@ Inventory><WarehouseCode/><Quantity/></…>` block and **OMITS the rest — Laza
   (**marketplace.manage** — it calls the provider). UI: a **"Kesehatan & drift"** panel on the connection
   detail (health summary + "Periksa drift" + per-row "Sync sekarang"), dashboard health badges/summary, and a
   `marketplaceUnhealthy` nav pulse (gated by `marketplace.view`).
-- **Worker (VPS/dev only — gated off on Vercel):** `MARKETPLACE_RECONCILE` queue runs two daily scheduled
+- **Worker (runs on the VPS):** `MARKETPLACE_RECONCILE` queue runs two daily scheduled
   jobs via job-name routing — `reconcile-marketplace-drift` (per active connection: rate-limited
   `adapter.fetchListings` → `computeStockDrift` → **log** over/under/missing; stub providers return `null` →
   skipped; best-effort per connection) and `refresh-marketplace-tokens` (renews tokens expiring within the
@@ -355,7 +354,7 @@ tracking) + shared `QrImage`/`QrCodeDialog` on the product-detail & inventory ta
 scan-to-cart/order**: POS (`usePosScanner`, purpose POS) and New PO (`usePurchaseScanner`, purpose
 PURCHASING) add a line by scanning a product label (repeat = +qty), reusing **`scanner-pairing`** — see
 `30-scanner-pairing.mdc` for the purpose split, verbatim `scannedCodeSchema`, QR+1D reader, and
-browser-only sound. Realtime needs the socket host (`server.ts`, gated off on Vercel) → dev/VPS only.
+browser-only sound. Realtime needs the socket host (`server.ts`, runs on the VPS + in dev).
 
 ## Paginated tables (shared)
 Inventory overview, the label picker, and the New-PO product picker use `usePagination` +

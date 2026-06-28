@@ -253,8 +253,8 @@ Scan a SKU at the counter instead of typing the search box. Both halves shipped.
   `normalizeBarcodeValue` removed); the reader accepts QR + 1D. Resolvers:
   `GET /sales|purchase-orders/variants/resolve?code=` (barcode-then-sku, case-insensitive). Scan feedback
   (beep + countdown ticks) is **browser-only** (`@/lib/scan-sound`).
-- **Gating.** Phase B needs the realtime **socket host** (custom `server.ts`, **NOT on Vercel** — single-host
-  Indonesia VPS, see the deploy plan), so it's dev/VPS-only; Phase A labels work anywhere.
+- **Gating.** Phase B needs the realtime **socket host**, which now runs on the VPS (the custom `server.ts`
+  in the web container — single-host Indonesia VPS, see the deploy plan), so it's dev/VPS-only; Phase A labels work anywhere.
 - **Deferred (still open):** a dedicated 1D/Code128 print format + per-variant override; bulk label
   reprints; copies-per-label; hardware USB/Bluetooth (HID keyboard-wedge) scanner at the POS search box.
 

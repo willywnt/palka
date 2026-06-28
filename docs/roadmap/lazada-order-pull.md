@@ -92,10 +92,10 @@ fallback, placedAt-not-rewritten). Plus the earlier fulfilledAt false-stamp fix.
 ### Deferred / open
 
 - **Batch 3 — VPS hardening:** the `server.ts` loopback fetch now has an `AbortSignal.timeout`
-  (2026-06-26) so a hung request can't wedge auto-pull. **Still deferred to the VPS cutover** (they
-  need a `turbo.json` env declaration, so confirm under HARD CONSTRAINT #3 then): a dedicated
-  `INTERNAL_PULL_SECRET` (instead of reusing `AUTH_SECRET`) + a rate-limit + **404 on Vercel** (the
-  internal `/api/v1/internal/pull-orders` endpoint is reachable on Vercel where nothing calls it).
+  (2026-06-26) so a hung request can't wedge auto-pull. **Still owed** (it needs a `turbo.json` env
+  declaration, so confirm under HARD CONSTRAINT #3 then): a dedicated `INTERNAL_PULL_SECRET` (instead
+  of reusing `AUTH_SECRET`) + a rate-limit. The internal `/api/v1/internal/pull-orders` endpoint now
+  runs on the VPS custom server and is called by the VPS scheduler.
 - **#7 (skipped, safe):** an items-fetch throttle THROWS → the cursor isn't advanced → safe retry.
   Making it `partial` risks the freeze interaction (a reserved order returned with empty lines), so left
   as-is. Revisit only if a very busy shop perpetually re-throttles the items phase.

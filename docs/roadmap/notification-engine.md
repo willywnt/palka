@@ -1,20 +1,20 @@
 # Palka — Notification Engine: persistent + WhatsApp evolution
 
 > Companion to [`backlog.md`](./backlog.md) big-bet **A**. The **in-app tray shipped 2026-06-16** as an
-> honest DERIVED feed (no schema, no worker → runs on Vercel today): a navbar bell over the same queries
+> honest DERIVED feed (no schema, no worker — derived/client-only): a navbar bell over the same queries
 > `useOpsPulse` + Pandu already keep warm. Files: `components/notifications/{use-notifications,notification-bell}.ts(x)`
 >
 > - `store/notifications-store.ts`. This doc is the **design for the next step** — evolve that derived tray
 >   into a PERSISTENT event-log (history + cross-device read state) and add a **WhatsApp** delivery channel —
->   sequenced so value ships incrementally and **never blocks on infra Vercel can't host**. NOT yet built;
+>   sequenced so value ships incrementally. NOT yet built;
 >   schema needs confirmation first (HARD CONSTRAINT #1).
 
 ## Guiding constraints (why the design looks like this)
 
-1. **Vercel runs only `@palka/web`.** The BullMQ worker + Socket.IO are dormant in prod (no Procfile /
-   railway / render / fly host; VPS Option A scaffold exists on `chore/deploy-vps-setup` but isn't deployed).
-   So persistence + delivery **must not assume the worker exists**. Anything that genuinely needs a scheduler
-   is explicitly deferred or bridged with a Vercel Cron route.
+1. **The always-on VPS runs the full stack.** The BullMQ worker + Socket.IO now run in prod on the
+   self-hosted Biznet VPS (Coolify). So persistence + delivery **can rely on the worker host**, and anything
+   that needs a scheduler is a scheduled worker job — though the worker-dependent steps below are designed so
+   the derived/instant first step ships independently.
 2. **Org-scoped, multi-member** (HARD #6). A notification's audience is the org's members, so per-user read
    state is a **join table** (`NotificationRead`), never a `readAt` column (a column models only one reader).
 3. **Additive, zero-downtime migrations.** Hand-written `migration.sql` + `db:migrate:deploy`; new tables/enums
@@ -158,28 +158,29 @@ model NotificationDelivery {
 - **Discrete** (order/refund/PO): entity-keyed (`order-placed:<orderId>`); the unique makes a retried producer a
   safe no-op upsert.
 
-## Generation strategy (what works on Vercel today vs needs the worker)
+## Generation strategy (derived/client-only first step vs the now-available VPS worker path)
 
-| Pattern                                                                                                                                       | Events                                                                                                                                                                                                                                                                                                                                                                                                                                     | Where                                                                                                                                  | Vercel?                                                                    |
-| --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **After-tx (best-effort)** (one idempotent emit right after the tx commits — audit pattern, so a notification bug can't roll back the action) | `ORDER_PLACED`/`ORDER_SHIPPED` (`orders-server.service.ts` `pullOneConnection` ~514/605, guarded by `inventoryAppliedAt`/`inventoryShippedAt`), `RETURN_PROCESSED` (`returns-server.service.ts` `processReturn`), `SALE_REFUNDED`+`SALE_BELOW_COST` (`sales-server.service.ts` `createSale`/refund), `PURCHASE_RECEIVED` (`purchasing-server.service.ts` `receivePurchaseOrder`), `OPNAME_POSTED` (`stock-opname.service.ts` `postOpname`) | best-effort emit AFTER the tx commits                                                                                                  | ✅ works now                                                               |
-| **Crossing-in-tx** (write ONLY on the boundary crossing, not every decrement)                                                                 | `LOW_STOCK` (prev>thr && new≤thr), `STOCK_OVERSOLD` (prev≥0 && new<0)                                                                                                                                                                                                                                                                                                                                                                      | `inventory-server.service.ts` apply\* tx                                                                                               | ✅ works now                                                               |
-| **Vercel-Cron recompute** (no-worker bridge for the 7 rolled-up signals)                                                                      | `STOCK_OVERSOLD`/`RESTOCK_URGENT`/`LOW_STOCK`/`DEAD_STOCK_CAPITAL`/`MARKETPLACE_CHANNEL_UNHEALTHY`/`ORDERS_TO_SHIP`/`RETURNS_PENDING`                                                                                                                                                                                                                                                                                                      | `POST /api/internal/notifications/recompute` (CRON_SECRET) runs the ops-pulse aggregates + upserts one stable-keyed row per (org,type) | ✅ works now (daily on Hobby, ~15-min on Pro) — a **snapshot**, not a diff |
-| **Worker-scan** (deferred until VPS)                                                                                                          | `MARKETPLACE_SYNC_FAILED` (recorded inside the sync worker job), incremental `MARKETPLACE_TOKEN_EXPIRING` / health-tone-diff / dead-stock-diff (stateful daily scans), auto-detected `RETURN_OPENED` (best-effort outside the order tx)                                                                                                                                                                                                    | `@palka/queue` worker                                                                                                                  | ⏸ dormant on Vercel                                                        |
+| Pattern                                                                                                                                       | Events                                                                                                                                                                                                                                                                                                                                                                                                                                     | Where                                                                                                                                  | Status                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **After-tx (best-effort)** (one idempotent emit right after the tx commits — audit pattern, so a notification bug can't roll back the action) | `ORDER_PLACED`/`ORDER_SHIPPED` (`orders-server.service.ts` `pullOneConnection` ~514/605, guarded by `inventoryAppliedAt`/`inventoryShippedAt`), `RETURN_PROCESSED` (`returns-server.service.ts` `processReturn`), `SALE_REFUNDED`+`SALE_BELOW_COST` (`sales-server.service.ts` `createSale`/refund), `PURCHASE_RECEIVED` (`purchasing-server.service.ts` `receivePurchaseOrder`), `OPNAME_POSTED` (`stock-opname.service.ts` `postOpname`) | best-effort emit AFTER the tx commits                                                                                                  | ✅ works now (in the custom server)                                      |
+| **Crossing-in-tx** (write ONLY on the boundary crossing, not every decrement)                                                                 | `LOW_STOCK` (prev>thr && new≤thr), `STOCK_OVERSOLD` (prev≥0 && new<0)                                                                                                                                                                                                                                                                                                                                                                      | `inventory-server.service.ts` apply\* tx                                                                                               | ✅ works now (in the custom server)                                      |
+| **Scheduled recompute** (for the 7 rolled-up signals)                                                                                         | `STOCK_OVERSOLD`/`RESTOCK_URGENT`/`LOW_STOCK`/`DEAD_STOCK_CAPITAL`/`MARKETPLACE_CHANNEL_UNHEALTHY`/`ORDERS_TO_SHIP`/`RETURNS_PENDING`                                                                                                                                                                                                                                                                                                      | `POST /api/internal/notifications/recompute` (CRON_SECRET) runs the ops-pulse aggregates + upserts one stable-keyed row per (org,type) | ⏳ VPS-era worker/cron step — not built yet — a **snapshot**, not a diff |
+| **Worker-scan** (VPS-era — worker host now exists, not built yet)                                                                             | `MARKETPLACE_SYNC_FAILED` (recorded inside the sync worker job), incremental `MARKETPLACE_TOKEN_EXPIRING` / health-tone-diff / dead-stock-diff (stateful daily scans), auto-detected `RETURN_OPENED` (best-effort outside the order tx)                                                                                                                                                                                                    | `@palka/queue` worker                                                                                                                  | ⏳ not built yet                                                         |
 
-> Net: **all discrete + crossing events + rolled-up signals work in prod today**; only 5 genuinely
-> worker-only events wait for the VPS host. Do **not** inline the rolled-up recompute into read services
-> (couples every dashboard read to a write + N+1) — keep it on the cron route.
+> Net: **all discrete + crossing events ship in prod via the custom server today**; the rolled-up-signal
+> recompute + the 5 worker-only events are VPS-era worker/cron steps (the worker host now exists) — not built
+> yet. Do **not** inline the rolled-up recompute into read services (couples every dashboard read to a write +
+> N+1) — keep it on the scheduled-job route.
 
 ## Phased roadmap
 
-| Phase                                                                 | Goal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Gate                                            | Effort                          |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------- |
-| **0 — Baseline** (shipped)                                            | Derived tray stays verbatim; lock the bell contract + confirm `dedupeKey` shape == current per-datum ids                                                                                                                                                                                                                                                                                                                                                                                                                          | none                                            | done                            |
-| **1 — Persistent log + server read-state** ✅ SHIPPED 2026-06-16      | `Notification`+`NotificationRead` migration; **`modules/notifications`** (service + meta + validators + errors + keys/hooks, mirrors `modules/audit`); `GET /api/v1/notifications` + `POST /read-all` + `POST /:id/read` (withApiRoute, Zod, one service); `use-notifications` becomes the UNION selector; read state on the DB for persisted rows (localStorage still serves the derived signals this phase). Bell unchanged. **100% Vercel-native, shares NONE of WhatsApp's gating.**                                          | schema                                          | done                            |
-| **2 — Producers** ✅ SHIPPED 2026-06-16 (hybrid — see decision below) | ✅ done: 8 best-effort after-tx producers (SALE_BELOW_COST · PURCHASE_RECEIVED · RETURN_PROCESSED · OPNAME_POSTED · ORDER_PLACED · ORDER_SHIPPED · SALE_REFUNDED · RETURN_OPENED), RBAC category-filtering of the tray (`hiddenNotificationCategories`), and a "Lihat semua" paginated **history page** (`/dashboard/notifications`). **DEFERRED to the VPS era (not throwaway):** the Vercel-Cron recompute for the 7 rolled-up signals (they stay derived/instant for now), retire `notifications-store.ts`, retention cleanup. | none                                            | done (hybrid)                   |
-| **3 — Preferences**                                                   | `NotificationPreference` migration + `resolveNotificationChannels(org,user,category)` (precedence: user override > org default > code defaults — IN_APP on, WHATSAPP off, EMAIL off); Settings → "Notifikasi" matrix (member edits own; OWNER/ADMIN edit org default, gated like Peran & akses); tray honors STAFF view-permission keys                                                                                                                                                                                           | schema                                          | ~2–3d                           |
-| **4 — WhatsApp delivery**                                             | `NotificationDelivery` outbox migration + `NotificationChannel` adapter (Twilio first); producers also INSERT PENDING delivery rows for opted-in members; drain via `POST /api/internal/notifications/drain` (CRON_SECRET, `FOR UPDATE SKIP LOCKED`, backoff); pre-approved UTILITY templates. Flip the drain to a `dispatch-notifications` BullMQ consumer when the VPS lands — **producers untouched**.                                                                                                                         | external (Meta verification + worker/cron host) | ~1–2wk + verification lead time |
+| Phase                                                                 | Goal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Gate                         | Effort                          |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ------------------------------- |
+| **0 — Baseline** (shipped)                                            | Derived tray stays verbatim; lock the bell contract + confirm `dedupeKey` shape == current per-datum ids                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | none                         | done                            |
+| **1 — Persistent log + server read-state** ✅ SHIPPED 2026-06-16      | `Notification`+`NotificationRead` migration; **`modules/notifications`** (service + meta + validators + errors + keys/hooks, mirrors `modules/audit`); `GET /api/v1/notifications` + `POST /read-all` + `POST /:id/read` (withApiRoute, Zod, one service); `use-notifications` becomes the UNION selector; read state on the DB for persisted rows (localStorage still serves the derived signals this phase). Bell unchanged. **Pure web-app, shares NONE of WhatsApp's gating.**                                                                                         | schema                       | done                            |
+| **2 — Producers** ✅ SHIPPED 2026-06-16 (hybrid — see decision below) | ✅ done: 8 best-effort after-tx producers (SALE_BELOW_COST · PURCHASE_RECEIVED · RETURN_PROCESSED · OPNAME_POSTED · ORDER_PLACED · ORDER_SHIPPED · SALE_REFUNDED · RETURN_OPENED), RBAC category-filtering of the tray (`hiddenNotificationCategories`), and a "Lihat semua" paginated **history page** (`/dashboard/notifications`). **DEFERRED to a VPS-era worker/cron step (the worker host now exists), not built yet:** the scheduled recompute for the 7 rolled-up signals (they stay derived/instant for now), retire `notifications-store.ts`, retention cleanup. | none                         | done (hybrid)                   |
+| **3 — Preferences**                                                   | `NotificationPreference` migration + `resolveNotificationChannels(org,user,category)` (precedence: user override > org default > code defaults — IN_APP on, WHATSAPP off, EMAIL off); Settings → "Notifikasi" matrix (member edits own; OWNER/ADMIN edit org default, gated like Peran & akses); tray honors STAFF view-permission keys                                                                                                                                                                                                                                    | schema                       | ~2–3d                           |
+| **4 — WhatsApp delivery**                                             | `NotificationDelivery` outbox migration + `NotificationChannel` adapter (Twilio first); producers also INSERT PENDING delivery rows for opted-in members; drain via `POST /api/internal/notifications/drain` (CRON_SECRET, `FOR UPDATE SKIP LOCKED`, backoff); pre-approved UTILITY templates. Flip the drain to a `dispatch-notifications` BullMQ consumer (the VPS worker host now exists) — **producers untouched**.                                                                                                                                                    | external (Meta verification) | ~1–2wk + verification lead time |
 
 ## WhatsApp plan (adapter-first, outbox-backed, never a launch blocker)
 
@@ -189,11 +190,11 @@ model NotificationDelivery {
   own WABA → kills the ~20–40% BSP markup, true per-org sender). **Qiscus** is the fallback if local IDR billing
   - Bahasa Meta-verification help matters more than price. **Reject Fonnte/Watzap** (unofficial WhatsApp-Web
     automation = Meta ban risk + ToS violation) for production.
-- **Topology (survives no-worker reality):** producers write `NotificationDelivery` rows (PENDING) as a durable
+- **Topology (outbox-backed):** producers write `NotificationDelivery` rows (PENDING) as a durable
   **outbox** in the same tx as the `Notification`; a CRON_SECRET-gated `/api/internal/notifications/drain` route
-  claims due rows, sends via the adapter, advances SENT/FAILED with backoff. Vercel Cron (Pro, 1-min) or
-  QStash/external cron for sub-minute on Hobby. When the VPS worker lands, a BullMQ consumer drains the **same
-  outbox** — flip the runner, zero producer changes. Outbox accumulates harmlessly until then (no lost events).
+  claims due rows, sends via the adapter, advances SENT/FAILED with backoff. The VPS worker host now exists, so
+  a BullMQ consumer can drain the **same outbox** on any cadence (or the scheduled-job route can trigger the
+  drain) — flip the runner, zero producer changes. Outbox accumulates harmlessly until then (no lost events).
 - **Gating (start EARLY, in parallel):** Meta business verification is the long pole (~10 min to ~30 days).
   Alerts fire **outside** the 24h window → each type needs a **pre-approved UTILITY template** (strictly
   transactional copy; mis-categorizing as marketing is the #1 rejection). **ID utility rates rose ~25% in
@@ -211,9 +212,9 @@ model NotificationDelivery {
 3. **N+1 in hot tx:** one upsert per producer; `SALE_BELOW_COST` = one row with a line count (never per-line);
    never inline the rolled-up recompute into read services.
 4. **localStorage→server migration race:** Phase 1 dual-read (read = either source); Phase 2 retires the store;
-   no backfill (log starts empty). Brief cross-device unread flicker is accepted (no Socket.IO on Vercel).
-5. **Worker-dormant blind spots:** 5 events stay dormant until VPS; the cron recompute covers the 7 rolled-up
-   signals but is a _snapshot, not a diff_ (re-detects "unhealthy" but misses the transient sync-FAILURE moment).
+   no backfill (log starts empty). Brief cross-device unread flicker is accepted (tray polls; no live push yet).
+5. **Not-yet-built blind spots:** 5 events are VPS-era worker steps not built yet; the scheduled recompute will
+   cover the 7 rolled-up signals but is a _snapshot, not a diff_ (re-detects "unhealthy" but misses the transient sync-FAILURE moment).
 6. **Retention/growth:** `NotificationRead` is per (notification,user) → a 10-member org multiplies rows; need a
    ~90d cleanup (mirror `cleanup-audit-logs.job.ts`). At very large scale, a denormalized `lastSeenAt` high-water
    mark on `OrganizationMember` can fast-path the bell badge instead of the unread anti-join.
@@ -224,8 +225,8 @@ model NotificationDelivery {
 
 1. **Rolled-up dedupe shape** — stable key + count-bump + clear-reads-on-rise (recommended, fewer rows) vs
    magnitude-in-key (mirrors today exactly, piles rows). Confirm the re-arm UX (re-notify when oversold 3→4?).
-2. **Rolled-up producer placement** — Vercel-Cron recompute endpoint (recommended) vs inline upsert in read
-   services. Plus cron cadence (Hobby=daily-only vs Pro=1-min).
+2. **Rolled-up producer placement** — scheduled recompute endpoint / worker job (recommended) vs inline upsert
+   in read services. Plus the worker cadence.
 3. **RBAC on org-wide alerts** — should the tray filter `MARKETPLACE_*`/`DEAD_STOCK`/reports rows by the same
    nav permission keys (so STAFF only sees what they can open)?
 4. **Unread-count at scale** — accept the `NotificationRead` anti-join, or add a `lastSeenAt` high-water mark?
@@ -233,25 +234,26 @@ model NotificationDelivery {
 6. **EMAIL channel** — drop from v1 (no email infra; invites go via WA) or keep as a disabled placeholder enum.
 
 **Before Phase 4 (WhatsApp):** 7. **WA destination ownership** — store the number on `User` (the person) or `OrganizationMember` (the
-membership)? Plus opt-in/verification flow (its own small migration). 8. **Provider for Phase A** — Twilio-first-then-Meta-direct (recommended) vs Qiscus (local IDR + Bahasa help). 9. **Drain trigger on Hobby** — accept daily Vercel Cron, or add QStash/external cron for near-real-time WA. 10. **DELIVERED webhook reconciliation** — a public Vercel webhook updating `NotificationDelivery` by
+membership)? Plus opt-in/verification flow (its own small migration). 8. **Provider for Phase A** — Twilio-first-then-Meta-direct (recommended) vs Qiscus (local IDR + Bahasa help). 9. **Drain trigger cadence** — how often the VPS worker / scheduled job drains the outbox for near-real-time WA. 10. **DELIVERED webhook reconciliation** — a public webhook updating `NotificationDelivery` by
 `providerMessageId`, or is SENT (provider-accepted) good enough for v1?
 
 ---
 
 ## Decision (2026-06-16): hybrid now → full server-backed on VPS
 
-The owner is moving the deploy to a **VPS** (always-on host) soon. That reframes the rolled-up-signal
-question: a Vercel-Cron recompute would be **throwaway** — once the VPS lands, the BullMQ worker supersedes it
+The deploy now runs on an always-on **VPS**. That reframes the rolled-up-signal
+question: a standalone scheduled recompute is unnecessary glue — the BullMQ worker can do it
 with any cadence (per-minute / incremental diff) **and** that worker is the foundation WhatsApp (Phase 4) needs
 anyway. So:
 
-- **Now (Vercel era):** keep the 7 rolled-up signals **derived/instant** (client, free, zero infra — ideal
-  while there's no worker). Persist only **discrete events** (the 8 producers) + per-user server read-state +
+- **Shipped step:** keep the 7 rolled-up signals **derived/instant** (client, free, zero infra). Persist only
+  **discrete events** (the 8 producers) + per-user server read-state +
   history page. This is NOT a dead end: the union selector + stable `dedupeKey` already leave room for persisted
   rolled-up rows, so the worker can fill them later **without touching the UI**.
-- **VPS era:** a worker job recomputes/diffs the 7 rolled-up signals into persisted rows (retiring the derived
-  tier + `notifications-store.ts`), runs retention, lights up the 5 worker-only events (sync-failed,
-  token-expiring, health-diff, dead-stock-diff, auto-return), and drains the WhatsApp outbox (Phase 4).
+- **VPS-era step (worker host now exists, not built yet):** a worker job recomputes/diffs the 7 rolled-up
+  signals into persisted rows (retiring the derived tier + `notifications-store.ts`), runs retention, lights up
+  the 5 worker-only events (sync-failed, token-expiring, health-diff, dead-stock-diff, auto-return), and drains
+  the WhatsApp outbox (Phase 4).
 
 ---
 
@@ -266,4 +268,4 @@ future org-default tier; `DeliveryChannel` enum reserved for Phase 4 — only `I
 `notificationPreferenceService` (missing row = ON, only opt-outs stored). The tray list + read-all routes
 union the member's muted categories with the existing RBAC hiding; a **Settings → Notifikasi** tab (all
 roles, self-scoped, RBAC-aware) toggles them. **Next:** the rolled-up persistence + retention + WhatsApp
-(Phase 4) wait for the VPS worker (see Decision above)._
+(Phase 4) are VPS-era worker steps — the worker host now exists, not built yet (see Decision above)._

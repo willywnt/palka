@@ -11,8 +11,8 @@ export const RETENTION_WARNING_WINDOW_DAYS = 7;
  * (`uploadedAt` + RECORDING_RETENTION_DAYS). Returns null when retention doesn't
  * apply (the recording isn't COMPLETED, or has no `uploadedAt`); 0 or negative means
  * it's past the window and the next cleanup run will remove it. Pure — pass `now` in
- * tests. NOTE: the cleanup worker is dormant on Vercel, so this reflects the retention
- * POLICY (it becomes live once the worker runs, i.e. the VPS host).
+ * tests. The cleanup worker runs on the VPS host, so this reflects the live retention
+ * policy.
  */
 export function recordingRetentionDaysLeft(
   recording: { status: RecordingStatus; uploadedAt: string | null },

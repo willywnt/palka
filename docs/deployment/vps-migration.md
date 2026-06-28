@@ -1,16 +1,19 @@
 # Vercel → self-hosted VPS migration
 
-**Decision (2026-06-16): production is moving off Vercel+Neon to a self-hosted VPS.** Vercel was a
-stopgap — it can't run the BullMQ **worker** or **Socket.IO**, so marketplace sync, scheduled jobs, the
-scanner, and (later) WhatsApp stay dormant there. The VPS unblocks all of it.
+> **✅ Migration COMPLETE (2026-06-28) — production is live on the VPS+Coolify at
+> https://app.trypalka.com. This is the historical record of how we got there.**
+
+**Decision (2026-06-16): production moved off Vercel+Neon to a self-hosted VPS.** Vercel was a
+stopgap — it couldn't run the BullMQ **worker** or **Socket.IO**, so marketplace sync, scheduled jobs, the
+scanner, and (later) WhatsApp stayed dormant there. The always-on VPS now runs all of it.
 
 > **UPDATE (2026-06-28): the chosen control plane is Coolify, staged from a 4 GB dev box.** The
 > step-by-step runbook is now [`coolify-setup.md`](./coolify-setup.md) (start on Biznet MS 4.2 + Coolify,
 > grow to 8 GB at go-live). Cost ladder: [`vps-cost-packages.md`](./vps-cost-packages.md). Object-storage +
 > DNS resilience fallback: [`cloudflare-fallback.md`](./cloudflare-fallback.md).
 
-This migration is a **clean start** — no data is carried over from Neon (no `pg_dump`/restore; Lazada is
-re-authorized via OAuth on the new domain, so encryption-secret continuity is moot).
+This migration was a **clean start** — no data was carried over from the old DB (no `pg_dump`/restore; Lazada was
+re-authorized via OAuth on the new domain, so encryption-secret continuity was moot).
 
 ## Architecture: current → target
 

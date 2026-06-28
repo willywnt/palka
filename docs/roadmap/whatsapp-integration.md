@@ -2,7 +2,7 @@
 
 > **STATUS: DESIGN ONLY (2026-06-26). DO NOT IMPLEMENT YET.** The owner has not yet
 > registered any Meta/WhatsApp Business assets, and inbound webhooks need the custom
-> Node server that only runs on the **VPS** (dormant on Vercel). This is a VPS-era,
+> Node server that runs on the always-on **VPS** (which now exists). This is a VPS-era,
 > premium-gated feature. This doc is the plan + the research that backs it; the first
 > real task is **owner onboarding (non-code)**, not writing code.
 >

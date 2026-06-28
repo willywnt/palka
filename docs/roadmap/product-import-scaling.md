@@ -29,14 +29,13 @@ re-imports the whole file; already-imported rows become no-op updates.
 - The preview table **virtualizes** (`@tanstack/react-virtual`, `VirtualizedTable`) above
   ~100 rows, so ~2000 rows stay smooth.
 - Practical cap: `MAX_IMPORT_ROWS` = 2000 per import. Good for the overwhelming majority
-  of catalogs. Works on Vercel **and** the VPS (no worker needed).
+  of catalogs. Works without a worker (client chunked commit).
 
 ## Prepared design — BullMQ background import (VPS era, very large files)
 
-NOT built yet, on purpose: the BullMQ **worker is dormant on Vercel** (HARD CONSTRAINT —
-custom server + worker only run on the self-hosted VPS), so a worker-based import would be
-dead in production today. Build this once on the VPS, when a real need for >2000-row
-imports appears.
+The BullMQ worker now runs on the always-on VPS, so the worker-based large-file import is
+now **BUILDABLE** (VPS-era) — it's just NOT built yet, on purpose. Build this once, when a
+real need for >2000-row imports appears.
 
 Shape:
 

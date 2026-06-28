@@ -4,7 +4,7 @@
       "AllowedOrigins": [
         "https://your-domain.com",
         "https://www.your-domain.com",
-        "https://your-app.vercel.app"
+        "https://app.trypalka.com"
       ],
       "AllowedMethods": ["GET", "PUT", "HEAD"],
       "AllowedHeaders": ["*"],

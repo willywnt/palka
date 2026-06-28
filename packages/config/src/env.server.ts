@@ -66,7 +66,7 @@ const serverEnvSchema = z
     WORKER_HEALTH_URL: optionalUrl,
     WORKER_ENABLE_SCHEDULERS: z.enum(['true', 'false']).optional(),
     // Custom-server (VPS/dev) scheduled order-pull interval in ms; 0/unset = off (the default,
-    // and always off on Vercel where the custom server doesn't run). e.g. 300000 = every 5 min.
+    // the custom server runs on the VPS host). e.g. 300000 = every 5 min.
     ORDERS_AUTO_PULL_INTERVAL_MS: z.coerce.number().int().nonnegative().optional(),
   })
   .superRefine((env, ctx) => {

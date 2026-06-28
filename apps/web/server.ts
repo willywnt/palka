@@ -53,8 +53,8 @@ function isSocketIoPath(pathname: string): boolean {
 /**
  * Periodic order pull (VPS/self-hosted). Hits the secret-gated internal endpoint on loopback so
  * the order-ingest module graph resolves inside Next (the bootstrap can't import it directly).
- * Off by default (ORDERS_AUTO_PULL_INTERVAL_MS unset/0) and always dormant on Vercel, where this
- * custom server never runs. Skipped under DEV_HTTPS — prod serves http behind a TLS proxy.
+ * Off by default (ORDERS_AUTO_PULL_INTERVAL_MS unset/0); runs only where this custom server runs
+ * (the VPS host, or dev). Skipped under DEV_HTTPS — prod serves http behind a TLS proxy.
  */
 function startScheduledOrderPull(useHttps: boolean): void {
   const intervalMs = Number(process.env.ORDERS_AUTO_PULL_INTERVAL_MS ?? 0);

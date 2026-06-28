@@ -12,7 +12,7 @@
 > Context: `.cursor/rules/40-inventory-marketplace.mdc` (Lazada section) + the Lazada template under
 > `packages/marketplace-providers/src/lazada/`. Provider enum + the new-provider checklist are below.
 > Memory: [olshop-lazada-integration], [olshop-deploy-plan] (VPS — the worker now runs, so token
-> refresh + drift crons are real, unlike Vercel).
+> refresh + drift crons run on the VPS worker).
 
 ---
 

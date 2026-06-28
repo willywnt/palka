@@ -20,11 +20,11 @@ import {
 let socketInstance: Socket | null = null;
 
 /**
- * Where the pairing Socket.IO server lives. In production the realtime server
- * must run as a separate always-on host (a Vercel serverless function cannot
- * hold the persistent Engine.IO connection), so point the client at
- * NEXT_PUBLIC_SOCKET_URL when it is set; otherwise fall back to the same origin
- * (the custom Node server used in local dev via `pnpm dev:web`).
+ * Where the pairing Socket.IO server lives. On the VPS the web container runs the
+ * custom Node server, so the realtime server is same-origin in production — leave
+ * NEXT_PUBLIC_SOCKET_URL unset. Set it only to point at a SEPARATE always-on socket
+ * host (split out for scaling); otherwise the client falls back to the same origin
+ * (the custom Node server, used in local dev via `pnpm dev:web`).
  */
 function resolveSocketUrl(): string {
   const configured = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();

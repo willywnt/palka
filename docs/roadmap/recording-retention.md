@@ -1,9 +1,8 @@
 # Recording retention — configurable + dispute-aware (roadmap)
 
-> Direction agreed 2026-06-21. The **30-day auto-cleanup already exists** but is (a) a hard-coded
-> constant and (b) dormant on Vercel (the worker only runs on the VPS host). This doc captures the
-> agreed evolution. Most of it is **VPS-era** (it tunes the cleanup worker); only the list marker is
-> Vercel-safe and already shipped.
+> Direction agreed 2026-06-21. The **30-day auto-cleanup already exists** and now **runs on the
+> always-on VPS worker**, but is still a hard-coded constant. This doc captures the agreed evolution.
+> Most of it is **VPS-era** (it tunes the cleanup worker); the list marker already shipped.
 
 ## Current state (verified)
 
@@ -14,10 +13,10 @@
 - Support jobs: `recalculate-storage` (self-heal usage), `verify-storage-consistency` (observe-only drift),
   `cleanup-failed-uploads` (sweep stuck/abandoned uploads). Manual `softDeleteRecording` deletes R2 +
   decrements quota instantly.
-- ⚠️ **Dormant on Vercel** — `apps/worker` doesn't run there, so nothing is actually deleted until the VPS
-  cutover. Disable everywhere with `WORKER_ENABLE_SCHEDULERS=false`.
-- **Shipped (Vercel-safe):** an "auto-hapus ~N hari lagi" badge on the recording list (final week only),
-  computed from `uploadedAt + RECORDING_RETENTION_DAYS` — reflects the policy, lives once the worker runs.
+- ✅ **Active on the VPS** — `apps/worker` now runs on the always-on VPS host, so retention is **live**
+  (recordings are actually deleted). Disable everywhere with `WORKER_ENABLE_SCHEDULERS=false`.
+- **Shipped:** an "auto-hapus ~N hari lagi" badge on the recording list (final week only),
+  computed from `uploadedAt + RECORDING_RETENTION_DAYS` — reflects the policy the running worker enforces.
 
 ## Planned (VPS-era — tunes the cleanup worker)
 

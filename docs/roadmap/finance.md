@@ -44,7 +44,7 @@
 WHERE both set AND deletedAt IS NULL` (one live generated expense per template per month; manual rows
   excluded; regen-after-delete allowed) backs a pre-filter + `createMany skipDuplicates`. Confirm
   dialog; re-clickable safely.
-- **Auto-generation on the 1st is the VPS-era step** (a worker/cron) — not built (dormant on Vercel).
+- **Auto-generation on the 1st is the VPS-era step** (a worker/cron) — the worker host now exists on the VPS; not built yet.
 - Built understand-from-context → implement → 4-reviewer adversarial review (idempotency / RBAC /
   schema / conventions all clean; one low note acted on: a schema comment warns `migrate dev` not to
   drop the raw-only partial index, since deploy replays SQL forward and keeps it). Migration

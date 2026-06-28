@@ -13,9 +13,9 @@ DB column + every code layer — **259 occurrences / 67 files**, on the `Recordi
 — HARD CONSTRAINT #4 safe), and the **Indonesian UI copy stays "Resi"** (only the code symbol + DB
 column are anglicized). The case-insensitive lookup index is folded in via a **normalized
 `trackingNumberLower` column** (Prisma-native, no migration drift) rather than a raw `lower()`
-functional index. **Sequence the rename to land with the VPS clean-start DB** (per
-[olshop-deploy-plan]: no Neon data migration) so the breaking column rename carries zero prod risk —
-do NOT deploy it to the Vercel/Neon stopgap.
+functional index. **Sequence the rename to land on the live VPS** as a planned migration on the
+self-hosted Postgres — the VPS started on a fresh DB, so the breaking column rename carries near-zero
+prod risk.
 
 ## Why
 
@@ -63,10 +63,10 @@ do NOT deploy it to the Vercel/Neon stopgap.
    **DROP + ADD** (silent data loss). Scaffold with `--create-only` then **edit the SQL to
    `ALTER TABLE "<t>" RENAME COLUMN "noResi" TO "trackingNumber";`** (+ rename the Recording index).
    Data is preserved.
-2. **Ride the VPS clean-start.** Per [olshop-deploy-plan] the VPS launches on a fresh DB (no Neon
-   migration). On a fresh DB the rename migration replays harmlessly (no rows to rewrite), so there's
-   **no prod column-rename risk at all**. Keep the branch un-deployed on the Vercel/Neon stopgap
-   (old deployed code reading `noResi` would break the instant the column is renamed under it).
+2. **The VPS started on a fresh DB.** It went live on a fresh self-hosted Postgres, which had few
+   rows to rewrite, so the rename migration replays nearly harmlessly with **minimal prod
+   column-rename risk**. Ship the renamed code and the migration together (old deployed code reading
+   `noResi` would break the instant the column is renamed under it).
 3. The dev server locks the Prisma engine DLL — stop it before `prisma generate` / migrate (standard
    gotcha). `DATABASE_URL` IS present in root `.env` (the "lacks DATABASE_URL" note in
    [olshop-notification-tray] is stale), but **do not run a rename migration against any live DB**
@@ -110,7 +110,7 @@ Unit tests **mock Prisma**, so a column rename + the normalized-write path are *
 
 ## Open questions (confirm before executing)
 
-1. Confirm the rename **lands with the VPS clean-start** (not deployed to Neon).
+1. Confirm the rename **lands on the live VPS** as a planned migration (the VPS started on a fresh DB).
 2. Confirm **`trackingNumberLower` normalized column** over a raw `lower()` functional index
    (recommended — no drift).
 3. Whether to also rename `Recording.generatedFilename` / storage-key conventions that embed the resi
@@ -118,5 +118,5 @@ Unit tests **mock Prisma**, so a column rename + the normalized-write path are *
 
 ## Rollback
 
-Pre-deploy: discard the branch. Post-deploy (clean-start only): the inverse `RENAME COLUMN` migration
-restores `noResi`; no data transformation needed either direction.
+Pre-deploy: discard the branch. Post-deploy: the inverse `RENAME COLUMN` migration restores `noResi`;
+no data transformation needed either direction.

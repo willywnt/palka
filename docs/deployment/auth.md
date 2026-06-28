@@ -18,7 +18,7 @@ NEXTAUTH_URL=https://your-domain.com
 openssl rand -base64 32
 ```
 
-Minimum 32 characters. Store in Vercel as a **Sensitive** environment variable. Rotate periodically — rotation invalidates existing sessions.
+Minimum 32 characters. Store in the Coolify env as a **Secret**. Rotate periodically — rotation invalidates existing sessions.
 
 ## Secure cookies
 
@@ -30,28 +30,17 @@ Auth.js automatically sets secure cookies when:
 Configuration in `apps/web/src/auth.config.ts`:
 
 - JWT session strategy (30-day max age)
-- `trustHost: true` (required on Vercel)
+- `trustHost: true` (required behind the Coolify/Traefik proxy)
 
-No additional cookie config is needed for standard Vercel deployment.
+No additional cookie config is needed behind the Coolify proxy (HTTPS).
 
 ## Production checklist
 
 - [ ] `AUTH_SECRET` is unique per environment (prod ≠ preview)
-- [ ] `AUTH_URL` matches Vercel custom domain
-- [ ] HTTPS enforced (Vercel default)
+- [ ] `AUTH_URL` matches the production domain (`app.trypalka.com`)
+- [ ] HTTPS enforced (Coolify/Traefik Let's Encrypt)
 - [ ] Credentials provider rate limiting (future — add middleware)
 - [ ] Passwords hashed with Argon2 (already implemented)
-
-## Preview deployments
-
-For Vercel preview URLs (`*.vercel.app`):
-
-```
-AUTH_URL=https://your-project.vercel.app
-NEXTAUTH_URL=https://your-project.vercel.app
-```
-
-Or use Vercel's automatic `VERCEL_URL` in a future enhancement.
 
 ## Session security
 
@@ -65,7 +54,7 @@ When adding Shopee/Tokopedia OAuth for marketplace, extend `auth.ts` providers a
 
 ## VPS / self-hosted notes
 
-When migrating off Vercel:
+On the VPS:
 
 - Set `AUTH_URL` to your domain
 - Ensure reverse proxy forwards `X-Forwarded-Proto: https`

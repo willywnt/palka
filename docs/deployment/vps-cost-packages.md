@@ -8,8 +8,8 @@
 > box, **build the image off-box in CI/GHCR** (never `next build` on the box) and run one env only. The
 > 8 GB "HEMAT" figures below are the **go-live** target, not the starting box.
 >
-> Decision context (2026-06-16): the owner is moving the production deploy **off Vercel+Neon to a
-> self-hosted VPS** (final direction, not a maybe). **Clean start** — no data migration from Neon.
+> Decision context (2026-06-16): the owner moved the production deploy **off Vercel+Neon to a
+> self-hosted VPS** (done — live on the VPS). **Clean start** — launched on a fresh DB.
 > Postgres + Redis self-hosted as containers on the VPS; files stay on **Cloudflare R2** (with an
 > in-country fallback documented in [`cloudflare-fallback.md`](./cloudflare-fallback.md)). This file is
 > the cost reference the choice was made from.
@@ -120,7 +120,7 @@ Regions Indonesia (Bogor) + Singapore + London, same price all regions, **hourly
    encrypted. (Clean start = no tokens carried over, so just re-authorize Lazada on the new domain.)
 2. **`LAZADA_OAUTH_REDIRECT_URI`** must point at `https://<vps-domain>/...` and be **re-registered** in the
    Lazada console.
-3. **`NEXT_PUBLIC_ENABLE_MOBILE_SCANNER=true`** (build arg — the VPS hosts Socket.IO, unlike Vercel).
+3. **`NEXT_PUBLIC_ENABLE_MOBILE_SCANNER=true`** (build arg — the VPS hosts Socket.IO).
 4. **Build RAM**: `next build` peaks ~2 GB; on an 8 GB box running two stacks, add **2–4 GB swap** (or build
    in CI / locally and pull the image).
 5. **Migrations auto-apply** via the compose `migrate` one-shot (`db:migrate:deploy`) — including the

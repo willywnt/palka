@@ -10,9 +10,9 @@ style. These rules are derived from the actual refactored code — keep them tru
   uses **Turbopack** (`next({ dev, …, turbopack: dev })` — gated on `dev`, so prod `tsx server.ts`
   stays webpack) to avoid laggy first-navigation route compiles. `dev:next` (`next dev --turbopack`)
   is a Turbopack-without-socket fallback for pure-UI work.
-  Prod build = `next build` (Vercel today) — **the custom server is NOT run on Vercel**, so
-  marketplace sync / scheduled jobs / scanner socket are dormant in prod until the **VPS cutover**
-  (committed direction: self-hosted Docker runs the custom server + worker; `docs/deployment`).
+  Prod runs the **custom server** (`tsx server.ts`) on the **self-hosted VPS via Coolify** (LIVE at
+  `app.trypalka.com` since 2026-06-28), so marketplace sync / scheduled jobs / scanner socket are
+  **active in prod**. Self-hosted Docker runs the custom server + worker; see `docs/deployment`.
 - **apps/worker** — BullMQ background jobs.
 - **packages/** = shared `@palka/*`: `db` (Prisma+schema), `config` (env+limits),
   `logger`, `types`, `utils`, `metrics`, `health`, `queue`, `storage`, `rate-limit`,
@@ -444,7 +444,7 @@ deriveFeesForMonth`) → QRIS fee = gross QRIS sales × rate, commission = fulfi
   window. **INVARIANT: a reserved order's line set is FROZEN** (carry qty/variant/`unitCost` forward +
   reserve-delta for late maps; ship/release run off the frozen set). Per-line status releases a line
   cancelled inside a shipped order. VPS auto-pull (`runScheduledPull` + `server.ts` timer + internal
-  endpoint, env `ORDERS_AUTO_PULL_INTERVAL_MS`, dormant on Vercel). Design + open issues (Batch-3 VPS
+  endpoint, env `ORDERS_AUTO_PULL_INTERVAL_MS`, runs on the VPS custom server). Design + open issues (Batch-3 VPS
   hardening owed): `docs/roadmap/lazada-order-pull.md`. Provider creds thread as
   **`ProviderShopCredentials = {accessToken, shopId, shopCipher}`** (Lazada ignores shopId/shopCipher;
   Shopee uses shopId; Tokopedia/TikTok needs `MarketplaceConnection.externalShopCipher`).
@@ -466,7 +466,7 @@ triggered` fires ONLY for RECORDING — contracts unchanged, HARD CONSTRAINT #4 
   - manual/hardware-wedge entry — `normalizeBarcodeValue` was removed). The mobile reader accepts QR + 1D.
     Resolvers: `GET /sales|purchase-orders/variants/resolve?code=` → barcode-then-sku, case-insensitive.
     Scan feedback (beep + countdown ticks) is **browser-only** via `@/lib/scan-sound`. Realtime needs the
-    socket host (`server.ts`, gated off on Vercel) → dev/VPS only; labels work anywhere. Detail in
+    socket host (`server.ts`, runs on the VPS + in dev); labels work anywhere. Detail in
     `.cursor/rules/30-scanner-pairing.mdc` + `…/40-inventory-marketplace.mdc`.
   - **Pairing robustness**: a phone QR scan ALWAYS (re)claims the session **owner** via the pairing-code
     credential — overriding a stale different-account login (else every pairing 403'd); the desktop

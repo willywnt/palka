@@ -82,11 +82,12 @@ ONLY UI state (countdown/dialog/connection/station phase). Never store the sessi
 
 ## ⚠️ "xhr poll error" — root cause + fix (do NOT reintroduce)
 Socket.IO exists ONLY on the custom `apps/web/server.ts` (`initPairingSocketServer`), run by
-`tsx server.ts`. Vercel builds `framework: nextjs` and **never runs server.ts** → no
-`/api/socket` handler in prod → the Engine.IO long-poll handshake is unanswered → `xhr poll error`.
+`tsx server.ts`. The **VPS web container runs it**, so the socket is **same-origin in prod**. A
+serverless platform that only builds `framework: nextjs` and **never runs server.ts** (the retired
+Vercel) had no `/api/socket` handler → the Engine.IO long-poll handshake went unanswered → `xhr
+poll error`. Keep prod on the custom server.
 - Forcing `transports: ['websocket']` is **NOT a fix** — serverless can't hold the persistent
   connection / heartbeat sweeps.
-- Fix: run the socket as a **separate always-on Node host**; browser points via
-  `NEXT_PUBLIC_SOCKET_URL` (unset → same origin, so **dev is unchanged**). Cross-origin cookie:
-  shared parent domain + `AUTH_COOKIE_DOMAIN=.example.com` (option A) or token-in-handshake (B).
+- Same-origin needs NO `NEXT_PUBLIC_SOCKET_URL`. Splitting the socket onto a **separate always-on
+  host** (scaling) → set it; cross-origin auth uses token-in-handshake (B), no shared cookie domain.
   See `docs/deployment/socket-server.md`. Auth.js cookie / env / socket contract = confirm first.
