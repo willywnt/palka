@@ -74,3 +74,12 @@ jobs:
             NEXT_PUBLIC_APP_NAME=Palka
             NEXT_PUBLIC_ENABLE_MOBILE_SCANNER=true
             NEXT_PUBLIC_SENTRY_DSN=${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+
+      # CD: after the image is pushed, tell Coolify to pull + redeploy. Opt-in: set repo
+      # Variable COOLIFY_AUTODEPLOY=true and secrets COOLIFY_WEBHOOK (resource Webhooks page)
+      # + COOLIFY_TOKEN (Keys & Tokens, deploy permission). Off by default = manual redeploy.
+      - name: Trigger Coolify redeploy
+        if: ${{ vars.COOLIFY_AUTODEPLOY == 'true' }}
+        run: |
+          curl -fsS --get "${{ secrets.COOLIFY_WEBHOOK }}" \
+            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
