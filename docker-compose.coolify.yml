@@ -10,7 +10,12 @@
 #  - The domain is NOT set here — set it in the UI: Web service → Settings → Domains =
 #    https://app.trypalka.com (Coolify auto-manages the SERVICE_FQDN_* env; a compose value is ignored).
 #  - Env vars (DATABASE_URL, REDIS_URL, AUTH_SECRET, MARKETPLACE_ENCRYPTION_SECRET, R2_*, AUTH_URL,
-#    WORKER_ENABLE_SCHEDULERS, NEXT_PUBLIC_*) are set in the resource's Environment Variables (runtime).
+#    WORKER_ENABLE_SCHEDULERS, FINANCE_AUTOGEN_ENABLED, NEXT_PUBLIC_*) are set in the resource's
+#    Environment Variables (runtime).
+#  - `pull_policy: always` on every service: the CI-webhook auto-deploy otherwise reuses a CACHED
+#    `:latest` (Coolify doesn't force-pull), silently shipping the OLD image. This makes each
+#    `compose up` pull the freshly-built GHCR image. (Seen 2026-06-29: a rename build deployed stale
+#    until a manual force-pull.)
 
 networks:
   coolify:
@@ -20,6 +25,7 @@ services:
   # One-shot: apply Prisma migrations, then exit. web/worker gate on its success.
   migrate:
     image: ghcr.io/willywnt/palka:latest
+    pull_policy: always
     command: ['pnpm', '--filter', '@palka/db', 'db:migrate:deploy']
     restart: 'no'
     exclude_from_hc: true
@@ -27,6 +33,7 @@ services:
 
   web:
     image: ghcr.io/willywnt/palka:latest
+    pull_policy: always
     command: ['pnpm', '--filter', '@palka/web', 'start']
     environment:
       HOSTNAME: 0.0.0.0
@@ -53,6 +60,7 @@ services:
 
   worker:
     image: ghcr.io/willywnt/palka:latest
+    pull_policy: always
     command: ['pnpm', '--filter', '@palka/worker', 'start']
     restart: unless-stopped
     networks: [default, coolify]
