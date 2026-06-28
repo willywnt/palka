@@ -1,7 +1,10 @@
 # Coolify on the VPS — setup runbook & staged plan
 
-> **STATUS: committed direction (2026-06-28).** Production deploys to a **self-hosted Biznet VPS
-> managed by Coolify**. Decision basis: **Coolify chosen over Dokploy** for a solo-operated,
+> **STATUS: ✅ LIVE & VALIDATED (2026-06-28)** — first real deploy succeeded on a Biznet MS 4.2 box at
+> **`https://app.trypalka.com`** (product/POS/R2-upload/recording all working, worker schedulers active).
+> **Read §9 "Field notes" for the real-deploy corrections** (some steps below differ from what actually
+> worked — esp. the Biznet Security Group, the managed-DB network connection, and setting a service domain).
+> Production deploys to a **self-hosted Biznet VPS managed by Coolify**. Decision basis: **Coolify chosen over Dokploy** for a solo-operated,
 > money-handling go-live (maturity + community + security track-record outweigh Dokploy's lighter
 > footprint; Dokploy's worst CVE wave landed May–Jun 2026 and its restore path has open data-loss
 > bugs — revisit only if RAM becomes a measured constraint or go-live slips past Q4 2026).
@@ -134,12 +137,11 @@ curl -fsSL https://cdn.coollabs.io/coolify/install.sh | sudo bash   # installs D
 4. Bind `coolify.palka.app` as the instance domain so the dashboard is TLS-fronted; then restrict the
    raw `8000/6001/6002` ports (allow only your IP, or use Tailscale — Indonesian residential IPs
    rotate, so a hard IP allowlist can lock you out; prefer Tailscale/VPN or Biznet's security group).
-5. **Fix the Docker/ufw bypass** (Docker's iptables evaluate before ufw):
-   ```bash
-   wget -O /usr/local/bin/ufw-docker https://github.com/chaifeng/ufw-docker/raw/master/ufw-docker
-   chmod +x /usr/local/bin/ufw-docker && ufw-docker install && systemctl restart ufw
-   ```
-   **Never publish Postgres/Redis host ports.** Verify externally with `nmap`.
+5. ⚠️ **DO NOT run `ufw-docker`** — in the first real deploy it **broke external access to every Coolify
+   port** (it blocks Docker-published ports including 80/443/8000, which conflicts with how Coolify
+   publishes its proxy/dashboard). Firewall at **Biznet's network Security Group** instead (see §9).
+   The box's own ufw (default-deny + the §1.6 allows) **plus** Coolify keeping Postgres/Redis internal
+   (never host-published) is enough. **Never publish Postgres/Redis host ports.**
 
 **Proxy/TLS:** the managed proxy (Traefik default) auto-issues Let's Encrypt certs per domain. Traefik
 passes Socket.IO WebSocket upgrades out of the box for a single replica.
@@ -279,6 +281,72 @@ runbook. Cheap insurance to set up now:
 - **Pre-provision Biznet NEO Object Storage** + test ONE aws-sdk-v3 **SigV4** presigned-PUT (Biznet docs
   show SigV2 — confirm SigV4 works before trusting it as the R2 fallback).
 - Don't hardcode `1.1.1.1` as the server/container resolver (TelkomGroup blocks it).
+
+---
+
+## 9. Field notes — first real deploy (2026-06-28, Biznet MS 4.2 → app.trypalka.com)
+
+What actually bit, in order. **These override the idealized steps above where they conflict.**
+
+1. **Biznet gives you a non-root sudo user, not root.** The provisioned box logs you in as a sudo user
+   (the username you set, e.g. `willywnt`) — `apt` etc. need `sudo -i`. Root's `authorized_keys` carries
+   a forced-command key (`Please login as <user>…`) that **intentionally blocks direct root SSH** — that's
+   fine. **Skip the §1.3 `deploy` user + §1.4 key-copy-to-root**; just use the existing sudo user. Coolify
+   adds **its own** root key at install (a clean line, no forced command), so it self-manages regardless.
+
+2. **Biznet network Security Group defaults to `Any / Any / DROP` (inbound) — this is the real firewall,
+   not ufw.** Symptom: SSH (22) works but 80/443/8000 connections **reset after the TCP handshake** (DPI-style),
+   from every ISP. Fix: in the Biznet panel → **Security Group → Inbound Rules**, ADD ACCEPT rules
+   (Protocol TCP, Action ACCEPT, **Source `0.0.0.0/0`** — the Source is required, blank = "Not valid CIDR"):
+   **22, 80, 443, 8000, 6001, 6002**. The default `Any/DROP` rule is a non-deletable catch-all (kept last).
+   ⚠️ **A VPS restart was needed to APPLY the new SG rules** (they didn't take effect live). After that,
+   external access worked. **Do NOT run `ufw-docker` (§2.5)** — it compounds the lockout.
+
+3. **Managed Postgres/Redis live on the `coolify` Docker network; the app compose resource does NOT by
+   default** → migrate fails `P1001: Can't reach database server at <pg-uuid>:5432`. Fix: on the compose
+   resource, tick **"Connect To Predefined Network"** (General config), AND/OR add to the compose:
+
+   ```yaml
+   networks:
+     coolify:
+       external: true
+       # …and on every service:
+       networks: [default, coolify]
+   ```
+
+   Verify with `docker inspect <pg-container> --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'`
+   (should show `coolify`) vs the app's `web-*` container (its own network until connected).
+
+4. **Set a compose service's domain via the per-service `Settings → Domains` field in the UI — NOT the
+   compose `SERVICE_FQDN_*` env** (Coolify auto-generates + LOCKS that to a `<svc>-<uuid>.<ip>.sslip.io`
+   default; your compose value is ignored). Symptom if unset: `app.trypalka.com` returns **"no available
+   server"**. In the resource → Services → **Web → Settings → Domains** → `https://app.trypalka.com` →
+   Save → Redeploy. Coolify then routes the domain → web:3000 and issues the LE cert (needs port 80 open
+   externally per #2).
+
+5. **The dashboard's own domain (`coolify.trypalka.com`) HTTPS is finicky** (Traefik had no cert/route even
+   from a neutral network) — it's cosmetic. Access the dashboard via `http://<ip>:8000` or, securely, an
+   **SSH tunnel**: `ssh -L 8000:127.0.0.1:8000 <user>@<ip>` → `http://localhost:8000` (encrypted over SSH).
+
+6. **`NEXT_PUBLIC_APP_URL` is baked at build time** → set the GitHub repo **Variable**
+   `NEXT_PUBLIC_APP_URL=https://app.trypalka.com` and **re-run the build-image workflow** before deploying,
+   so the client bundle has the right origin (the placeholder `palka.app` is otherwise baked in).
+
+7. **Bootstrap the first platform admin** (fresh DB, invite-only registration):
+
+   ```bash
+   WEB=$(sudo docker ps --format '{{.Names}}' | grep '^web-')
+   sudo docker exec -e BOOTSTRAP_ADMIN_EMAIL='ops@trypalka.com' -e BOOTSTRAP_ADMIN_PASSWORD='<strong>' \
+     "$WEB" pnpm --filter @palka/db db:bootstrap-admin
+   ```
+
+   Then sign in at `https://app.trypalka.com/admin` → provision the first shop org + its OWNER.
+
+8. **The validated compose is committed at [`../../docker-compose.coolify.yml`](../../docker-compose.coolify.yml)**
+   (web + worker + migrate, GHCR image, `networks: coolify`). Paste it into the Coolify Docker-Compose resource.
+
+> Cosmetic, non-blocking: the base image is `node:20-slim`; the AWS SDK v3 warns it'll need node ≥22 after
+> Jan 2027 — bump the Dockerfile base to `node:22-slim` eventually.
 
 ---
 

@@ -1,0 +1,61 @@
+# Coolify "Docker Compose" resource — web + worker + migrate, pulled from a CI-built GHCR image.
+# VALIDATED LIVE 2026-06-28 on a Biznet MS 4.2 box (app.trypalka.com). Paste this into a Coolify
+# Docker-Compose resource. Postgres + Redis are SEPARATE Coolify-managed resources (NOT here) —
+# wire them via env (DATABASE_URL / DIRECT_URL / REDIS_URL). See docs/deployment/coolify-setup.md §9.
+#
+# Non-obvious bits that made it work:
+#  - `networks: coolify (external)` + each service on `[default, coolify]` so the app can reach the
+#    Coolify-managed Postgres/Redis (they live on the `coolify` network). Without it: migrate fails
+#    `P1001: Can't reach database server`. (Equivalent to ticking "Connect To Predefined Network".)
+#  - The domain is NOT set here — set it in the UI: Web service → Settings → Domains =
+#    https://app.trypalka.com (Coolify auto-manages the SERVICE_FQDN_* env; a compose value is ignored).
+#  - Env vars (DATABASE_URL, REDIS_URL, AUTH_SECRET, MARKETPLACE_ENCRYPTION_SECRET, R2_*, AUTH_URL,
+#    WORKER_ENABLE_SCHEDULERS, NEXT_PUBLIC_*) are set in the resource's Environment Variables (runtime).
+
+networks:
+  coolify:
+    external: true
+
+services:
+  # One-shot: apply Prisma migrations, then exit. web/worker gate on its success.
+  migrate:
+    image: ghcr.io/willywnt/palka:latest
+    command: ['pnpm', '--filter', '@palka/db', 'db:migrate:deploy']
+    restart: 'no'
+    exclude_from_hc: true
+    networks: [default, coolify]
+
+  web:
+    image: ghcr.io/willywnt/palka:latest
+    command: ['pnpm', '--filter', '@palka/web', 'start']
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    expose:
+      - '3000'
+    restart: unless-stopped
+    networks: [default, coolify]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  worker:
+    image: ghcr.io/willywnt/palka:latest
+    command: ['pnpm', '--filter', '@palka/worker', 'start']
+    restart: unless-stopped
+    networks: [default, coolify]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
