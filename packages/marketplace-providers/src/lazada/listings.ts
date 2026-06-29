@@ -3,13 +3,25 @@ import { isTransientLazadaError, sleep } from './throttle.js';
 import type { LazadaClient } from './types.js';
 
 const PRODUCTS_GET_PATH = '/products/get';
-const PAGE_LIMIT = 50;
-/** Safety cap so a paging bug can't loop forever (≈1000 listings). */
-const MAX_PAGES = 20;
-/** Pace pages so a large catalog doesn't trip Lazada's Sentinel flow control. */
-const PAGE_DELAY_MS = 1200;
-/** Retries for a single page when Lazada throttles it (E1002 sentinel / system busy). */
-const MAX_PAGE_RETRIES = 4;
+/** Products per page. Lazada's documented max is 500; 100 keeps payloads sane while cutting the
+ *  call count ~5x vs the old 50. (limit/total are PRODUCT-level; a product fans out to N SKUs.) */
+const PAGE_LIMIT = 100;
+/** Hard safety cap so a paging bug / a mutating list can't loop forever (≈100k products at 100/page).
+ *  The REAL stop is `total_products` or a short page — this is only a backstop, NOT a ~1000-row cap. */
+const MAX_PAGES = 1000;
+/** Gentle pacing between successful pages so a large catalog stays under flow control. */
+const PAGE_DELAY_MS = 1000;
+/** Retries for a single throttled page (901 speed-limit / E1002 Sentinel / system busy) before giving up. */
+const MAX_PAGE_RETRIES = 6;
+/** Exponential-backoff bounds for a throttled page — Lazada gives no Retry-After, so we back off ourselves. */
+const RETRY_BASE_MS = 2000;
+const RETRY_MAX_MS = 30_000;
+
+/** Exponential backoff with full jitter (attempt is 1-based): 1–2s, 2–4s, 4–8s, … capped at 30s. */
+function backoffDelayMs(attempt: number): number {
+  const ceiling = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** (attempt - 1));
+  return Math.floor(ceiling / 2 + Math.random() * (ceiling / 2));
+}
 
 /** Postgres INT4 ceiling — our stock columns are 32-bit, and Lazada test shops can
  *  return absurd quantities (e.g. 1.37e12) that overflow the insert. */
@@ -70,7 +82,12 @@ type LazadaApiProduct = {
   skus?: LazadaApiSku[];
 };
 
-type LazadaProductsGetData = { products?: LazadaApiProduct[] };
+type LazadaProductsGetData = {
+  products?: LazadaApiProduct[];
+  /** Total product count Lazada reports (product-level, not SKU). Bounds the paging loop so a large
+   *  catalog isn't silently truncated; absent on some shops → fall back to a short-page stop. */
+  total_products?: number;
+};
 
 /** `/product/item/get` returns the product either at `data.item` or directly under `data`. */
 type LazadaItemGetData = LazadaApiProduct & { item?: LazadaApiProduct };
@@ -167,16 +184,21 @@ export async function fetchLazadaListings(
   },
 ): Promise<LazadaListingItem[]> {
   const items: LazadaListingItem[] = [];
+  let total: number | undefined;
 
   for (let page = 0; page < MAX_PAGES; page += 1) {
-    let response = await client.call<LazadaProductsGetData>(PRODUCTS_GET_PATH, {
-      method: 'GET',
-      accessToken: params.accessToken,
-      params: { filter: 'all', limit: PAGE_LIMIT, offset: page * PAGE_LIMIT },
-    });
+    const offset = page * PAGE_LIMIT;
+    const fetchPage = () =>
+      client.call<LazadaProductsGetData>(PRODUCTS_GET_PATH, {
+        method: 'GET',
+        accessToken: params.accessToken,
+        params: { filter: 'all', limit: PAGE_LIMIT, offset },
+      });
 
-    // Back off and retry this page when Lazada throttles it (a large catalog pages
-    // many times — Sentinel flow control trips on the burst, not on bad input).
+    let response = await fetchPage();
+
+    // Back off (exponential + jitter) and retry this page when Lazada throttles it — a large
+    // catalog pages many times and the gateway speed-limit (901) / Sentinel trips on the burst.
     for (
       let attempt = 1;
       attempt <= MAX_PAGE_RETRIES &&
@@ -184,12 +206,8 @@ export async function fetchLazadaListings(
       isTransientLazadaError(response.code, response.message);
       attempt += 1
     ) {
-      await sleep(PAGE_DELAY_MS * 2 * attempt);
-      response = await client.call<LazadaProductsGetData>(PRODUCTS_GET_PATH, {
-        method: 'GET',
-        accessToken: params.accessToken,
-        params: { filter: 'all', limit: PAGE_LIMIT, offset: page * PAGE_LIMIT },
-      });
+      await sleep(backoffDelayMs(attempt));
+      response = await fetchPage();
     }
 
     if (!isLazadaSuccess(response)) {
@@ -205,15 +223,20 @@ export async function fetchLazadaListings(
       throw new LazadaApiError(response.code, response.message);
     }
 
+    if (total === undefined && typeof response.data?.total_products === 'number') {
+      total = response.data.total_products;
+    }
+
     const products = response.data?.products ?? [];
     if (products.length === 0) break;
 
     for (const product of products) items.push(...mapProductSkus(product));
 
+    // Stop when the catalog is exhausted: a short page, or we've reached the reported total.
     if (products.length < PAGE_LIMIT) break;
+    if (total !== undefined && offset + products.length >= total) break;
 
-    // Gentle pacing before the next page keeps a large catalog under flow control.
-    await sleep(PAGE_DELAY_MS);
+    await sleep(PAGE_DELAY_MS); // gentle pacing before the next page
   }
 
   return items;

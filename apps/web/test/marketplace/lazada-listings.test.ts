@@ -1,4 +1,4 @@
-import { fetchLazadaListings } from '@palka/marketplace-providers';
+import { fetchLazadaListings, isTransientLazadaError } from '@palka/marketplace-providers';
 import type { LazadaClient } from '@palka/marketplace-providers';
 import { describe, expect, it } from 'vitest';
 
@@ -78,5 +78,54 @@ describe('fetchLazadaListings — multi-warehouse capture', () => {
       { code: 'dropshipping', sellable: 9 },
     ]);
     expect(items.find((i) => i.skuId === '11')?.warehouses).toEqual([]);
+  });
+});
+
+/** A client that serves `totalProducts` products across offset-paged calls (one SKU each), echoing
+ *  total_products so the loop can bound itself — and recording the `limit` each call used. */
+function pagingClient(totalProducts: number): { client: LazadaClient; limits: number[] } {
+  const limits: number[] = [];
+  const client: LazadaClient = {
+    call: async (_path: string, options?: { params?: Record<string, unknown> }) => {
+      const offset = Number(options?.params?.offset ?? 0);
+      const limit = Number(options?.params?.limit ?? 0);
+      limits.push(limit);
+      const count = Math.max(0, Math.min(limit, totalProducts - offset));
+      const products = Array.from({ length: count }, (_value, i) => {
+        const n = offset + i + 1;
+        return {
+          item_id: n,
+          attributes: { name: `P${n}` },
+          skus: [{ SkuId: n * 10, SellerSku: `SKU-${n}`, quantity: 5 }],
+        };
+      });
+      const data = { products, total_products: totalProducts };
+      return { code: '0', data, raw: { data } } as never;
+    },
+  };
+  return { client, limits };
+}
+
+describe('fetchLazadaListings — paging & throttle handling', () => {
+  it('pages with limit=100 bounded by total_products (no silent truncation, no extra empty call)', async () => {
+    const { client, limits } = pagingClient(150);
+    const items = await fetchLazadaListings(client, { accessToken: 'tok' });
+    expect(items).toHaveLength(150); // all 150 captured across 2 pages
+    expect(limits[0]).toBe(100); // page size raised from the old 50 → 100
+    expect(limits).toHaveLength(2); // 100 + 50; total_products stops it (no 3rd empty page)
+  });
+
+  it('recognizes the 901 gateway speed-limit (+ message variants) as a transient throttle', () => {
+    expect(
+      isTransientLazadaError(
+        '901',
+        'E0901: Limit service request speed in server side temporarily.',
+      ),
+    ).toBe(true);
+    expect(isTransientLazadaError('ApiCallLimit', 'Api access frequency exceeds the limit')).toBe(
+      true,
+    );
+    expect(isTransientLazadaError('0', undefined)).toBe(false); // success is not a throttle
+    expect(isTransientLazadaError('E207', 'SKU not exist')).toBe(false); // a real error, not transient
   });
 });
