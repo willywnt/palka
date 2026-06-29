@@ -91,11 +91,14 @@ fallback, placedAt-not-rewritten). Plus the earlier fulfilledAt false-stamp fix.
 
 ### Deferred / open
 
-- **Batch 3 — VPS hardening:** the `server.ts` loopback fetch now has an `AbortSignal.timeout`
-  (2026-06-26) so a hung request can't wedge auto-pull. **Still owed** (it needs a `turbo.json` env
-  declaration, so confirm under HARD CONSTRAINT #3 then): a dedicated `INTERNAL_PULL_SECRET` (instead
-  of reusing `AUTH_SECRET`) + a rate-limit. The internal `/api/v1/internal/pull-orders` endpoint now
-  runs on the VPS custom server and is called by the VPS scheduler.
+- **Batch 3 — VPS hardening: ✅ DONE (2026-06-29).** The `server.ts` loopback fetch has an
+  `AbortSignal.timeout` (2026-06-26), and the internal endpoints now use a dedicated
+  **`INTERNAL_API_SECRET`** (optional, falls back to `AUTH_SECRET` so a deploy that hasn't set it
+  keeps working; declared in `turbo.json` globalEnv + `env.server`) plus a per-IP **rate-limit** that
+  only bites proxied callers — both via the shared `lib/api/internal-request.ts` `guardInternalRequest`,
+  reused by `/api/v1/internal/pull-orders` AND `/api/v1/internal/finance-generate`. (The old
+  "404-on-Vercel" guard is moot now that prod is the VPS.) Set `INTERNAL_API_SECRET` (>=32 chars) on
+  web+worker to activate; until then it transparently uses `AUTH_SECRET`.
 - **#7 (skipped, safe):** an items-fetch throttle THROWS → the cursor isn't advanced → safe retry.
   Making it `partial` risks the freeze interaction (a reserved order returned with empty lines), so left
   as-is. Revisit only if a very busy shop perpetually re-throttles the items phase.
@@ -110,6 +113,6 @@ fallback, placedAt-not-rewritten). Plus the earlier fulfilledAt false-stamp fix.
 ## Next steps
 
 1. Owner visual-QA on the branch, then **push + PR to main**.
-2. With the VPS cutover: Batch 3 hardening + turn on `ORDERS_AUTO_PULL_INTERVAL_MS`; then the **Lazada
-   webhook** (Trade Order notification) as the real-time path with this poll as the reconciliation
-   backstop.
+2. Batch 3 hardening is DONE; turn on `ORDERS_AUTO_PULL_INTERVAL_MS` (web) once a real Lazada shop is
+   connected (`marketplace_connections` is empty today). Then the **Lazada webhook** (Trade Order
+   notification) as the real-time path with this poll as the reconciliation backstop.

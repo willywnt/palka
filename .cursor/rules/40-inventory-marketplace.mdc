@@ -125,7 +125,7 @@ Org-scoped (`organizationId`), internal-first. Roadmap + locked decisions:
     LAST, placedAt, id`.
   - **VPS auto-pull** (runs on the VPS custom server): `runScheduledPull()` (all orgs, `connection.userId` as actor)
     hit by a `server.ts` loopback timer → secret-gated `POST /api/v1/internal/pull-orders`, env
-    `ORDERS_AUTO_PULL_INTERVAL_MS` (unset=off). [Batch-3 hardening owed: dedicated secret + fetch timeout.]
+    `ORDERS_AUTO_PULL_INTERVAL_MS` (unset=off). [Batch-3 hardening DONE 2026-06-29: dedicated `INTERNAL_API_SECRET` (falls back to AUTH_SECRET) + per-IP rate-limit + fetch timeout, via shared `lib/api/internal-request.ts`.]
   - `resolveOrderItem` (manual Kaitkan, also from the peek) maps via `mapByExternalRef` + reserves just
     the newly-resolved PAID-order items (idempotent). Per-status detail (SLA/courier/payment/note/cancel
     reason) + per-item photo/link come from `Order.rawPayload` at read-time (`extractOrderMarketplaceMeta`

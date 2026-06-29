@@ -444,8 +444,8 @@ deriveFeesForMonth`) → QRIS fee = gross QRIS sales × rate, commission = fulfi
   window. **INVARIANT: a reserved order's line set is FROZEN** (carry qty/variant/`unitCost` forward +
   reserve-delta for late maps; ship/release run off the frozen set). Per-line status releases a line
   cancelled inside a shipped order. VPS auto-pull (`runScheduledPull` + `server.ts` timer + internal
-  endpoint, env `ORDERS_AUTO_PULL_INTERVAL_MS`, runs on the VPS custom server). Design + open issues (Batch-3 VPS
-  hardening owed): `docs/roadmap/lazada-order-pull.md`. Provider creds thread as
+  endpoint, env `ORDERS_AUTO_PULL_INTERVAL_MS`, runs on the VPS custom server). Design + open issues (Batch-3
+  secret+rate-limit hardening DONE 2026-06-29 via `INTERNAL_API_SECRET`; auto-pull enable owed): `docs/roadmap/lazada-order-pull.md`. Provider creds thread as
   **`ProviderShopCredentials = {accessToken, shopId, shopCipher}`** (Lazada ignores shopId/shopCipher;
   Shopee uses shopId; Tokopedia/TikTok needs `MarketplaceConnection.externalShopCipher`).
 - **UI cross-module**: import another module's hooks/types, NOT its components — compose at the app
