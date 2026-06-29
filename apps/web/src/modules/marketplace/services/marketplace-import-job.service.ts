@@ -18,6 +18,7 @@ function toDto(job: MarketplaceImportJob): MarketplaceImportJobDto {
   return {
     id: job.id,
     status: job.status,
+    full: job.full,
     totalProducts: job.totalProducts,
     processedProducts: job.processedProducts,
     importedRows: job.importedRows,
@@ -42,6 +43,7 @@ export class MarketplaceImportJobService {
     organizationId: string,
     actorUserId: string,
     connectionId: string,
+    full = false,
   ): Promise<MarketplaceImportJobDto> {
     const connection = await prisma.marketplaceConnection.findFirst({
       where: { id: connectionId, organizationId, deletedAt: null },
@@ -61,6 +63,7 @@ export class MarketplaceImportJobService {
       return {
         id: null,
         status: 'COMPLETED',
+        full: true,
         totalProducts: result.imported,
         processedProducts: result.imported,
         importedRows: result.imported,
@@ -84,6 +87,7 @@ export class MarketplaceImportJobService {
         provider: connection.provider,
         actorUserId,
         status: 'PENDING',
+        full,
       },
     });
 

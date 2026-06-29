@@ -18,6 +18,8 @@ import { acquireProviderToken, penalizeProvider } from './provider-rate-limit-re
 
 const IMPORT_PAGE_LIMIT = 100;
 const LAZADA_BASE_URL = 'https://api.lazada.co.id/rest';
+/** Re-pull overlap that absorbs clock skew + provider eventual consistency (upserts dedupe). */
+const OVERLAP_MS = 10 * 60 * 1000;
 
 type ImportContext = {
   organizationId: string;
@@ -154,6 +156,54 @@ function mergeWarehouseCodes(existing: string[], fresh: Set<string>): string[] {
 }
 
 /**
+ * Best-effort in-app notification when an import reaches a terminal state — so the actor who left
+ * the page sees the outcome on their next visit. Targeted to the actor, MARKETPLACE category,
+ * deduped per import run. Never fails the job.
+ */
+async function notifyImportFinished(
+  ctx: ImportContext,
+  importJobId: string,
+  status: 'COMPLETED' | 'PARTIAL' | 'FAILED',
+  stats: { importedRows: number; autoMappedCount: number; lastError: string | null },
+): Promise<void> {
+  const severity = status === 'FAILED' ? 'URGENT' : status === 'PARTIAL' ? 'WARNING' : 'SUCCESS';
+  const title =
+    status === 'FAILED'
+      ? 'Impor listing gagal'
+      : status === 'PARTIAL'
+        ? 'Impor listing selesai sebagian'
+        : 'Impor listing selesai';
+  const body =
+    status === 'FAILED'
+      ? (stats.lastError ?? 'Terjadi kesalahan saat impor.')
+      : `${stats.importedRows} listing diimpor, ${stats.autoMappedCount} otomatis terkait.`;
+
+  try {
+    await prisma.notification.create({
+      data: {
+        organizationId: ctx.organizationId,
+        recipientUserId: ctx.actorUserId,
+        actorUserId: ctx.actorUserId,
+        type: 'SYSTEM',
+        category: 'MARKETPLACE',
+        severity,
+        title,
+        body,
+        href: `/dashboard/marketplace/${ctx.connectionId}`,
+        dedupeKey: `marketplace-import-${importJobId}`,
+        entityType: 'marketplaceConnection',
+        entityId: ctx.connectionId,
+      },
+    });
+  } catch (error) {
+    logger.warn('marketplace.import.notify_failed', {
+      importJobId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
  * Run (or RESUME) a marketplace catalog import as a background job. Pages the provider with the
  * shared Redis rate limiter, streams each page to MarketplaceProduct, checkpoints the offset on the
  * MarketplaceImportJob row (so a BullMQ retry resumes instead of restarting), auto-maps once at the
@@ -189,9 +239,12 @@ export async function runMarketplaceImport(
     provider: connection.provider,
   };
 
+  // Stable across BullMQ retries (startedAt is set once) — also the value the incremental
+  // watermark advances to on a complete run, so updates DURING the import aren't skipped next time.
+  const runStartedAt = job.startedAt ?? new Date();
   await prisma.marketplaceImportJob.update({
     where: { id: importJobId },
-    data: { status: 'PROCESSING', startedAt: job.startedAt ?? new Date(), lastError: null },
+    data: { status: 'PROCESSING', startedAt: runStartedAt, lastError: null },
   });
 
   if (connection.provider !== 'LAZADA') {
@@ -224,6 +277,12 @@ export async function runMarketplaceImport(
   });
 
   const now = new Date();
+  // Incremental: pull only listings changed since the last complete import (minus an overlap). A
+  // full re-pull (or a never-imported connection) omits the filter and pages the whole catalog.
+  const updatedAfter =
+    !job.full && connection.listingsSyncedThrough
+      ? new Date(connection.listingsSyncedThrough.getTime() - OVERLAP_MS)
+      : undefined;
   let offset = job.offsetCheckpoint;
   let importedRows = job.importedRows;
   let processedProducts = job.processedProducts;
@@ -238,6 +297,7 @@ export async function runMarketplaceImport(
         accessToken,
         offset,
         limit: IMPORT_PAGE_LIMIT,
+        updatedAfter,
       });
       if (typeof page.total === 'number') total = page.total;
 
@@ -281,6 +341,11 @@ export async function runMarketplaceImport(
         where: { id: importJobId },
         data: { status, lastError, completedAt: new Date() },
       });
+      await notifyImportFinished(ctx, importJobId, status, {
+        importedRows,
+        autoMappedCount: 0,
+        lastError,
+      });
       return { status, importedRows, autoMappedCount: 0 };
     }
     const message = error instanceof Error ? error.message : String(error);
@@ -293,6 +358,11 @@ export async function runMarketplaceImport(
       connectionId: connection.id,
       error: message,
     });
+    await notifyImportFinished(ctx, importJobId, 'FAILED', {
+      importedRows,
+      autoMappedCount: 0,
+      lastError: message,
+    });
     return { status: 'FAILED', importedRows, autoMappedCount: 0 };
   }
 
@@ -301,6 +371,7 @@ export async function runMarketplaceImport(
     where: { id: connection.id },
     data: {
       lastImportedAt: now,
+      listingsSyncedThrough: runStartedAt,
       ...(warehouseCodes.size > 0
         ? {
             knownWarehouseCodes: mergeWarehouseCodes(
@@ -321,6 +392,11 @@ export async function runMarketplaceImport(
     importedRows,
     autoMappedCount,
     totalProducts: total,
+  });
+  await notifyImportFinished(ctx, importJobId, 'COMPLETED', {
+    importedRows,
+    autoMappedCount,
+    lastError: null,
   });
   return { status: 'COMPLETED', importedRows, autoMappedCount };
 }

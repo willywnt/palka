@@ -1,4 +1,8 @@
-import { fetchLazadaListings, isTransientLazadaError } from '@palka/marketplace-providers';
+import {
+  fetchLazadaListings,
+  fetchLazadaListingsPage,
+  isTransientLazadaError,
+} from '@palka/marketplace-providers';
 import type { LazadaClient } from '@palka/marketplace-providers';
 import { describe, expect, it } from 'vitest';
 
@@ -127,5 +131,36 @@ describe('fetchLazadaListings — paging & throttle handling', () => {
     );
     expect(isTransientLazadaError('0', undefined)).toBe(false); // success is not a throttle
     expect(isTransientLazadaError('E207', 'SKU not exist')).toBe(false); // a real error, not transient
+  });
+});
+
+describe('fetchLazadaListingsPage — incremental window', () => {
+  function capturingClient(): { client: LazadaClient; params: Array<Record<string, unknown>> } {
+    const params: Array<Record<string, unknown>> = [];
+    const client: LazadaClient = {
+      call: async (_path: string, options?: { params?: Record<string, unknown> }) => {
+        params.push(options?.params ?? {});
+        const data = { products: [], total_products: 0 };
+        return { code: '0', data, raw: { data } } as never;
+      },
+    };
+    return { client, params };
+  }
+
+  it('sends update_after (ISO8601 +07:00) when updatedAfter is set', async () => {
+    const { client, params } = capturingClient();
+    // 2026-06-30T00:00:00Z shifted to the GMT+7 gateway → 2026-06-30T07:00:00+07:00.
+    await fetchLazadaListingsPage(client, {
+      accessToken: 'tok',
+      offset: 0,
+      updatedAfter: new Date('2026-06-30T00:00:00.000Z'),
+    });
+    expect(params[0]?.update_after).toBe('2026-06-30T07:00:00+07:00');
+  });
+
+  it('omits update_after for a full pull', async () => {
+    const { client, params } = capturingClient();
+    await fetchLazadaListingsPage(client, { accessToken: 'tok', offset: 0 });
+    expect(params[0]).not.toHaveProperty('update_after');
   });
 });

@@ -99,6 +99,8 @@ export type ImportListingsResult = {
 export type MarketplaceImportJobDto = {
   id: string | null;
   status: MarketplaceImportStatus;
+  /** true = full catalog re-pull; false = incremental (only listings changed since last import). */
+  full: boolean;
   totalProducts: number | null;
   processedProducts: number;
   importedRows: number;

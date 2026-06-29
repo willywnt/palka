@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { MarketplaceImportStatus } from '@prisma/client';
 import {
   ArrowLeft,
+  ChevronDown,
   DownloadCloud,
   Link2,
   Link2Off,
@@ -19,6 +20,12 @@ import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -185,14 +192,15 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
     }, 2500);
   }
 
-  async function handleImport() {
+  async function handleImport(full = false) {
     try {
-      const job = await importMutation.mutateAsync();
+      const job = await importMutation.mutateAsync(full);
       if (job.async) {
         // Background (Lazada) import — the poll + banner take over; completion toast fires there.
         toast.success('Impor dimulai', {
-          description:
-            'Impor jalan di latar belakang — aman ditinggal, kamu bisa tutup halaman ini.',
+          description: full
+            ? 'Impor ulang semua jalan di latar belakang — aman ditinggal.'
+            : 'Impor perubahan terbaru jalan di latar belakang — aman ditinggal.',
         });
       } else {
         toast.success('Impor selesai', {
@@ -530,10 +538,35 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
               <Wand2 className="size-4" />
               {rerunMutation.isPending ? 'Mengaitkan...' : 'Auto-kait lagi'}
             </Button>
-            <Button onClick={() => void handleImport()} disabled={isImporting}>
-              <DownloadCloud className="size-4" />
-              {isImporting ? 'Mengimpor...' : 'Impor listing'}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={isImporting}>
+                  <DownloadCloud className="size-4" />
+                  {isImporting ? 'Mengimpor...' : 'Impor listing'}
+                  <ChevronDown className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuItem
+                  className="flex-col items-start gap-0.5"
+                  onClick={() => void handleImport(false)}
+                >
+                  <span className="font-medium">Impor perubahan terbaru</span>
+                  <span className="text-muted-foreground text-xs">
+                    Hanya listing yang berubah sejak impor terakhir.
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="flex-col items-start gap-0.5"
+                  onClick={() => void handleImport(true)}
+                >
+                  <span className="font-medium">Impor ulang semua</span>
+                  <span className="text-muted-foreground text-xs">
+                    Tarik seluruh katalog dari awal.
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ) : null}
       </div>
@@ -543,7 +576,11 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
           <div className="flex items-start gap-3">
             <Loader2 className="text-primary mt-0.5 size-4 shrink-0 animate-spin" />
             <div className="flex-1 space-y-1.5">
-              <p className="text-sm font-medium">Mengimpor listing dari marketplace…</p>
+              <p className="text-sm font-medium">
+                {activeImport.full
+                  ? 'Mengimpor ulang seluruh katalog…'
+                  : 'Mengimpor perubahan terbaru…'}
+              </p>
               <p className="text-muted-foreground num text-xs">
                 {activeImport.totalProducts
                   ? `${activeImport.processedProducts} / ${activeImport.totalProducts} produk`

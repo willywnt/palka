@@ -324,6 +324,10 @@ model MarketplaceConnection {
   // here (minus a small overlap). Decoupled from lastOrdersPulledAt so the cooldown and the
   // sync window can move independently. null = never synced (first pull backfills a window).
   ordersSyncedThrough   DateTime?
+  /// Incremental catalog-import watermark: a non-full import asks the provider only for listings
+  /// updated since here (minus a small overlap). Advanced to the run's start ONLY on a COMPLETE
+  /// import. null = never fully imported (first/forced import pulls the whole catalog).
+  listingsSyncedThrough DateTime?
   /// Commission rate as a PERCENT (e.g. 5.00 = 5%) used to ESTIMATE the MARKETPLACE_COMMISSION
   /// opex auto-derived from this connection's shipped/completed orders. 0 = no auto commission.
   commissionRate        Decimal             @default(0) @db.Decimal(5, 2)
@@ -700,6 +704,9 @@ model MarketplaceImportJob {
   actorUserId       String
   actor             User                    @relation(fields: [actorUserId], references: [id])
   status            MarketplaceImportStatus @default(PENDING)
+  /// true = full catalog re-pull (ignore the incremental watermark); false = only listings changed
+  /// since the connection's listingsSyncedThrough. Snapshotted so a resume keeps the same scope.
+  full              Boolean                 @default(false)
   /// Total products Lazada reports (progress denominator); null until the first page returns.
   totalProducts     Int?
   /// Products paged so far (progress numerator).

@@ -101,10 +101,10 @@ export function useImportListingsMutation(connectionId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (full?: boolean) => {
       const result = await apiFetch<MarketplaceImportJobDto>(
         `${apiRoutes.marketplace}/${connectionId}/import`,
-        { method: 'POST' },
+        { method: 'POST', body: { full: full ?? false } },
       );
 
       if (!result.success) {

@@ -23,6 +23,16 @@ function backoffDelayMs(attempt: number): number {
   return Math.floor(ceiling / 2 + Math.random() * (ceiling / 2));
 }
 
+/** Lazada's ID gateway runs on GMT+7; the incremental window filter must carry an explicit offset. */
+const LAZADA_REGION_OFFSET = '+07:00';
+const LAZADA_REGION_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/** Format an instant as the Lazada window param `YYYY-MM-DDTHH:mm:ss+07:00`. */
+function formatLazadaWindow(date: Date): string {
+  const shifted = new Date(date.getTime() + LAZADA_REGION_OFFSET_MS);
+  return `${shifted.toISOString().slice(0, 19)}${LAZADA_REGION_OFFSET}`;
+}
+
 /** Postgres INT4 ceiling — our stock columns are 32-bit, and Lazada test shops can
  *  return absurd quantities (e.g. 1.37e12) that overflow the insert. */
 const INT32_MAX = 2_147_483_647;
@@ -259,14 +269,21 @@ export type LazadaListingsPage = {
  */
 export async function fetchLazadaListingsPage(
   client: LazadaClient,
-  params: { accessToken: string; offset: number; limit?: number },
+  params: { accessToken: string; offset: number; limit?: number; updatedAfter?: Date },
 ): Promise<LazadaListingsPage> {
   const limit = params.limit ?? PAGE_LIMIT;
   const fetchPage = () =>
     client.call<LazadaProductsGetData>(PRODUCTS_GET_PATH, {
       method: 'GET',
       accessToken: params.accessToken,
-      params: { filter: 'all', limit, offset: params.offset },
+      params: {
+        filter: 'all',
+        limit,
+        offset: params.offset,
+        // Incremental: only products updated since the window (full pull omits it). `total_products`
+        // then reflects the filtered set, so the paging stop condition still holds.
+        ...(params.updatedAfter ? { update_after: formatLazadaWindow(params.updatedAfter) } : {}),
+      },
     });
 
   let response = await fetchPage();
