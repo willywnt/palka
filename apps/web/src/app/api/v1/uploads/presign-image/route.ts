@@ -14,7 +14,7 @@ export const POST = withApiRoute(
     const result = await uploadService.createPresignedImageUpload(org.id, parsed.data);
     return apiSuccess(result);
   },
-  { requireAuth: true },
+  { requireAuth: true, rateLimit: 'upload' },
 );
 
 export function OPTIONS() {

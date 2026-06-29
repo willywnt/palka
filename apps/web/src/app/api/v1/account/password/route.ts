@@ -30,7 +30,7 @@ export const POST = withApiRoute(
     }
     return apiSuccess(null);
   },
-  { requireAuth: true, rateLimit: 'write' },
+  { requireAuth: true, rateLimit: 'password-change' },
 );
 
 export function OPTIONS() {

@@ -22,7 +22,7 @@ export const POST = withApiRoute<RouteParams>(
     const result = await service.testConnection(org.id, parsed.data.id);
     return apiSuccess(result);
   },
-  { requireAuth: true, requirePermission: 'marketplace.manage' },
+  { requireAuth: true, rateLimit: 'write', requirePermission: 'marketplace.manage' },
 );
 
 export function OPTIONS() {

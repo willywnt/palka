@@ -30,16 +30,20 @@ export async function recordFailedLoginAttempt(email: string, ip: string): Promi
 }
 
 export async function isLoginBlocked(email: string, ip: string): Promise<boolean> {
+  // Fail CLOSED on both buckets: if Redis is down we can't read the counters, so treat the login as
+  // blocked rather than silently lifting the brute-force lockout.
   const [ipResult, accountResult] = await Promise.all([
     getRateLimitStatus({
       key: buildIpRateLimitKey('auth:failed-login', ip),
       limit: ACCOUNT_LOCK_THRESHOLD,
       windowSeconds: FAILED_LOGIN_WINDOW_SECONDS,
+      failClosed: true,
     }),
     getRateLimitStatus({
       key: buildUserRateLimitKey('auth:failed-login', email.toLowerCase()),
       limit: ACCOUNT_LOCK_THRESHOLD,
       windowSeconds: FAILED_LOGIN_WINDOW_SECONDS,
+      failClosed: true,
     }),
   ]);
 

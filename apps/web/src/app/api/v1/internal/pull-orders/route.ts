@@ -12,7 +12,7 @@ import { ordersServerService } from '@/modules/orders/services/orders-server.ser
  * guard (per-IP rate limit + INTERNAL_API_SECRET bearer, falling back to AUTH_SECRET).
  */
 export async function POST(request: Request) {
-  const blocked = await guardInternalRequest(request);
+  const blocked = guardInternalRequest(request);
   if (blocked) return blocked;
 
   try {

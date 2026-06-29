@@ -13,7 +13,7 @@ import { financeAutogenService } from '@/modules/finance/services/finance-autoge
  * a manual re-trigger is safe.
  */
 export async function POST(request: Request) {
-  const blocked = await guardInternalRequest(request);
+  const blocked = guardInternalRequest(request);
   if (blocked) return blocked;
 
   try {

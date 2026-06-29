@@ -13,7 +13,26 @@ export type RateLimitOptions = {
   key: string;
   limit: number;
   windowSeconds: number;
+  /**
+   * When Redis is unavailable, DENY instead of allowing (fail-closed). Default = fail-open. Set
+   * ONLY on security-load-bearing limiters (login / auth / register) so a Redis outage can't
+   * silently disable the brute-force throttle; cosmetic/per-user limiters stay fail-open so an
+   * outage never blocks legitimate writes.
+   */
+  failClosed?: boolean;
 };
+
+/** The result returned when Redis is unavailable — fail-open by default, fail-closed when asked. */
+function unavailableFallback(options: RateLimitOptions): RateLimitResult {
+  return options.failClosed
+    ? {
+        allowed: false,
+        limit: options.limit,
+        remaining: 0,
+        retryAfterSeconds: options.windowSeconds,
+      }
+    : { allowed: true, limit: options.limit, remaining: options.limit, retryAfterSeconds: 0 };
+}
 
 /**
  * Atomic INCR + (conditional) EXPIRE + TTL read in a single round-trip. Doing
@@ -39,34 +58,26 @@ return {count, ttl}
  * Fails open when Redis is unavailable so the app keeps serving traffic.
  */
 export async function checkRateLimit(options: RateLimitOptions): Promise<RateLimitResult> {
-  return withOptionalRedis(
-    async (redis) => {
-      const redisKey = `ratelimit:${options.key}`;
-      const result = (await redis.eval(
-        INCR_AND_EXPIRE_SCRIPT,
-        1,
-        redisKey,
-        options.windowSeconds,
-      )) as [number, number];
-      const [count, ttl] = result;
+  return withOptionalRedis(async (redis) => {
+    const redisKey = `ratelimit:${options.key}`;
+    const result = (await redis.eval(
+      INCR_AND_EXPIRE_SCRIPT,
+      1,
+      redisKey,
+      options.windowSeconds,
+    )) as [number, number];
+    const [count, ttl] = result;
 
-      const retryAfterSeconds = ttl > 0 ? ttl : options.windowSeconds;
-      const remaining = Math.max(options.limit - count, 0);
+    const retryAfterSeconds = ttl > 0 ? ttl : options.windowSeconds;
+    const remaining = Math.max(options.limit - count, 0);
 
-      return {
-        allowed: count <= options.limit,
-        limit: options.limit,
-        remaining,
-        retryAfterSeconds,
-      };
-    },
-    {
-      allowed: true,
+    return {
+      allowed: count <= options.limit,
       limit: options.limit,
-      remaining: options.limit,
-      retryAfterSeconds: 0,
-    },
-  );
+      remaining,
+      retryAfterSeconds,
+    };
+  }, unavailableFallback(options));
 }
 
 export function buildIpRateLimitKey(prefix: string, ip: string): string {
@@ -78,28 +89,20 @@ export function buildUserRateLimitKey(prefix: string, userId: string): string {
 }
 
 export async function getRateLimitStatus(options: RateLimitOptions): Promise<RateLimitResult> {
-  return withOptionalRedis(
-    async (redis) => {
-      const redisKey = `ratelimit:${options.key}`;
-      const currentValue = await redis.get(redisKey);
-      const count = currentValue ? Number.parseInt(currentValue, 10) : 0;
-      const ttl = await redis.ttl(redisKey);
-      const retryAfterSeconds = ttl > 0 ? ttl : options.windowSeconds;
+  return withOptionalRedis(async (redis) => {
+    const redisKey = `ratelimit:${options.key}`;
+    const currentValue = await redis.get(redisKey);
+    const count = currentValue ? Number.parseInt(currentValue, 10) : 0;
+    const ttl = await redis.ttl(redisKey);
+    const retryAfterSeconds = ttl > 0 ? ttl : options.windowSeconds;
 
-      return {
-        allowed: count < options.limit,
-        limit: options.limit,
-        remaining: Math.max(options.limit - count, 0),
-        retryAfterSeconds,
-      };
-    },
-    {
-      allowed: true,
+    return {
+      allowed: count < options.limit,
       limit: options.limit,
-      remaining: options.limit,
-      retryAfterSeconds: 0,
-    },
-  );
+      remaining: Math.max(options.limit - count, 0),
+      retryAfterSeconds,
+    };
+  }, unavailableFallback(options));
 }
 
 export async function incrementRateLimitCounter(

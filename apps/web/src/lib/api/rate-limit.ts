@@ -5,6 +5,8 @@ import {
   AUTH_RATE_LIMIT_PER_MINUTE,
   LOGIN_RATE_LIMIT_PER_WINDOW,
   LOGIN_RATE_LIMIT_WINDOW_SECONDS,
+  PASSWORD_CHANGE_RATE_LIMIT_PER_WINDOW,
+  PASSWORD_CHANGE_RATE_LIMIT_WINDOW_SECONDS,
   RECORDING_RATE_LIMIT_PER_MINUTE,
   UPLOAD_RATE_LIMIT_PER_MINUTE,
 } from '@palka/config/limits';
@@ -17,7 +19,13 @@ import {
 
 import { AppError } from '@/lib/errors';
 
-export type RateLimitScope = 'login' | 'auth' | 'upload' | 'recording' | 'write';
+export type RateLimitScope =
+  | 'login'
+  | 'auth'
+  | 'upload'
+  | 'recording'
+  | 'write'
+  | 'password-change';
 
 export async function enforceRateLimit(
   scope: RateLimitScope,
@@ -25,16 +33,22 @@ export async function enforceRateLimit(
 ): Promise<RateLimitResult> {
   switch (scope) {
     case 'login':
+      // Fail CLOSED: during a Redis outage, refuse logins rather than let credential-stuffing
+      // through uncapped (the secure direction for an auth control; Redis is a required prod dep).
       return checkRateLimit({
         key: buildIpRateLimitKey('login', identifiers.ip),
         limit: LOGIN_RATE_LIMIT_PER_WINDOW,
         windowSeconds: LOGIN_RATE_LIMIT_WINDOW_SECONDS,
+        failClosed: true,
       });
     case 'auth':
+      // Fail CLOSED: the unauthenticated register/auth action throttle (invite-code + email
+      // enumeration) must not evaporate when Redis is down.
       return checkRateLimit({
         key: buildIpRateLimitKey('auth', identifiers.ip),
         limit: AUTH_RATE_LIMIT_PER_MINUTE,
         windowSeconds: 60,
+        failClosed: true,
       });
     case 'upload':
       if (!identifiers.userId) {
@@ -81,6 +95,22 @@ export async function enforceRateLimit(
         key: buildUserRateLimitKey('write', identifiers.userId),
         limit: API_RATE_LIMIT_PER_MINUTE,
         windowSeconds: 60,
+      });
+    case 'password-change':
+      // Per-user cap on own-password-change confirms — bounds current-password guessing on a
+      // hijacked session (the route is authenticated, so userId is present here).
+      if (!identifiers.userId) {
+        return {
+          allowed: true,
+          limit: PASSWORD_CHANGE_RATE_LIMIT_PER_WINDOW,
+          remaining: PASSWORD_CHANGE_RATE_LIMIT_PER_WINDOW,
+          retryAfterSeconds: 0,
+        };
+      }
+      return checkRateLimit({
+        key: buildUserRateLimitKey('password-change', identifiers.userId),
+        limit: PASSWORD_CHANGE_RATE_LIMIT_PER_WINDOW,
+        windowSeconds: PASSWORD_CHANGE_RATE_LIMIT_WINDOW_SECONDS,
       });
     default:
       return { allowed: true, limit: 0, remaining: 0, retryAfterSeconds: 0 };

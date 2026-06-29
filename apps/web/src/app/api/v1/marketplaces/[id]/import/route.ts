@@ -15,7 +15,7 @@ export const POST = withApiRoute<RouteParams>(
     const result = await marketplaceImportService.importListings(org.id, user.id, parsed.data.id);
     return apiSuccess(result);
   },
-  { requireAuth: true, requirePermission: 'marketplace.manage' },
+  { requireAuth: true, rateLimit: 'write', requirePermission: 'marketplace.manage' },
 );
 
 export function OPTIONS() {
