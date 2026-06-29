@@ -1,5 +1,6 @@
 import type { StockDriftStatus, StockDriftSummary } from '@palka/queue';
 import type {
+  MarketplaceImportStatus,
   MarketplaceMappingStatus,
   MarketplaceProvider,
   MarketplaceSyncStatus,
@@ -88,6 +89,25 @@ export type MarketplaceListingItem = {
 export type ImportListingsResult = {
   imported: number;
   autoMapped: number;
+};
+
+/**
+ * A catalog-import run as the client sees it. Lazada imports are durable background jobs (the UI
+ * polls until a terminal status); non-Lazada (stub) imports finish inline. `async=true` → keep
+ * polling; `async=false` → terminal already. `id` is null for an inline (non-job) result.
+ */
+export type MarketplaceImportJobDto = {
+  id: string | null;
+  status: MarketplaceImportStatus;
+  totalProducts: number | null;
+  processedProducts: number;
+  importedRows: number;
+  autoMappedCount: number;
+  errorCount: number;
+  lastError: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  async: boolean;
 };
 
 export type MarketplaceHealthTone = 'ok' | 'warn' | 'danger';

@@ -8,18 +8,19 @@ import { withApiRoute } from '@/lib/api/with-api-route';
 type RouteParams = { id: string };
 
 /**
- * Starts a catalog import. Lazada → enqueues a durable background job and returns it in a PENDING
- * state (the client polls GET /import-job); non-Lazada stubs import inline and return COMPLETED.
+ * Latest catalog-import job for a connection (or null). The import UI polls this while a job is
+ * PENDING/PROCESSING and reads it once on mount so a refresh / revisit reconnects to a running
+ * import instead of losing it. Read scope (marketplace.view); starting one needs marketplace.manage.
  */
-export const POST = withApiRoute<RouteParams>(
-  async (_request, { user, org, params }) => {
+export const GET = withApiRoute<RouteParams>(
+  async (_request, { org, params }) => {
     const parsed = marketplaceConnectionIdSchema.safeParse(await params);
     if (!parsed.success) return apiNotFound('Marketplace connection not found');
 
-    const job = await marketplaceImportJobService.startImport(org.id, user.id, parsed.data.id);
+    const job = await marketplaceImportJobService.getLatestJob(org.id, parsed.data.id);
     return apiSuccess(job);
   },
-  { requireAuth: true, rateLimit: 'write', requirePermission: 'marketplace.manage' },
+  { requireAuth: true, requirePermission: 'marketplace.view' },
 );
 
 export function OPTIONS() {

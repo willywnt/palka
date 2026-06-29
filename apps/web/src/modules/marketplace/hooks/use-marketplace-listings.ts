@@ -7,7 +7,7 @@ import { formatApiErrorMessage } from '@/lib/api/format-api-error';
 import { apiRoutes } from '@/lib/api/routes';
 import type { PageMeta } from '@/hooks/use-pagination';
 
-import type { ImportListingsResult, MarketplaceListingItem } from '../types';
+import type { MarketplaceImportJobDto, MarketplaceListingItem } from '../types';
 import type { ListingStatusFilter } from '../validators/list-listings';
 import { marketplaceKeys } from './use-marketplace-connections';
 
@@ -26,6 +26,7 @@ export const marketplaceListingKeys = {
   all: (connectionId: string) => ['marketplace-listings', connectionId] as const,
   list: (connectionId: string, page: number, pageSize: number, filters: ListingsFilters) =>
     ['marketplace-listings', connectionId, 'list', page, pageSize, filters] as const,
+  importJob: (connectionId: string) => ['marketplace-import-job', connectionId] as const,
 };
 
 export function useMarketplaceListingsQuery(
@@ -65,12 +66,43 @@ export function useMarketplaceListingsQuery(
   });
 }
 
+/**
+ * Polls the connection's latest catalog-import job. While a job is PENDING/PROCESSING it refetches
+ * every 2s (driving the progress banner); it also reads once on mount so a refresh / revisit
+ * reconnects to an in-flight import. Returns null when the connection has never been imported.
+ */
+export function useImportJobQuery(connectionId: string) {
+  return useQuery({
+    queryKey: marketplaceListingKeys.importJob(connectionId),
+    queryFn: async () => {
+      const result = await apiFetch<MarketplaceImportJobDto | null>(
+        `${apiRoutes.marketplace}/${connectionId}/import-job`,
+      );
+
+      if (!result.success) {
+        throw new Error(formatApiErrorMessage(result.error));
+      }
+
+      return result.data;
+    },
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === 'PENDING' || status === 'PROCESSING' ? 2000 : false;
+    },
+  });
+}
+
+/**
+ * Starts an import. The server returns a job DTO: a Lazada import is a background job (PENDING →
+ * the {@link useImportJobQuery} poll takes over), while a non-Lazada stub finishes inline
+ * (`async=false`, already COMPLETED). Seeds the poll cache so the progress banner shows at once.
+ */
 export function useImportListingsMutation(connectionId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
-      const result = await apiFetch<ImportListingsResult>(
+      const result = await apiFetch<MarketplaceImportJobDto>(
         `${apiRoutes.marketplace}/${connectionId}/import`,
         { method: 'POST' },
       );
@@ -81,8 +113,13 @@ export function useImportListingsMutation(connectionId: string) {
 
       return result.data;
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: marketplaceListingKeys.all(connectionId) });
+    onSuccess: (job) => {
+      queryClient.setQueryData(marketplaceListingKeys.importJob(connectionId), job);
+      // An inline (non-Lazada) import is already done — refresh listings now. A background job
+      // refreshes them when the poll sees it finish (handled in the detail component).
+      if (!job.async) {
+        void queryClient.invalidateQueries({ queryKey: marketplaceListingKeys.all(connectionId) });
+      }
     },
   });
 }

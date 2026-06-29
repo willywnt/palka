@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
+import type { MarketplaceImportStatus } from '@prisma/client';
 import {
   ArrowLeft,
   DownloadCloud,
@@ -42,12 +44,15 @@ import { formatDateTime } from '@/lib/formatters';
 import { useHasPermission } from '@/modules/users/hooks/use-org';
 
 import {
+  marketplaceKeys,
   useMarketplaceConnectionQuery,
   useRefreshConnectionMutation,
   useTestConnectionMutation,
 } from '../hooks/use-marketplace-connections';
 import { useSyncStatusQuery } from '../hooks/use-marketplace-health';
 import {
+  marketplaceListingKeys,
+  useImportJobQuery,
   useImportListingsMutation,
   useMapListingMutation,
   useMarketplaceListingsQuery,
@@ -121,6 +126,39 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
     status: statusFilter === ALL_STATUS ? undefined : statusFilter,
   });
   const importMutation = useImportListingsMutation(connectionId);
+  const queryClient = useQueryClient();
+  // Polls the connection's import job (and reads once on mount → reconnects to an in-flight import
+  // after a refresh). A Lazada import runs in the background; this drives the progress banner.
+  const importJobQuery = useImportJobQuery(connectionId);
+  const importJob = importJobQuery.data ?? null;
+  const activeImport =
+    importJob && (importJob.status === 'PENDING' || importJob.status === 'PROCESSING')
+      ? importJob
+      : null;
+  const isImporting = importMutation.isPending || Boolean(activeImport);
+
+  // Toast + refresh listings exactly once, when a background import goes active → terminal.
+  const prevImportStatus = useRef<MarketplaceImportStatus | null>(null);
+  useEffect(() => {
+    const status = importJob?.status ?? null;
+    const previous = prevImportStatus.current;
+    prevImportStatus.current = status;
+    if (!status) return;
+    const wasActive = previous === 'PENDING' || previous === 'PROCESSING';
+    const terminal = status === 'COMPLETED' || status === 'PARTIAL' || status === 'FAILED';
+    if (!wasActive || !terminal) return;
+
+    void queryClient.invalidateQueries({ queryKey: marketplaceListingKeys.all(connectionId) });
+    void queryClient.invalidateQueries({ queryKey: marketplaceKeys.detail(connectionId) });
+    if (status === 'FAILED') {
+      toast.error('Impor gagal', { description: importJob?.lastError ?? 'Terjadi kesalahan.' });
+    } else {
+      toast.success(status === 'PARTIAL' ? 'Impor sebagian selesai' : 'Impor selesai', {
+        description: `${importJob?.importedRows ?? 0} listing masuk, ${importJob?.autoMappedCount ?? 0} otomatis terkait.`,
+      });
+    }
+  }, [importJob, connectionId, queryClient]);
+
   const rerunMutation = useRerunAutoMapMutation(connectionId);
   const mapMutation = useMapListingMutation(connectionId);
   const unmapMutation = useUnmapListingMutation(connectionId);
@@ -149,10 +187,18 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
 
   async function handleImport() {
     try {
-      const result = await importMutation.mutateAsync();
-      toast.success('Impor selesai', {
-        description: `${result.imported} listing masuk, ${result.autoMapped} otomatis terkait.`,
-      });
+      const job = await importMutation.mutateAsync();
+      if (job.async) {
+        // Background (Lazada) import — the poll + banner take over; completion toast fires there.
+        toast.success('Impor dimulai', {
+          description:
+            'Impor jalan di latar belakang — aman ditinggal, kamu bisa tutup halaman ini.',
+        });
+      } else {
+        toast.success('Impor selesai', {
+          description: `${job.importedRows} listing masuk, ${job.autoMappedCount} otomatis terkait.`,
+        });
+      }
     } catch (error) {
       toast.error('Gagal impor', {
         description: error instanceof Error ? error.message : 'Terjadi kesalahan',
@@ -484,13 +530,51 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
               <Wand2 className="size-4" />
               {rerunMutation.isPending ? 'Mengaitkan...' : 'Auto-kait lagi'}
             </Button>
-            <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
+            <Button onClick={() => void handleImport()} disabled={isImporting}>
               <DownloadCloud className="size-4" />
-              {importMutation.isPending ? 'Mengimpor...' : 'Impor listing'}
+              {isImporting ? 'Mengimpor...' : 'Impor listing'}
             </Button>
           </div>
         ) : null}
       </div>
+
+      {activeImport ? (
+        <div className="border-primary/30 bg-primary/5 rounded-xl border p-4">
+          <div className="flex items-start gap-3">
+            <Loader2 className="text-primary mt-0.5 size-4 shrink-0 animate-spin" />
+            <div className="flex-1 space-y-1.5">
+              <p className="text-sm font-medium">Mengimpor listing dari marketplace…</p>
+              <p className="text-muted-foreground num text-xs">
+                {activeImport.totalProducts
+                  ? `${activeImport.processedProducts} / ${activeImport.totalProducts} produk`
+                  : `${activeImport.processedProducts} produk diproses`}
+                {activeImport.importedRows > 0
+                  ? ` · ${activeImport.importedRows} listing masuk`
+                  : ''}
+              </p>
+              {activeImport.totalProducts ? (
+                <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+                  <div
+                    className="bg-primary h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.round(
+                          (activeImport.processedProducts / activeImport.totalProducts) * 100,
+                        ),
+                      )}%`,
+                    }}
+                  />
+                </div>
+              ) : null}
+              <p className="text-muted-foreground text-xs">
+                Aman ditinggal — impor jalan di latar belakang, kamu bisa tutup halaman ini.
+                {activeImport.lastError ? ` ${activeImport.lastError}` : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <MarketplaceHealthPanel connectionId={connectionId} />
 
@@ -558,7 +642,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
             description="Impor listing toko ini, lalu kaitkan satu per satu ke produk."
             action={
               canManage ? (
-                <Button onClick={() => void handleImport()} disabled={importMutation.isPending}>
+                <Button onClick={() => void handleImport()} disabled={isImporting}>
                   <DownloadCloud className="size-4" />
                   Impor listing
                 </Button>
