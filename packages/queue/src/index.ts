@@ -72,6 +72,7 @@ export * from './jobs/index.js';
 export * from './marketplace-sync/index.js';
 export * from './queues/create-queue.js';
 export * from './queues/marketplace-sync-producer.js';
+export * from './queues/marketplace-import-producer.js';
 export * from './queues/register-schedulers.js';
 export * from './workers/create-worker.js';
 export * from './workers/register-workers.js';

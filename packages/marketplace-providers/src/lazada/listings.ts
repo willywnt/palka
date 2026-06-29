@@ -242,6 +242,60 @@ export async function fetchLazadaListings(
   return items;
 }
 
+export type LazadaListingsPage = {
+  items: LazadaListingItem[];
+  /** Total products Lazada reports (product-level); undefined on shops that don't return it. */
+  total: number | undefined;
+  /** Raw product count on this page — `< limit` means the catalog is exhausted. */
+  productCount: number;
+};
+
+/**
+ * Fetch ONE page of a shop's listings at `offset` (same per-page throttle retry + jittered
+ * backoff as {@link fetchLazadaListings}). Lets the caller drive the paging loop itself — pacing
+ * each call through a rate limiter, streaming each page to the DB, and checkpointing the offset to
+ * resume — instead of buffering the whole catalog. Throws LazadaApiError when the page stays
+ * non-success after retries (the caller decides retry/partial).
+ */
+export async function fetchLazadaListingsPage(
+  client: LazadaClient,
+  params: { accessToken: string; offset: number; limit?: number },
+): Promise<LazadaListingsPage> {
+  const limit = params.limit ?? PAGE_LIMIT;
+  const fetchPage = () =>
+    client.call<LazadaProductsGetData>(PRODUCTS_GET_PATH, {
+      method: 'GET',
+      accessToken: params.accessToken,
+      params: { filter: 'all', limit, offset: params.offset },
+    });
+
+  let response = await fetchPage();
+  for (
+    let attempt = 1;
+    attempt <= MAX_PAGE_RETRIES &&
+    !isLazadaSuccess(response) &&
+    isTransientLazadaError(response.code, response.message);
+    attempt += 1
+  ) {
+    await sleep(backoffDelayMs(attempt));
+    response = await fetchPage();
+  }
+  if (!isLazadaSuccess(response)) {
+    throw new LazadaApiError(response.code, response.message);
+  }
+
+  const products = response.data?.products ?? [];
+  const items: LazadaListingItem[] = [];
+  for (const product of products) items.push(...mapProductSkus(product));
+
+  return {
+    items,
+    total:
+      typeof response.data?.total_products === 'number' ? response.data.total_products : undefined,
+    productCount: products.length,
+  };
+}
+
 const ITEM_GET_PATH = '/product/item/get';
 /** Pace + retry per-item reads (gentler than full paging). */
 const ITEM_DELAY_MS = 400;

@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { JOB_DEFAULT_ATTEMPTS } from '@palka/config/limits';
+import { JOB_DEFAULT_ATTEMPTS, MARKETPLACE_IMPORT_CONCURRENCY } from '@palka/config/limits';
 
 import { runJobWithLogging } from '../utils/job-logger.js';
 import { createWorker } from './create-worker.js';
@@ -8,6 +8,7 @@ import {
   processCleanupNotificationsJob,
   processCleanupFailedUploadsJob,
   processCleanupRecordingsJob,
+  processImportMarketplaceListingsJob,
   processPropagateInventoryStockJob,
   processReconcileMarketplaceDriftJob,
   processRefreshMarketplaceTokensJob,
@@ -15,7 +16,12 @@ import {
   processSyncMarketplaceStockJob,
   processVerifyStorageConsistencyJob,
 } from '../jobs/index.js';
-import { JOB_NAMES, QUEUE_NAMES, type SyncMarketplaceStockJobPayload } from '../types/index.js';
+import {
+  JOB_NAMES,
+  QUEUE_NAMES,
+  type ImportMarketplaceListingsJobPayload,
+  type SyncMarketplaceStockJobPayload,
+} from '../types/index.js';
 
 export function registerAllWorkers() {
   createWorker(QUEUE_NAMES.RECORDING_CLEANUP, {
@@ -75,6 +81,18 @@ export function registerAllWorkers() {
 
       return runJobWithLogging(job, processReconcileMarketplaceDriftJob);
     },
+  });
+
+  createWorker(QUEUE_NAMES.MARKETPLACE_IMPORT, {
+    concurrency: MARKETPLACE_IMPORT_CONCURRENCY,
+    processor: async (job: Job) =>
+      runJobWithLogging(job, (payload: ImportMarketplaceListingsJobPayload) =>
+        processImportMarketplaceListingsJob(
+          payload,
+          job.attemptsMade + 1,
+          job.opts.attempts ?? JOB_DEFAULT_ATTEMPTS,
+        ),
+      ),
   });
 
   return {

@@ -9,6 +9,7 @@ export const QUEUE_NAMES = {
   MARKETPLACE_PROPAGATE: 'marketplace-propagate',
   MARKETPLACE_STOCK_SYNC: 'marketplace-stock-sync',
   MARKETPLACE_RECONCILE: 'marketplace-reconcile',
+  MARKETPLACE_IMPORT: 'marketplace-import',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -24,6 +25,7 @@ export const JOB_NAMES = {
   SYNC_MARKETPLACE_STOCK: 'sync-marketplace-stock',
   RECONCILE_MARKETPLACE_DRIFT: 'reconcile-marketplace-drift',
   REFRESH_MARKETPLACE_TOKENS: 'refresh-marketplace-tokens',
+  IMPORT_MARKETPLACE_LISTINGS: 'import-marketplace-listings',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -118,6 +120,16 @@ export const refreshMarketplaceTokensJobSchema = z.object({
 
 export type RefreshMarketplaceTokensJobPayload = z.infer<typeof refreshMarketplaceTokensJobSchema>;
 
+export const importMarketplaceListingsJobSchema = z.object({
+  /** The MarketplaceImportJob row this run drives — everything else is read from the DB so the
+   *  payload stays tiny and the worker is always working off the authoritative checkpoint. */
+  importJobId: z.string().cuid(),
+});
+
+export type ImportMarketplaceListingsJobPayload = z.infer<
+  typeof importMarketplaceListingsJobSchema
+>;
+
 export type JobPayloadMap = {
   [JOB_NAMES.CLEANUP_RECORDINGS]: CleanupRecordingsJobPayload;
   [JOB_NAMES.RECALCULATE_STORAGE]: RecalculateStorageJobPayload;
@@ -129,6 +141,7 @@ export type JobPayloadMap = {
   [JOB_NAMES.SYNC_MARKETPLACE_STOCK]: SyncMarketplaceStockJobPayload;
   [JOB_NAMES.RECONCILE_MARKETPLACE_DRIFT]: ReconcileMarketplaceDriftJobPayload;
   [JOB_NAMES.REFRESH_MARKETPLACE_TOKENS]: RefreshMarketplaceTokensJobPayload;
+  [JOB_NAMES.IMPORT_MARKETPLACE_LISTINGS]: ImportMarketplaceListingsJobPayload;
 };
 
 export type JobResultMetadata = {

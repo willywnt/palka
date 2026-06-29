@@ -35,6 +35,7 @@ import {
   processRefreshMarketplaceTokensJob,
 } from './refresh-marketplace-tokens.job.js';
 import { processSyncMarketplaceStockJob } from './sync-marketplace-stock.job.js';
+import { processImportMarketplaceListingsJob } from './import-marketplace-listings.job.js';
 
 export {
   processCleanupRecordingsJob,
@@ -56,4 +57,5 @@ export {
   getDefaultReconcileMarketplaceDriftPayload,
   processRefreshMarketplaceTokensJob,
   getDefaultRefreshMarketplaceTokensPayload,
+  processImportMarketplaceListingsJob,
 };
