@@ -65,6 +65,13 @@ export const RECORDING_RATE_LIMIT_PER_MINUTE = 20;
 /** Auth API requests per IP per minute. */
 export const AUTH_RATE_LIMIT_PER_MINUTE = 60;
 
+/**
+ * Internal secret-gated endpoint requests per IP per minute (scheduled order pull, finance
+ * auto-gen). The legit caller is server.ts on loopback firing at most once per interval, so this
+ * ceiling only bites an external flood / secret-guessing source reaching the app via the proxy.
+ */
+export const INTERNAL_RATE_LIMIT_PER_MINUTE = 10;
+
 /** Inventory sync batch size. */
 export const INVENTORY_SYNC_BATCH_SIZE = 100;
 

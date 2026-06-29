@@ -1,8 +1,6 @@
-import { timingSafeEqual } from 'crypto';
-
-import { getServerEnv } from '@palka/config/env.server';
 import { NextResponse } from 'next/server';
 
+import { guardInternalRequest } from '@/lib/api/internal-request';
 import { appLogger } from '@/lib/logger';
 import { ordersServerService } from '@/modules/orders/services/orders-server.service';
 
@@ -10,20 +8,12 @@ import { ordersServerService } from '@/modules/orders/services/orders-server.ser
  * Internal, secret-gated trigger for the scheduled order pull. Called by the custom server's
  * timer (server.ts) on a loopback request — runs INSIDE Next so the order-ingest module graph
  * resolves normally (the server bootstrap can't import it directly). NOT a user endpoint: it
- * carries no session and pulls every org's active stores, so it requires the AUTH_SECRET bearer.
+ * carries no session and pulls every org's active stores, so it is gated by the internal-request
+ * guard (per-IP rate limit + INTERNAL_API_SECRET bearer, falling back to AUTH_SECRET).
  */
-function isAuthorized(request: Request): boolean {
-  const expected = `Bearer ${getServerEnv().AUTH_SECRET}`;
-  const provided = request.headers.get('authorization') ?? '';
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 export async function POST(request: Request) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+  const blocked = await guardInternalRequest(request);
+  if (blocked) return blocked;
 
   try {
     const result = await ordersServerService.runScheduledPull();

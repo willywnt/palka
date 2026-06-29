@@ -51,6 +51,15 @@ function isSocketIoPath(pathname: string): boolean {
 }
 
 /**
+ * Bearer secret for the loopback-only internal endpoints (auto-pull, finance auto-gen). Prefers a
+ * dedicated INTERNAL_API_SECRET; falls back to AUTH_SECRET so a deploy that hasn't set the
+ * dedicated secret yet keeps working. Must match the route guard in lib/api/internal-request.ts.
+ */
+function internalEndpointSecret(): string | undefined {
+  return process.env.INTERNAL_API_SECRET ?? process.env.AUTH_SECRET;
+}
+
+/**
  * Periodic order pull (VPS/self-hosted). Hits the secret-gated internal endpoint on loopback so
  * the order-ingest module graph resolves inside Next (the bootstrap can't import it directly).
  * Off by default (ORDERS_AUTO_PULL_INTERVAL_MS unset/0); runs only where this custom server runs
@@ -60,9 +69,11 @@ function startScheduledOrderPull(useHttps: boolean): void {
   const intervalMs = Number(process.env.ORDERS_AUTO_PULL_INTERVAL_MS ?? 0);
   if (!Number.isFinite(intervalMs) || intervalMs <= 0) return;
 
-  const secret = process.env.AUTH_SECRET;
+  const secret = internalEndpointSecret();
   if (!secret) {
-    console.warn('> Auto-pull disabled: AUTH_SECRET is required to call the internal endpoint.');
+    console.warn(
+      '> Auto-pull disabled: INTERNAL_API_SECRET (or AUTH_SECRET) is required to call the internal endpoint.',
+    );
     return;
   }
   if (useHttps) {
@@ -107,10 +118,10 @@ function startScheduledOrderPull(useHttps: boolean): void {
 function startScheduledFinanceAutogen(useHttps: boolean): void {
   if (process.env.FINANCE_AUTOGEN_ENABLED !== 'true') return;
 
-  const secret = process.env.AUTH_SECRET;
+  const secret = internalEndpointSecret();
   if (!secret) {
     console.warn(
-      '> Finance auto-gen disabled: AUTH_SECRET is required to call the internal endpoint.',
+      '> Finance auto-gen disabled: INTERNAL_API_SECRET (or AUTH_SECRET) is required to call the internal endpoint.',
     );
     return;
   }

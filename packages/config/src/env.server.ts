@@ -65,6 +65,10 @@ const serverEnvSchema = z
     WORKER_HEALTH_PORT: z.coerce.number().int().positive().optional(),
     WORKER_HEALTH_URL: optionalUrl,
     WORKER_ENABLE_SCHEDULERS: z.enum(['true', 'false']).optional(),
+    // Dedicated secret for the loopback-only internal endpoints (scheduled order pull, monthly
+    // finance auto-gen). Falls back to AUTH_SECRET when unset so a deploy that hasn't set it yet
+    // keeps working; setting it isolates the blast radius from the session secret. min 32 chars.
+    INTERNAL_API_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
     // Custom-server (VPS/dev) scheduled order-pull interval in ms; 0/unset = off (the default,
     // the custom server runs on the VPS host). e.g. 300000 = every 5 min.
     ORDERS_AUTO_PULL_INTERVAL_MS: z.coerce.number().int().nonnegative().optional(),
