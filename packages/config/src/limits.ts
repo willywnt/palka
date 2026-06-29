@@ -73,6 +73,29 @@ export const PASSWORD_CHANGE_RATE_LIMIT_WINDOW_SECONDS = 15 * 60;
 /** Inventory sync batch size. */
 export const INVENTORY_SYNC_BATCH_SIZE = 100;
 
+/**
+ * Marketplace API pacing — MANUAL ceilings (tune by hand; NOT auto-raised). A two-tier Redis token
+ * bucket gates every provider call: the per-(provider,shop) bucket protects the per-seller QPS
+ * limit, the per-provider ("app") bucket protects the ONE shared app_key's total across all shops.
+ * `burst` is the bucket size (short spikes). On a throttle (901) the importer penalizes that shop →
+ * its effective rate HALVES for a cooldown window, then recovers to the ceiling (adaptive only
+ * downward — never above your number). Promote to env later if live tuning without a deploy is needed.
+ */
+export const MARKETPLACE_RATE_LIMITS: Record<
+  string,
+  { perShopQps: number; perAppQps: number; burst: number }
+> = {
+  LAZADA: { perShopQps: 8, perAppQps: 30, burst: 16 },
+  SHOPEE: { perShopQps: 8, perAppQps: 30, burst: 16 },
+  TOKOPEDIA: { perShopQps: 8, perAppQps: 30, burst: 16 },
+};
+
+/** Max marketplace catalog imports running in parallel across the worker. */
+export const MARKETPLACE_IMPORT_CONCURRENCY = 3;
+
+/** After an import catches a throttle, halve that shop's effective rate for this window (ms). */
+export const MARKETPLACE_THROTTLE_COOLDOWN_MS = 20_000;
+
 /** Audit log retention in days. */
 export const AUDIT_LOG_RETENTION_DAYS = 90;
 
