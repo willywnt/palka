@@ -8,8 +8,13 @@ export type {
   ShopeeStockPayloadInput,
   ShopeeStockUpdateBody,
 } from './stock-payload.js';
-export { fetchShopeeItemsStock, fetchShopeeListings, ShopeeApiError } from './listings.js';
-export type { ShopeeListingItem, ShopeeWarehouseStock } from './listings.js';
+export {
+  fetchShopeeItemsStock,
+  fetchShopeeListings,
+  fetchShopeeListingsPage,
+  ShopeeApiError,
+} from './listings.js';
+export type { ShopeeListingItem, ShopeeListingsPage, ShopeeWarehouseStock } from './listings.js';
 export {
   isAuthShopeeError,
   isMappingInvalidShopeeError,

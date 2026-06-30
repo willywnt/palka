@@ -82,6 +82,7 @@ type ShopeeItemListData = {
   item?: { item_id?: number | string }[];
   has_next_page?: boolean;
   next_offset?: number;
+  total_count?: number;
 };
 
 type ShopeeSellerStock = { location_id?: string; stock?: number };
@@ -213,8 +214,9 @@ function chunk<T>(values: T[], size: number): T[][] {
 /** Fetch a model's per-location stock + tiers for one item (get_model_list). */
 async function fetchModelData(
   client: ShopeeClient,
-  params: { accessToken: string; shopId: string; itemId: string },
+  params: { accessToken: string; shopId: string; itemId: string; beforeCall?: () => Promise<void> },
 ): Promise<ShopeeModelListData> {
+  await params.beforeCall?.();
   const response = await client.call<ShopeeModelListData>(MODEL_LIST_PATH, {
     method: 'GET',
     accessToken: params.accessToken,
@@ -228,10 +230,16 @@ async function fetchModelData(
 /** Resolve base info (names, has_model, sku, status) for a batch of item ids. */
 async function fetchBaseInfo(
   client: ShopeeClient,
-  params: { accessToken: string; shopId: string; itemIds: string[] },
+  params: {
+    accessToken: string;
+    shopId: string;
+    itemIds: string[];
+    beforeCall?: () => Promise<void>;
+  },
 ): Promise<ShopeeBaseInfoItem[]> {
   const out: ShopeeBaseInfoItem[] = [];
   for (const batch of chunk(params.itemIds, ID_BATCH)) {
+    await params.beforeCall?.();
     const response = await client.call<ShopeeBaseInfoData>(ITEM_BASE_INFO_PATH, {
       method: 'GET',
       accessToken: params.accessToken,
@@ -240,7 +248,8 @@ async function fetchBaseInfo(
     });
     if (!isShopeeSuccess(response)) throw new ShopeeApiError(response.error, response.message);
     out.push(...(response.response?.item_list ?? []));
-    await sleep(CALL_DELAY_MS);
+    // When a rate limiter paces each call (beforeCall), the fixed sleep is redundant.
+    if (!params.beforeCall) await sleep(CALL_DELAY_MS);
   }
   return out;
 }
@@ -248,7 +257,12 @@ async function fetchBaseInfo(
 /** Flatten a set of items (base info + per-item model list) to per-model rows. */
 async function expandItems(
   client: ShopeeClient,
-  params: { accessToken: string; shopId: string; itemIds: string[] },
+  params: {
+    accessToken: string;
+    shopId: string;
+    itemIds: string[];
+    beforeCall?: () => Promise<void>;
+  },
 ): Promise<ShopeeListingItem[]> {
   const baseInfo = await fetchBaseInfo(client, params);
   const rows: ShopeeListingItem[] = [];
@@ -260,7 +274,7 @@ async function expandItems(
       ? await fetchModelData(client, { ...params, itemId })
       : { model: [] };
     rows.push(...mapItemModels(base, modelData));
-    await sleep(CALL_DELAY_MS);
+    if (!params.beforeCall) await sleep(CALL_DELAY_MS);
   }
 
   return rows;
@@ -298,6 +312,60 @@ export async function fetchShopeeListings(
 
   if (itemIds.length === 0) return [];
   return expandItems(client, { ...params, itemIds });
+}
+
+export type ShopeeListingsPage = {
+  items: ShopeeListingItem[];
+  /** Total items (products) Shopee reports (get_item_list `total_count`); undefined when absent. */
+  total: number | undefined;
+  /** Items (products) on this page — `< page_size` means the catalog is exhausted. */
+  productCount: number;
+};
+
+/**
+ * Fetch ONE page of a shop's listings at `offset`: page `get_item_list`, then expand that page's
+ * items via base-info + model-list to per-model rows. Lets the caller drive the paging loop —
+ * pacing each provider call through `beforeCall` (a rate limiter), streaming each page to the DB,
+ * and checkpointing the offset to resume — instead of buffering the whole catalog. `beforeCall`
+ * runs before EVERY underlying call (the list page + each base-info batch + each model-list).
+ * Throws {@link ShopeeApiError} on a non-success envelope.
+ */
+export async function fetchShopeeListingsPage(
+  client: ShopeeClient,
+  params: {
+    accessToken: string;
+    shopId: string;
+    offset: number;
+    pageSize?: number;
+    beforeCall?: () => Promise<void>;
+  },
+): Promise<ShopeeListingsPage> {
+  const pageSize = params.pageSize ?? PAGE_SIZE;
+
+  await params.beforeCall?.();
+  const response = await client.call<ShopeeItemListData>(ITEM_LIST_PATH, {
+    method: 'GET',
+    accessToken: params.accessToken,
+    shopId: params.shopId,
+    params: { offset: params.offset, page_size: pageSize, item_status: IMPORT_ITEM_STATUS },
+  });
+  if (!isShopeeSuccess(response)) throw new ShopeeApiError(response.error, response.message);
+
+  const itemIds = (response.response?.item ?? []).flatMap((entry) => {
+    const id = String(entry.item_id ?? '');
+    return id ? [id] : [];
+  });
+  const items =
+    itemIds.length === 0
+      ? []
+      : await expandItems(client, {
+          accessToken: params.accessToken,
+          shopId: params.shopId,
+          itemIds,
+          beforeCall: params.beforeCall,
+        });
+
+  return { items, total: response.response?.total_count, productCount: itemIds.length };
 }
 
 /**

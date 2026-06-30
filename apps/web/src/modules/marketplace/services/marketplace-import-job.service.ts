@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { getServerEnv } from '@palka/config/env.server';
 import { prisma } from '@palka/db';
 import { enqueueImportMarketplaceListings } from '@palka/queue';
 import { Prisma, type MarketplaceImportJob } from '@prisma/client';
@@ -38,11 +39,11 @@ function toDto(job: MarketplaceImportJob): MarketplaceImportJobDto {
 }
 
 /**
- * Orchestrates a marketplace catalog import. Lazada (large, real catalogs) runs as a DURABLE
- * background job — created here, enqueued, then progressed by the worker; the UI polls
- * {@link getLatestJob}. Non-Lazada (stub) providers stay SYNCHRONOUS on the request path (tiny
- * catalogs), returning an inline COMPLETED result. Both shapes are the same DTO so the client is
- * uniform: `async=true` → poll, `async=false` → done.
+ * Orchestrates a marketplace catalog import. Real adapters (Lazada + configured Shopee — large
+ * catalogs) run as a DURABLE background job — created here, enqueued, then progressed by the worker;
+ * the UI polls {@link getLatestJob}. Stub/unconfigured providers stay SYNCHRONOUS on the request path
+ * (tiny catalogs), returning an inline COMPLETED result. Both shapes are the same DTO so the client
+ * is uniform: `async=true` → poll, `async=false` → done.
  */
 export class MarketplaceImportJobService {
   async startImport(
@@ -60,7 +61,16 @@ export class MarketplaceImportJobService {
       throw MarketplaceError.validation('Marketplace connection is not active.');
     }
 
-    if (connection.provider !== 'LAZADA') {
+    // Real adapters run the import as a durable background job; stub/unconfigured providers import
+    // inline (tiny catalogs). Shopee only goes async when its app creds are set — without them a
+    // Shopee connection (e.g. a demo/stub) has no real client, so it stays on the inline stub path.
+    const env = getServerEnv();
+    const useBackgroundJob =
+      connection.provider === 'LAZADA' ||
+      (connection.provider === 'SHOPEE' &&
+        Boolean(env.SHOPEE_PARTNER_ID && env.SHOPEE_PARTNER_KEY));
+
+    if (!useBackgroundJob) {
       const result = await marketplaceImportService.importListings(
         organizationId,
         actorUserId,

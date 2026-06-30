@@ -3,22 +3,29 @@ import { prisma } from '@palka/db';
 import {
   buildVariantSkuIndex,
   createLazadaClient,
+  createShopeeClient,
   fetchLazadaListingsPage,
+  fetchShopeeListingsPage,
   isTransientLazadaError,
+  isTransientShopeeError,
   LazadaApiError,
   matchSku,
-  type LazadaClient,
+  ShopeeApiError,
   type LazadaListingItem,
+  type ShopeeListingItem,
 } from '@palka/marketplace-providers';
 import { decrypt } from '@palka/utils/crypto';
 import { logger } from '@palka/utils/logger';
-import type { MarketplaceProvider, Prisma } from '@prisma/client';
+import type { MarketplaceConnection, MarketplaceProvider, Prisma } from '@prisma/client';
 
 import { acquireProviderToken, penalizeProvider } from './provider-rate-limit-redis.js';
 
 // Lazada GetProducts caps `limit` at 50 (100+ → E019 Invalid Limit on a live shop).
-const IMPORT_PAGE_LIMIT = 50;
+const LAZADA_IMPORT_PAGE_LIMIT = 50;
+// Shopee get_item_list caps page_size at 100.
+const SHOPEE_IMPORT_PAGE_LIMIT = 100;
 const LAZADA_BASE_URL = 'https://api.lazada.co.id/rest';
+const SHOPEE_BASE_URL = 'https://partner.shopeemobile.com';
 /** Re-pull overlap that absorbs clock skew + provider eventual consistency (upserts dedupe). */
 const OVERLAP_MS = 10 * 60 * 1000;
 
@@ -35,14 +42,52 @@ export type ImportEngineResult = {
   autoMappedCount: number;
 };
 
+/** One imported listing normalized across providers (the externalVariant grain). */
+type NormalizedImportListing = {
+  externalProductId: string;
+  externalVariantId: string;
+  externalSku: string | null;
+  externalProductName: string;
+  externalVariantName: string | null;
+  stock: number;
+  status: string;
+  /** Per-location sellable warehouse codes (for the connection's known-warehouses set). */
+  warehouseCodes: string[];
+  raw: Record<string, unknown>;
+};
+
+const mapLazadaItem = (item: LazadaListingItem): NormalizedImportListing => ({
+  externalProductId: item.itemId,
+  externalVariantId: item.skuId,
+  externalSku: item.sellerSku,
+  externalProductName: item.productName,
+  externalVariantName: item.variantName,
+  stock: item.quantity,
+  status: item.status,
+  warehouseCodes: item.warehouses.map((wh) => wh.code),
+  raw: item.raw,
+});
+
+const mapShopeeItem = (item: ShopeeListingItem): NormalizedImportListing => ({
+  externalProductId: item.itemId,
+  externalVariantId: item.modelId,
+  externalSku: item.modelSku,
+  externalProductName: item.productName,
+  externalVariantName: item.variantName,
+  stock: item.quantity,
+  status: item.status,
+  warehouseCodes: item.warehouses.map((wh) => wh.code),
+  raw: item.raw,
+});
+
 /** The upsert for ONE listing — built (not awaited) so a whole page can run in one transaction. */
-function buildListingUpsert(ctx: ImportContext, item: LazadaListingItem, now: Date) {
+function buildListingUpsert(ctx: ImportContext, item: NormalizedImportListing, now: Date) {
   return prisma.marketplaceProduct.upsert({
     where: {
       marketplaceConnectionId_externalProductId_externalVariantId: {
         marketplaceConnectionId: ctx.connectionId,
-        externalProductId: item.itemId,
-        externalVariantId: item.skuId,
+        externalProductId: item.externalProductId,
+        externalVariantId: item.externalVariantId,
       },
     },
     create: {
@@ -50,21 +95,21 @@ function buildListingUpsert(ctx: ImportContext, item: LazadaListingItem, now: Da
       organizationId: ctx.organizationId,
       marketplaceConnectionId: ctx.connectionId,
       provider: ctx.provider,
-      externalProductId: item.itemId,
-      externalVariantId: item.skuId,
-      externalSku: item.sellerSku,
-      externalProductName: item.productName,
-      externalVariantName: item.variantName,
-      stock: item.quantity,
+      externalProductId: item.externalProductId,
+      externalVariantId: item.externalVariantId,
+      externalSku: item.externalSku,
+      externalProductName: item.externalProductName,
+      externalVariantName: item.externalVariantName,
+      stock: item.stock,
       status: item.status,
       rawPayload: item.raw as Prisma.InputJsonValue,
       lastImportedAt: now,
     },
     update: {
-      externalSku: item.sellerSku,
-      externalProductName: item.productName,
-      externalVariantName: item.variantName,
-      stock: item.quantity,
+      externalSku: item.externalSku,
+      externalProductName: item.externalProductName,
+      externalVariantName: item.externalVariantName,
+      stock: item.stock,
       status: item.status,
       rawPayload: item.raw as Prisma.InputJsonValue,
       lastImportedAt: now,
@@ -82,11 +127,11 @@ function buildListingUpsert(ctx: ImportContext, item: LazadaListingItem, now: Da
  */
 async function upsertPage(
   ctx: ImportContext,
-  items: LazadaListingItem[],
+  items: NormalizedImportListing[],
   now: Date,
 ): Promise<{ imported: number; errors: number; warehouseCodes: string[] }> {
   const warehouseCodes = new Set<string>();
-  for (const item of items) for (const wh of item.warehouses) warehouseCodes.add(wh.code);
+  for (const item of items) for (const code of item.warehouseCodes) warehouseCodes.add(code);
   if (items.length === 0) return { imported: 0, errors: 0, warehouseCodes: [] };
 
   try {
@@ -110,8 +155,8 @@ async function upsertPage(
       errors += 1;
       logger.warn('marketplace.import.listing_skipped', {
         connectionId: ctx.connectionId,
-        externalProductId: item.itemId,
-        externalVariantId: item.skuId,
+        externalProductId: item.externalProductId,
+        externalVariantId: item.externalVariantId,
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -183,6 +228,99 @@ async function autoMapImported(ctx: ImportContext): Promise<number> {
 
 function mergeWarehouseCodes(existing: string[], fresh: Set<string>): string[] {
   return [...new Set([...existing, ...fresh])].sort();
+}
+
+type ImportPage = {
+  items: NormalizedImportListing[];
+  total: number | undefined;
+  productCount: number;
+};
+type ImportPager = { pageLimit: number; fetchPage: (offset: number) => Promise<ImportPage> };
+
+/**
+ * Provider-specific paged listing fetcher, normalized to one shape for the generic import loop. Each
+ * fetchPage paces EVERY provider call through the shared Redis limiter — Lazada: one /products/get
+ * per page; Shopee: get_item_list + per-item base-info/model-list, all via `beforeCall`. Lazada
+ * supports the incremental `updatedAfter`; Shopee's get_item_list has no update filter → always full.
+ */
+function createImportPager(
+  connection: MarketplaceConnection,
+  accessToken: string,
+  updatedAfter: Date | undefined,
+): ImportPager {
+  const env = getServerEnv();
+
+  if (connection.provider === 'SHOPEE') {
+    const client = createShopeeClient({
+      partnerId: env.SHOPEE_PARTNER_ID ?? '',
+      partnerKey: env.SHOPEE_PARTNER_KEY ?? '',
+      baseUrl: env.SHOPEE_API_BASE_URL ?? SHOPEE_BASE_URL,
+    });
+    return {
+      pageLimit: SHOPEE_IMPORT_PAGE_LIMIT,
+      fetchPage: async (offset) => {
+        const page = await fetchShopeeListingsPage(client, {
+          accessToken,
+          shopId: connection.shopId,
+          offset,
+          pageSize: SHOPEE_IMPORT_PAGE_LIMIT,
+          beforeCall: () => acquireProviderToken('SHOPEE', connection.shopId),
+        });
+        return {
+          items: page.items.map(mapShopeeItem),
+          total: page.total,
+          productCount: page.productCount,
+        };
+      },
+    };
+  }
+
+  const client = createLazadaClient({
+    appKey: env.LAZADA_APP_KEY ?? '',
+    appSecret: env.LAZADA_APP_SECRET ?? '',
+    baseUrl: env.LAZADA_API_BASE_URL ?? LAZADA_BASE_URL,
+  });
+  return {
+    pageLimit: LAZADA_IMPORT_PAGE_LIMIT,
+    fetchPage: async (offset) => {
+      await acquireProviderToken('LAZADA', connection.shopId);
+      const page = await fetchLazadaListingsPage(client, {
+        accessToken,
+        offset,
+        limit: LAZADA_IMPORT_PAGE_LIMIT,
+        updatedAfter,
+      });
+      return {
+        items: page.items.map(mapLazadaItem),
+        total: page.total,
+        productCount: page.productCount,
+      };
+    },
+  };
+}
+
+/** Classify a thrown import error: a provider API error (+ whether it's a transient throttle), or a
+ *  network/infra error (apiError=false → retryable). Drives the retry-vs-fail + penalize decision. */
+function classifyImportError(error: unknown): {
+  apiError: boolean;
+  transient: boolean;
+  code: string | null;
+} {
+  if (error instanceof LazadaApiError) {
+    return {
+      apiError: true,
+      transient: isTransientLazadaError(error.code, error.providerMessage),
+      code: error.code,
+    };
+  }
+  if (error instanceof ShopeeApiError) {
+    return {
+      apiError: true,
+      transient: isTransientShopeeError(error.code, error.providerMessage),
+      code: error.code,
+    };
+  }
+  return { apiError: false, transient: false, code: null };
 }
 
 /**
@@ -262,7 +400,8 @@ async function notifyImportFinished(
  * MarketplaceImportJob row (so a BullMQ retry resumes instead of restarting), auto-maps once at the
  * end, and finalizes the job status. On a persistent throttle it penalizes the shop + throws so
  * BullMQ retries from the checkpoint (until the final attempt, which keeps the partial result).
- * Lazada-only (the live large-catalog case); non-Lazada stubs import synchronously on the request.
+ * Real adapters (LAZADA + SHOPEE) run here; stub/unconfigured providers import synchronously on the
+ * request path instead (see the import-job service).
  */
 export async function runMarketplaceImport(
   importJobId: string,
@@ -300,7 +439,7 @@ export async function runMarketplaceImport(
     data: { status: 'PROCESSING', startedAt: runStartedAt, lastError: null },
   });
 
-  if (connection.provider !== 'LAZADA') {
+  if (connection.provider !== 'LAZADA' && connection.provider !== 'SHOPEE') {
     await prisma.marketplaceImportJob.update({
       where: { id: importJobId },
       data: {
@@ -322,13 +461,6 @@ export async function runMarketplaceImport(
     // Stub/seed connections store a non-cipher placeholder; a real call surfaces its own auth error.
   }
 
-  const env = getServerEnv();
-  const client: LazadaClient = createLazadaClient({
-    appKey: env.LAZADA_APP_KEY ?? '',
-    appSecret: env.LAZADA_APP_SECRET ?? '',
-    baseUrl: env.LAZADA_API_BASE_URL ?? LAZADA_BASE_URL,
-  });
-
   const now = new Date();
   // Incremental: pull only listings changed since the last complete import (minus an overlap). A
   // full re-pull (or a never-imported connection) omits the filter and pages the whole catalog.
@@ -336,6 +468,7 @@ export async function runMarketplaceImport(
     !job.full && connection.listingsSyncedThrough
       ? new Date(connection.listingsSyncedThrough.getTime() - OVERLAP_MS)
       : undefined;
+  const pager = createImportPager(connection, accessToken, updatedAfter);
   let offset = job.offsetCheckpoint;
   let importedRows = job.importedRows;
   let processedProducts = job.processedProducts;
@@ -345,13 +478,7 @@ export async function runMarketplaceImport(
 
   try {
     for (;;) {
-      await acquireProviderToken('LAZADA', connection.shopId);
-      const page = await fetchLazadaListingsPage(client, {
-        accessToken,
-        offset,
-        limit: IMPORT_PAGE_LIMIT,
-        updatedAfter,
-      });
+      const page = await pager.fetchPage(offset);
       if (typeof page.total === 'number') total = page.total;
 
       const result = await upsertPage(ctx, page.items, now);
@@ -359,7 +486,7 @@ export async function runMarketplaceImport(
       errorCount += result.errors;
       for (const code of result.warehouseCodes) warehouseCodes.add(code);
       processedProducts += page.productCount;
-      offset += IMPORT_PAGE_LIMIT;
+      offset += pager.pageLimit;
 
       await prisma.marketplaceImportJob.update({
         where: { id: importJobId },
@@ -372,22 +499,21 @@ export async function runMarketplaceImport(
         },
       });
 
-      if (page.productCount < IMPORT_PAGE_LIMIT) break;
+      if (page.productCount < pager.pageLimit) break;
       if (total !== undefined && offset >= total) break;
     }
   } catch (error) {
-    const lazadaThrottle =
-      error instanceof LazadaApiError && isTransientLazadaError(error.code, error.providerMessage);
-    // Resume from the checkpoint for BOTH a sustained Lazada throttle AND any infra/network blip
+    const { apiError, transient, code } = classifyImportError(error);
+    // Resume from the checkpoint for BOTH a sustained provider throttle AND any infra/network blip
     // (fetch timeout, 5xx, ECONNRESET, a DB/Redis hiccup) — those surface as plain Errors, not a
-    // LazadaApiError. Only a NON-transient LazadaApiError (e.g. auth/permission) is permanent.
-    const retryable = lazadaThrottle || !(error instanceof LazadaApiError);
+    // provider ApiError. Only a NON-transient provider error (e.g. auth/permission) is permanent.
+    const retryable = transient || !apiError;
     const message = error instanceof Error ? error.message : String(error);
 
-    if (lazadaThrottle) await penalizeProvider('LAZADA', connection.shopId);
+    if (transient) await penalizeProvider(connection.provider, connection.shopId);
 
     if (retryable && opts.attemptNumber < opts.maxAttempts) {
-      const lastError = `${lazadaThrottle ? `Lazada throttled (code ${(error as LazadaApiError).code})` : `Import error (${message})`}; resuming from offset ${offset}.`;
+      const lastError = `${transient ? `${connection.provider} throttled (code ${code})` : `Import error (${message})`}; resuming from offset ${offset}.`;
       await prisma.marketplaceImportJob.update({
         where: { id: importJobId },
         data: { lastError },
@@ -398,9 +524,7 @@ export async function runMarketplaceImport(
     // Final attempt, or a permanent provider error: keep any partial progress (don't advance the
     // watermark — PARTIAL/FAILED never do), surface the failure, notify.
     const status = importedRows > 0 ? 'PARTIAL' : 'FAILED';
-    const lastError = lazadaThrottle
-      ? `Lazada throttled (code ${(error as LazadaApiError).code}).`
-      : message;
+    const lastError = transient ? `${connection.provider} throttled (code ${code}).` : message;
     await prisma.marketplaceImportJob.update({
       where: { id: importJobId },
       data: { status, lastError, completedAt: new Date() },
