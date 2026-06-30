@@ -21,20 +21,33 @@ describe('mergeNotificationFeeds', () => {
     const persisted = [note({ id: 'p1' })];
     const derived = [note({ id: 'oversold:3' }), note({ id: 'low-stock:2' })];
     const merged = mergeNotificationFeeds(persisted, derived, new Set(['oversold:3']));
-    expect(merged.map((item) => item.id)).toEqual(['p1', 'low-stock:2']);
+    // Live derived signals lead, the persisted feed follows.
+    expect(merged.map((item) => item.id)).toEqual(['low-stock:2', 'p1']);
   });
 
-  it('floats urgent above info and keeps persisted ahead of derived within a tone', () => {
+  it('leads with live derived signals (urgent first), then the persisted feed in given order', () => {
     const persisted = [
       note({ id: 'p-info', tone: 'info' }),
       note({ id: 'p-urgent', tone: 'urgent' }),
     ];
     const derived = [
-      note({ id: 'd-urgent', tone: 'urgent' }),
       note({ id: 'd-info', tone: 'info' }),
+      note({ id: 'd-urgent', tone: 'urgent' }),
     ];
     const merged = mergeNotificationFeeds(persisted, derived, new Set());
-    expect(merged.map((item) => item.id)).toEqual(['p-urgent', 'd-urgent', 'p-info', 'd-info']);
+    // Derived tone-sorted (urgent first); persisted kept in its server order (chronological).
+    expect(merged.map((item) => item.id)).toEqual(['d-urgent', 'd-info', 'p-info', 'p-urgent']);
+  });
+
+  it('keeps a stale urgent EVENT below its newer resolution (no tone-reorder of the persisted feed)', () => {
+    // The server returns the persisted feed newest-first: a SUCCESS (info) above an older FAILED
+    // (urgent) for the same import. The merge must NOT float the stale failure back to the top.
+    const persisted = [
+      note({ id: 'import-success', tone: 'info' }),
+      note({ id: 'import-failed', tone: 'urgent' }),
+    ];
+    const merged = mergeNotificationFeeds(persisted, [], new Set());
+    expect(merged.map((item) => item.id)).toEqual(['import-success', 'import-failed']);
   });
 
   it('returns the derived feed as-is when there are no persisted rows', () => {

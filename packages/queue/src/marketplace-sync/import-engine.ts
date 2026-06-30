@@ -208,10 +208,18 @@ async function notifyImportFinished(
       ? (stats.lastError ?? 'Terjadi kesalahan saat impor.')
       : `${stats.importedRows} listing diimpor, ${stats.autoMappedCount} otomatis terkait.`;
 
+  // One notification PER CONNECTION = its LATEST import state, so a failed→retried→succeeded run
+  // supersedes IN PLACE instead of stacking a stale failure above the success in the tray. Refresh
+  // the row, bump it to newest (createdAt), and re-surface it as unread (a new terminal state).
+  const dedupeKey = `marketplace-import-${ctx.connectionId}`;
+  const href = `/dashboard/marketplace/${ctx.connectionId}`;
+
   try {
-    await prisma.notification.create({
-      data: {
+    const row = await prisma.notification.upsert({
+      where: { organizationId_dedupeKey: { organizationId: ctx.organizationId, dedupeKey } },
+      create: {
         organizationId: ctx.organizationId,
+        dedupeKey,
         recipientUserId: ctx.actorUserId,
         actorUserId: ctx.actorUserId,
         type: 'SYSTEM',
@@ -219,12 +227,27 @@ async function notifyImportFinished(
         severity,
         title,
         body,
-        href: `/dashboard/marketplace/${ctx.connectionId}`,
-        dedupeKey: `marketplace-import-${importJobId}`,
+        href,
         entityType: 'marketplaceConnection',
         entityId: ctx.connectionId,
       },
+      update: {
+        recipientUserId: ctx.actorUserId,
+        actorUserId: ctx.actorUserId,
+        type: 'SYSTEM',
+        category: 'MARKETPLACE',
+        severity,
+        title,
+        body,
+        href,
+        entityType: 'marketplaceConnection',
+        entityId: ctx.connectionId,
+        createdAt: new Date(),
+      },
+      select: { id: true },
     });
+    // No-op on a fresh create; on a supersede it clears prior read state so the new state shows unread.
+    await prisma.notificationRead.deleteMany({ where: { notificationId: row.id } });
   } catch (error) {
     logger.warn('marketplace.import.notify_failed', {
       importJobId,
