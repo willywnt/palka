@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
   S3Client,
@@ -80,10 +81,12 @@ export class R2ObjectStorageProvider implements ObjectStorageProvider {
 
   async checkAvailability(): Promise<boolean> {
     try {
+      // HeadBucket is a Class B op on R2; a bucket LIST would be Class A. The health
+      // snapshot is polled frequently (container probe), so the cheaper op matters —
+      // it only needs to confirm the bucket is reachable, not enumerate keys.
       await this.client.send(
-        new ListObjectsV2Command({
+        new HeadBucketCommand({
           Bucket: this.bucketName,
-          MaxKeys: 1,
         }),
       );
       return true;
