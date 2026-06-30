@@ -115,6 +115,11 @@ function isListingProblem(mapping: MarketplaceListingMapping): boolean {
   );
 }
 
+/** General, user-facing hint for a problem listing — kept generic so raw provider error text is NOT
+ *  exposed in the UI (the exact reason still lives in the mapping's lastSyncError for logs/support). */
+const LISTING_PROBLEM_HINT =
+  'Listing ini ditolak atau tidak ada lagi di marketplace, jadi sinkronisasi dimatikan otomatis. Putuskan kaitan, lalu impor ulang & kaitkan ke listing yang benar.';
+
 function SyncStatusBadge({ mapping }: { mapping: MarketplaceListingMapping }) {
   if (!mapping.syncEnabled) return null;
   if (mapping.lastSyncStatus === 'SYNCED') {
@@ -358,7 +363,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
                   <StatusBadge tone="danger">Listing bermasalah</StatusBadge>
                 </span>
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-xs">{mapping.lastSyncError}</TooltipContent>
+              <TooltipContent className="max-w-xs text-xs">{LISTING_PROBLEM_HINT}</TooltipContent>
             </Tooltip>
           ) : mapping.mappingStatus === 'NEEDS_REVIEW' ? (
             <StatusBadge tone="warn">Tinjau</StatusBadge>
@@ -393,7 +398,7 @@ export function MarketplaceConnectionDetail({ connectionId }: { connectionId: st
         </TooltipTrigger>
         <TooltipContent className="max-w-xs">
           {isListingProblem(mapping)
-            ? 'Listing ini ditolak / tidak ada lagi di marketplace, jadi sinkronisasi dimatikan otomatis. Putuskan kaitan, lalu impor ulang & kaitkan ke listing yang benar.'
+            ? LISTING_PROBLEM_HINT
             : mapping.mappingStatus === 'NEEDS_REVIEW'
               ? 'Konfirmasi kaitannya dulu sebelum sinkronisasi diaktifkan.'
               : mapping.syncEnabled

@@ -1,13 +1,24 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, RadarIcon, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Link2Off, Loader2, RadarIcon, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { ErrorState } from '@/components/error-state';
 import { StatusBadge } from '@/components/status-badge';
-import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -28,7 +39,11 @@ import {
   useSyncAllMutation,
   useSyncStatusQuery,
 } from '../hooks/use-marketplace-health';
-import { marketplaceListingKeys, useSyncNowMutation } from '../hooks/use-marketplace-listings';
+import {
+  marketplaceListingKeys,
+  useSyncNowMutation,
+  useUnmapListingMutation,
+} from '../hooks/use-marketplace-listings';
 import {
   MARKETPLACE_HEALTH_LABELS,
   STOCK_DRIFT_STATUS_LABELS,
@@ -94,13 +109,18 @@ export function MarketplaceHealthPanel({ connectionId }: { connectionId: string 
   const healthQuery = useMarketplaceConnectionHealthQuery(connectionId);
   const driftMutation = useDriftCheckMutation(connectionId);
   const syncNowMutation = useSyncNowMutation(connectionId);
+  const unmapMutation = useUnmapListingMutation(connectionId);
   const syncAllMutation = useSyncAllMutation(connectionId);
   const syncStatusQuery = useSyncStatusQuery(connectionId, canManage);
 
   const health = healthQuery.data;
   const report = driftMutation.data;
-  // Surface the actionable rows (over/under/missing); in-sync listings stay collapsed.
-  const problems = report?.summary.lines.filter((line) => line.status !== 'in_sync') ?? [];
+  // Listings just unlinked from this table — dropped optimistically so they vanish on click.
+  const [unlinkedIds, setUnlinkedIds] = useState<ReadonlySet<string>>(new Set());
+  // Surface the actionable rows (over/under/missing); in-sync + just-unlinked listings stay hidden.
+  const problems = (report?.summary.lines.filter((line) => line.status !== 'in_sync') ?? []).filter(
+    (line) => !unlinkedIds.has(line.marketplaceProductId),
+  );
 
   const [recentlyClicked, setRecentlyClicked] = useState<ReadonlySet<string>>(new Set());
   const [watching, setWatching] = useState(false);
@@ -232,8 +252,61 @@ export function MarketplaceHealthPanel({ connectionId }: { connectionId: string 
     }
   }
 
+  async function handleUnlink(marketplaceProductId: string) {
+    try {
+      await unmapMutation.mutateAsync(marketplaceProductId);
+      // Drop it from the table at once + refresh health/listings (the next drift check excludes it).
+      setUnlinkedIds((prev) => new Set(prev).add(marketplaceProductId));
+      void queryClient.invalidateQueries({ queryKey: marketplaceKeys.healthDetail(connectionId) });
+      void queryClient.invalidateQueries({ queryKey: marketplaceListingKeys.all(connectionId) });
+      toast.success('Kaitan diputus', { description: 'Listing dilepas dari pemantauan drift.' });
+    } catch (error) {
+      toast.error('Gagal melepas kaitan', {
+        description: error instanceof Error ? error.message : 'Terjadi kesalahan',
+      });
+    }
+  }
+
   function renderSyncAction(line: StockDriftLine) {
     if (!canManage) return null;
+    // A listing that's GONE at the marketplace can't be synced — offer to unlink it (it then drops
+    // off this table). Data in the shop stays; re-import + re-map to reconnect.
+    if (line.status === 'missing_external') {
+      return (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive h-9 sm:h-8"
+              disabled={unmapMutation.isPending}
+            >
+              <Link2Off className="size-4" />
+              Putuskan kaitan
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Putuskan kaitan listing ini?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Listing ini tidak ada lagi di marketplace. Memutus kaitan menghentikan pemantauan
+                drift untuk listing ini — data produk di tokomu tetap aman. Untuk menyambung lagi:
+                impor ulang listing, lalu kaitkan ke listing yang benar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Batal</AlertDialogCancel>
+              <AlertDialogAction
+                className={buttonVariants({ variant: 'destructive' })}
+                onClick={() => void handleUnlink(line.marketplaceProductId)}
+              >
+                Putuskan kaitan
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      );
+    }
     if (!line.syncEnabled) {
       return <span className="text-muted-foreground text-xs">Sinkron mati</span>;
     }
