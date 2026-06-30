@@ -10,6 +10,9 @@ export type {
 } from './stock-payload.js';
 export { fetchShopeeItemsStock, fetchShopeeListings, ShopeeApiError } from './listings.js';
 export type { ShopeeListingItem, ShopeeWarehouseStock } from './listings.js';
+export { isAuthShopeeError, isTransientShopeeError } from './throttle.js';
+export { fetchShopeeOrders } from './orders.js';
+export type { ShopeeOrderLine, ShopeeOrderRecord, ShopeeOrdersResult } from './orders.js';
 export type {
   ShopeeCallOptions,
   ShopeeClient,

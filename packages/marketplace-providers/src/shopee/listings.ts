@@ -1,17 +1,34 @@
 import { isShopeeSuccess } from './client.js';
+import { sleep } from './throttle.js';
 import type { ShopeeClient } from './types.js';
 
 const ITEM_LIST_PATH = '/api/v2/product/get_item_list';
 const ITEM_BASE_INFO_PATH = '/api/v2/product/get_item_base_info';
 const MODEL_LIST_PATH = '/api/v2/product/get_model_list';
 
-const PAGE_SIZE = 50;
-/** Safety cap so a paging bug can't loop forever (≈2000 listings). */
+/** Shopee `get_item_list` page size — the documented max is 100 (the old 50/E019 cap was a Lazada
+ *  GetProducts rule, not Shopee's). 100 halves the number of list calls + conserves the daily quota. */
+const PAGE_SIZE = 100;
+/** Safety cap so a paging bug can't loop forever (≈4000 listings at PAGE_SIZE 100). */
 const MAX_PAGES = 40;
 /** get_item_base_info accepts up to 50 item_ids per call. */
 const ID_BATCH = 50;
 /** Gentle pacing so a large catalog stays under Shopee's per-shop QPS. */
 const CALL_DELAY_MS = 250;
+
+/** Shopee item_status enum (get_item_list `item_status` filter + get_item_base_info `item_status`). */
+export const SHOPEE_ITEM_STATUSES = [
+  'NORMAL',
+  'BANNED',
+  'UNLIST',
+  'REVIEWING',
+  'SELLER_DELETE',
+  'SHOPEE_DELETE',
+] as const;
+export type ShopeeItemStatus = (typeof SHOPEE_ITEM_STATUSES)[number];
+
+/** Only live, sellable listings are imported. */
+const IMPORT_ITEM_STATUS: ShopeeItemStatus = 'NORMAL';
 
 /** Postgres INT4 ceiling — our stock columns are 32-bit; clamp absurd provider values. */
 const INT32_MAX = 2_147_483_647;
@@ -19,10 +36,6 @@ const INT32_MAX = 2_147_483_647;
 function clampStock(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(INT32_MAX, Math.floor(value)));
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** One location's current sellable stock for a model (Shopee `seller_stock`). */
@@ -253,7 +266,7 @@ export async function fetchShopeeListings(
       method: 'GET',
       accessToken: params.accessToken,
       shopId: params.shopId,
-      params: { offset: page * PAGE_SIZE, page_size: PAGE_SIZE, item_status: 'NORMAL' },
+      params: { offset: page * PAGE_SIZE, page_size: PAGE_SIZE, item_status: IMPORT_ITEM_STATUS },
     });
     if (!isShopeeSuccess(response)) throw new ShopeeApiError(response.error, response.message);
 
