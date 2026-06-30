@@ -41,6 +41,18 @@ describe('acquireProviderToken (two-tier Redis token bucket)', () => {
     await acquireProviderToken('LAZADA', 'shop1', redis as never);
     expect(Number(redis.eval.mock.calls[0]?.[5])).toBe(8); // full ceiling
   });
+
+  it('fails OPEN when Redis errors — advisory pacing must never wedge the caller', async () => {
+    const redis = {
+      exists: vi.fn(async () => {
+        throw new Error('redis down');
+      }),
+      eval: vi.fn(async () => 0),
+      set: vi.fn(async () => 'OK'),
+    };
+    // Resolves (proceeds without a token) instead of throwing/hanging.
+    await expect(acquireProviderToken('LAZADA', 'shop1', redis as never)).resolves.toBeUndefined();
+  });
 });
 
 describe('penalizeProvider', () => {
@@ -53,5 +65,16 @@ describe('penalizeProvider', () => {
       'PX',
       expect.any(Number),
     );
+  });
+
+  it('swallows a Redis error (best-effort)', async () => {
+    const redis = {
+      exists: vi.fn(),
+      eval: vi.fn(),
+      set: vi.fn(async () => {
+        throw new Error('redis down');
+      }),
+    };
+    await expect(penalizeProvider('LAZADA', 'shop1', redis as never)).resolves.toBeUndefined();
   });
 });

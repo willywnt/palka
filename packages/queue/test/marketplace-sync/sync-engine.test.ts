@@ -33,8 +33,9 @@ vi.mock('../../src/marketplace-sync/stock-provider.registry.js', () => ({
 }));
 vi.mock('../../src/marketplace-sync/token-refresh.js', () => tokenRefreshMock);
 vi.mock('../../src/marketplace-sync/token-repository.js', () => tokenRepoMock);
-vi.mock('../../src/marketplace-sync/rate-limit.js', () => ({
-  getProviderRateLimiter: () => ({ acquire: vi.fn() }),
+vi.mock('../../src/marketplace-sync/provider-rate-limit-redis.js', () => ({
+  acquireProviderToken: vi.fn(),
+  penalizeProvider: vi.fn(),
 }));
 vi.mock('../../src/marketplace-sync/stock-normalizer.js', () => ({
   normalizeStockUpdateRequest: (input: {

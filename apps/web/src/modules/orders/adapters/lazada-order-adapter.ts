@@ -6,6 +6,7 @@ import {
   fetchLazadaOrders,
   LazadaApiError,
 } from '@palka/marketplace-providers';
+import { acquireProviderToken } from '@palka/queue';
 import type { LazadaClient, LazadaOrderRecord } from '@palka/marketplace-providers';
 import type { MarketplaceProvider } from '@prisma/client';
 
@@ -214,6 +215,10 @@ export class LazadaOrderAdapter implements MarketplaceOrderAdapter {
         : new Date(Date.now() - BACKFILL_MS);
 
     try {
+      // Pace the pull through the shared per-shop/per-app Redis budget (coordinated across the
+      // import + sync + drift, multi-worker-safe). Coarse (one token before the paged pull) —
+      // matches the periodic, cooldown-gated cadence of order pulls.
+      await acquireProviderToken('LAZADA', params.shopId);
       const result = await fetchLazadaOrders(this.client, {
         accessToken: params.accessToken,
         updateAfter: formatLazadaWindow(windowStart),

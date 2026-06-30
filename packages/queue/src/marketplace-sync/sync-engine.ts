@@ -2,7 +2,7 @@ import { getServerEnv } from '@palka/config/env.server';
 import { decrypt, encrypt } from '@palka/utils/crypto';
 import { logger } from '@palka/utils/logger';
 
-import { getProviderRateLimiter } from './rate-limit.js';
+import { acquireProviderToken } from './provider-rate-limit-redis.js';
 import { normalizeStockUpdateRequest } from './stock-normalizer.js';
 import { getMarketplaceStockProvider } from './stock-provider.registry.js';
 import {
@@ -171,7 +171,7 @@ export async function executeStockSync(
   await markSyncJobProcessing(syncJobId);
 
   try {
-    await getProviderRateLimiter(context.provider).acquire();
+    await acquireProviderToken(context.provider, context.shopId);
 
     const adapter = getMarketplaceStockProvider(context.provider);
     const request = normalizeStockUpdateRequest({

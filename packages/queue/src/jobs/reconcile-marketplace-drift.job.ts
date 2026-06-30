@@ -3,12 +3,12 @@ import { decrypt } from '@palka/utils/crypto';
 import { logger } from '@palka/utils/logger';
 
 import {
+  acquireProviderToken,
   computeStockDrift,
   countConnectionListings,
   findActiveConnectionsForDrift,
   findDriftMappedListings,
   getMarketplaceStockProvider,
-  getProviderRateLimiter,
   isAccessTokenExpired,
   resolveSyncWarehouseStock,
 } from '../marketplace-sync/index.js';
@@ -77,7 +77,7 @@ export async function processReconcileMarketplaceDriftJob(
         continue;
       }
 
-      await getProviderRateLimiter(connection.provider).acquire();
+      await acquireProviderToken(connection.provider, connection.shopId);
       const adapter = getMarketplaceStockProvider(connection.provider);
       const externalProductIds = [...new Set(mapped.map((item) => item.externalProductId))];
       // Pull ONLY the mapped items when the adapter supports it (no full-catalog scan).

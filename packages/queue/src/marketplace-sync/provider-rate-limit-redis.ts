@@ -1,4 +1,5 @@
 import { MARKETPLACE_RATE_LIMITS, MARKETPLACE_THROTTLE_COOLDOWN_MS } from '@palka/config/limits';
+import { logger } from '@palka/utils/logger';
 import type { MarketplaceProvider } from '@prisma/client';
 import type { Redis } from 'ioredis';
 
@@ -9,6 +10,27 @@ const KEY_PREFIX = 'mp:rl';
 const BUCKET_TTL_MS = 300_000;
 /** Cap a single inter-attempt sleep so the loop stays responsive on a long wait. */
 const MAX_ACQUIRE_WAIT_MS = 5_000;
+/** Cap a single Redis op so a slow/reconnecting Redis can't block the caller — ioredis would
+ *  otherwise QUEUE the command (offline queue) and wait for reconnect. Rate limiting is ADVISORY
+ *  (the provider fetchers self-pace), so we fail OPEN on a timeout/error: proceed without a token. */
+const REDIS_OP_TIMEOUT_MS = 1_500;
+/** Never block a caller on the limiter longer than this in total (then proceed without a token). */
+const ACQUIRE_BUDGET_MS = 30_000;
+
+/** Reject if the Redis op doesn't settle within `ms`, so a degraded Redis can't hang the caller. */
+async function withTimeout<T>(op: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      op,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('redis op timeout')), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 /**
  * Atomic TWO-TIER token-bucket acquire. Refills both the per-(provider,shop) and the per-provider
@@ -89,24 +111,43 @@ export async function acquireProviderToken(
   const cfg = rateConfig(provider);
   const sKey = shopKey(provider, shopId);
   const aKey = appKey(provider);
+  const deadline = Date.now() + ACQUIRE_BUDGET_MS;
 
   for (;;) {
-    const cooling = (await redis.exists(cooldownKey(provider, shopId))) === 1;
-    const shopRate = cooling ? Math.max(1, cfg.perShopQps / 2) : cfg.perShopQps;
-    const wait = (await redis.eval(
-      ACQUIRE_SCRIPT,
-      2,
-      sKey,
-      aKey,
-      String(Date.now()),
-      String(shopRate),
-      String(cfg.burst),
-      String(cfg.perAppQps),
-      String(cfg.burst),
-      String(BUCKET_TTL_MS),
-    )) as number;
-    if (Number(wait) <= 0) return;
-    await sleep(Math.min(Number(wait), MAX_ACQUIRE_WAIT_MS));
+    let wait: number;
+    try {
+      const cooling =
+        (await withTimeout(redis.exists(cooldownKey(provider, shopId)), REDIS_OP_TIMEOUT_MS)) === 1;
+      const shopRate = cooling ? Math.max(1, cfg.perShopQps / 2) : cfg.perShopQps;
+      wait = Number(
+        await withTimeout(
+          redis.eval(
+            ACQUIRE_SCRIPT,
+            2,
+            sKey,
+            aKey,
+            String(Date.now()),
+            String(shopRate),
+            String(cfg.burst),
+            String(cfg.perAppQps),
+            String(cfg.burst),
+            String(BUCKET_TTL_MS),
+          ),
+          REDIS_OP_TIMEOUT_MS,
+        ),
+      );
+    } catch (error) {
+      // Fail OPEN: a down/slow Redis must never wedge the caller — proceed without a token.
+      logger.warn('marketplace.ratelimit.degraded', {
+        provider,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+    if (wait <= 0) return;
+    const nap = Math.min(wait, MAX_ACQUIRE_WAIT_MS);
+    if (Date.now() + nap > deadline) return; // limiter budget exhausted — proceed rather than block
+    await sleep(nap);
   }
 }
 
@@ -119,5 +160,16 @@ export async function penalizeProvider(
   shopId: string,
   redis: Redis = getSharedRedisConnection(),
 ): Promise<void> {
-  await redis.set(cooldownKey(provider, shopId), '1', 'PX', MARKETPLACE_THROTTLE_COOLDOWN_MS);
+  try {
+    await withTimeout(
+      redis.set(cooldownKey(provider, shopId), '1', 'PX', MARKETPLACE_THROTTLE_COOLDOWN_MS),
+      REDIS_OP_TIMEOUT_MS,
+    );
+  } catch (error) {
+    // Best-effort — a degraded Redis must not fail the caller's flow.
+    logger.warn('marketplace.ratelimit.penalize_failed', {
+      provider,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
