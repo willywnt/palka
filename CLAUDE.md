@@ -297,6 +297,18 @@ developer.tokopedia.com API is terminated. `docs/roadmap/shopee-tokopedia-integr
   warehouse's own sellable. The internal multi-location/WMS generalization is scoped (not built) in
   `docs/roadmap/wms-scoping.md`. A CONFIRMED mapping auto-enables `syncEnabled` (NEEDS_REVIEW stays off).
   Full detail: `.cursor/rules/40-inventory-marketplace.mdc`.
+- **Marketplace API pacing + async import** (scaling, 2026-06-30): ALL provider API paths (import,
+  sync-stock, drift, order-pull) are paced by ONE **shared Redis two-tier token bucket**
+  (`acquireProviderToken(provider, shopId)` in `marketplace-sync/provider-rate-limit-redis.ts` —
+  per-shop + per-app ceilings in `@palka/config` `MARKETPLACE_RATE_LIMITS`; multi-worker safe;
+  advisory + **fail-open** so a degraded Redis never wedges a caller; the in-process limiter was
+  removed). A PAGED fetcher is paced via a `beforeCall` hook the adapter binds (NOT by importing the
+  limiter into `@palka/marketplace-providers` — circular dep). **Lazada listing import is an ASYNC
+  background BullMQ job** (`MarketplaceImportJob` + `marketplace-import` queue + `import-engine.ts`):
+  paged per-token, resumable (offset checkpoint), incremental (`listingsSyncedThrough` + `update_after`,
+  advance-on-complete), the route enqueues + the UI polls/reconnects; non-Lazada stubs stay synchronous.
+  **GetProducts `limit=50`** (100 → E019). Full design + deferred (order-pull windowed backfill, the
+  webhook as the real "many orders" answer): `docs/roadmap/marketplace-import-scaling.md`.
 - **Phase 6 — provider-health + drift reconciliation + token auto-refresh** (shipped 2026-06-15,
   zero-migration, **observe-only**): per-connection health computed on-read (`marketplaceHealthService` →
   ok/warn/danger) drives a "Kesehatan & drift" panel + dashboard badges + a `marketplaceUnhealthy` nav

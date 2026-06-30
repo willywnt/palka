@@ -110,9 +110,26 @@ fallback, placedAt-not-rewritten). Plus the earlier fulfilledAt false-stamp fix.
   (set 20), the real SHIPPED/DELIVERED pull (the test shop's drop-off orders don't reach `shipped` in
   sandbox — needs a self-delivery test order or a real shipment).
 
+## Scaling for many orders (2026-06-30, branch `session/2026-06-30-marketplace-import-scale`)
+
+Full design + status in `docs/roadmap/marketplace-import-scaling.md` §3. Summary:
+
+- **Phase A — per-call pacing: DONE.** `fetchLazadaOrders` now takes a `beforeCall?` hook (threaded
+  through `callWithRetry` — one chokepoint covering every header page + every item batch); the adapter
+  binds `acquireProviderToken('LAZADA', shopId)` (the shared Redis limiter). The old coarse one-token-
+  before-the-whole-pull tripped 901 on a busy-shop backfill (`ceil(N/100)` pages + `ceil(N/20)` item
+  batches). Additive + fail-open.
+- **Phase B — resumable backfill: DESIGNED, NOT built.** Use a **WINDOWED backfill** (completable
+  7-day slices + a `backfillThrough` marker advanced only on a `complete` slice), NOT a per-order
+  timestamp cursor — the same-`updated_at` cohort is a skip/live-lock trap (the 10-min `OVERLAP_MS` is
+  the load-bearing tie-safety floor; never tighten without re-checking). Needs a Lazada upper-bound
+  window param (verify `update_before` on a live shop). Do NOT port the apply to a worker (deeply
+  web-side server-only). Build only when a real busy shop demands it.
+
 ## Next steps
 
 1. Owner visual-QA on the branch, then **push + PR to main**.
 2. Batch 3 hardening is DONE; turn on `ORDERS_AUTO_PULL_INTERVAL_MS` (web) once a real Lazada shop is
    connected (`marketplace_connections` is empty today). Then the **Lazada webhook** (Trade Order
-   notification) as the real-time path with this poll as the reconciliation backstop.
+   notification) as the real-time path with this poll as the reconciliation backstop — the true answer
+   to "many orders" (push > poll).

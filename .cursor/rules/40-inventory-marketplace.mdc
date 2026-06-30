@@ -97,6 +97,12 @@ Org-scoped (`organizationId`), internal-first. Roadmap + locked decisions:
   NORMALIZED sku (`utils/sku-match.ts`, NOT edit-distance — `…-M` ≠ `…-L`); non-exact →
   `NEEDS_REVIEW` + sync stays off (per-listing sync is a **Switch**, disabled while NEEDS_REVIEW).
   `mapByExternalRef` upserts a listing (creating its snapshot if never imported) + its mapping.
+  **Lazada listing import is an ASYNC background BullMQ job** (2026-06-30): `MarketplaceImportJob` +
+  `marketplace-import` queue + `import-engine.ts` — paged under the shared Redis limiter, resumable
+  (offset checkpoint), incremental (`MarketplaceConnection.listingsSyncedThrough` + `update_after`,
+  advance-on-complete); the route enqueues + returns a DTO, the UI polls + reconnects, supersedes a
+  per-connection "done" notification. Non-Lazada stubs stay synchronous. **GetProducts `limit=50`**
+  (100 → E019 Invalid Limit). Full design: `docs/roadmap/marketplace-import-scaling.md`.
 - **orders** — **multi-store pull** `pullFromConnections(org, actor, { connectionIds?, full? })`
   (default every active store) via an **env-gated order adapter**: real **`LazadaOrderAdapter`**
   (`fetchLazadaOrders` — pages `/orders/get`, batch-hydrates `/orders/items/get`, collapses Lazada's
@@ -196,7 +202,9 @@ Org-scoped (`organizationId`), internal-first. Roadmap + locked decisions:
 ## Outbound sync engine (worker-side) — `packages/queue/src/marketplace-sync/`
 SoT change → `enqueuePropagateInventoryStock` (web, best-effort, only if `syncEnabled` mappings
 exist) → `propagate-inventory-stock` job (fan-out, idempotent per ledger event) →
-`sync-marketplace-stock` job → `executeStockSync` (per-provider rate-limit, push LATEST
+`sync-marketplace-stock` job → `executeStockSync` (paced by the SHARED Redis limiter
+`acquireProviderToken(provider, shopId)` — multi-worker safe, advisory+fail-open; the in-process
+limiter was removed 2026-06-30 and the import/drift/order-pull paths share the same budget — push LATEST
 available via the provider adapter) → marks `MarketplaceSyncJob` + mapping `lastSyncStatus` +
 listing snapshot. Retryable failures throw so BullMQ retries. **Provider fallback (guarded):**
 `getMarketplaceStockProvider` returns the `Dev` simulator for an unwired provider ONLY outside
