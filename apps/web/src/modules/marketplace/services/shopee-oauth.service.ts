@@ -60,7 +60,38 @@ class ShopeeOAuthService {
       input.state,
       env.MARKETPLACE_ENCRYPTION_SECRET,
     );
+    return this.createConnectionFromCode({
+      organizationId,
+      actorUserId,
+      code: input.code,
+      shopId: input.shopId,
+    });
+  }
 
+  /**
+   * Connect with a code + shop_id obtained OUT-OF-BAND, where the org/actor come from the
+   * authenticated caller instead of an encrypted `state`. Notably for Shopee's sandbox console
+   * "Authorize Test Partner" tool, which returns ?code&shop_id to the redirect WITHOUT our state.
+   * Same trust model as {@link handleCallback} — the code still comes from Shopee's consent flow,
+   * and the route gates the caller (marketplace.manage), so the connection lands on their own org.
+   */
+  async connectWithCode(input: {
+    organizationId: string;
+    actorUserId: string;
+    code: string;
+    shopId: string;
+  }): Promise<{ connectionId: string }> {
+    return this.createConnectionFromCode(input);
+  }
+
+  /** Exchange a Shopee auth code for tokens and upsert the org-scoped connection. */
+  private async createConnectionFromCode(input: {
+    organizationId: string;
+    actorUserId: string;
+    code: string;
+    shopId: string;
+  }): Promise<{ connectionId: string }> {
+    const env = getServerEnv();
     if (!env.SHOPEE_PARTNER_ID || !env.SHOPEE_PARTNER_KEY) {
       throw MarketplaceError.validation('Kredensial app Shopee belum dikonfigurasi.');
     }
@@ -78,8 +109,8 @@ class ShopeeOAuthService {
     const expiresAt = token.expiresIn > 0 ? new Date(Date.now() + token.expiresIn * 1000) : null;
 
     const connection = await marketplaceServerService.upsertOAuthConnection(
-      organizationId,
-      actorUserId,
+      input.organizationId,
+      input.actorUserId,
       {
         provider: MarketplaceProvider.SHOPEE,
         shopId,
@@ -91,7 +122,7 @@ class ShopeeOAuthService {
     );
 
     appLogger.info('marketplace.shopee.oauth.connected', {
-      organizationId,
+      organizationId: input.organizationId,
       connectionId: connection.id,
       shopId,
     });
