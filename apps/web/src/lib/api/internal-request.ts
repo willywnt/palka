@@ -5,6 +5,8 @@ import { timingSafeEqual } from 'crypto';
 import { getServerEnv } from '@palka/config/env.server';
 import { NextResponse } from 'next/server';
 
+import { getRequestIp } from './request-context';
+
 /**
  * Secret guarding the loopback-only internal endpoints (scheduled order pull, monthly finance
  * auto-gen) that server.ts triggers. Prefers a dedicated INTERNAL_API_SECRET so a leak there can't
@@ -25,13 +27,47 @@ function hasValidSecret(request: Request): boolean {
 }
 
 /**
- * Guard for the internal, secret-gated endpoints. The ONLY legitimate caller is server.ts on the
- * loopback interface, which never traverses the TLS proxy and so carries NO forwarding header. Any
- * request that arrived through the proxy (`x-forwarded-for` / `x-real-ip` present) is by definition
- * not the cron, so it is rejected outright with a flat 403 — it never even reaches the secret check.
- * That removes the public attack surface (the path is still routable through Traefik, but a proxied
- * request can't probe the secret or burn resources). The headerless loopback caller is then verified
- * by the constant-time bearer secret. Returns a Response to short-circuit, or null to proceed.
+ * Is `ip` a loopback / private-network / link-local address (i.e. NOT a public internet address)?
+ * Handles IPv4, IPv6 loopback/ULA/link-local, and IPv4-mapped IPv6 (`::ffff:127.0.0.1`).
+ */
+function isPrivateOrLoopback(ip: string): boolean {
+  const v = ip
+    .trim()
+    .replace(/^\[|\]$/g, '') // strip IPv6 brackets
+    .replace(/%.*$/, '') // strip IPv6 zone id
+    .replace(/^::ffff:/i, '') // unwrap IPv4-mapped IPv6
+    .toLowerCase();
+  if (v === '' || v === '::1' || v === '::') return true; // loopback / unspecified
+  if (/^127\./.test(v)) return true; // IPv4 loopback
+  if (/^10\./.test(v)) return true; // private
+  if (/^192\.168\./.test(v)) return true; // private
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(v)) return true; // private
+  if (/^169\.254\./.test(v)) return true; // IPv4 link-local
+  if (/^(fc|fd)/.test(v)) return true; // IPv6 ULA (fc00::/7)
+  if (/^fe80:/.test(v)) return true; // IPv6 link-local
+  return false;
+}
+
+/** True only when the request genuinely arrived from the public internet (a public client IP). */
+function isExternalRequest(request: Request): boolean {
+  const ip = getRequestIp(request);
+  if (ip === 'unknown') return false;
+  return !isPrivateOrLoopback(ip);
+}
+
+/**
+ * Guard for the internal, secret-gated endpoints (scheduled order pull, monthly finance auto-gen).
+ * The ONLY legitimate caller is server.ts on the loopback interface. A request that genuinely arrived
+ * from the public internet (a PUBLIC client IP, i.e. through the TLS proxy) is rejected with a flat
+ * 403 — BEFORE the secret is even checked — so a public caller can't probe the secret or burn
+ * resources even if the secret leaks. The loopback caller is then verified by the constant-time
+ * bearer secret.
+ *
+ * We key on the REAL client IP ({@link getRequestIp}), NOT the mere presence of a forwarding header:
+ * Next's node server appends `x-forwarded-for` (from the socket) to EVERY request — including the
+ * loopback cron — so a header-presence check 403s the legitimate caller too (this was the bug). A
+ * loopback / private / unknown client IP is internal; only a public IP is rejected. Returns a Response
+ * to short-circuit, or null to proceed.
  */
 export function guardInternalRequest(request: Request): NextResponse | null {
   const env = getServerEnv();
@@ -43,8 +79,7 @@ export function guardInternalRequest(request: Request): NextResponse | null {
     return NextResponse.json({ error: 'internal_secret_unset' }, { status: 503 });
   }
 
-  const isProxied = request.headers.has('x-forwarded-for') || request.headers.has('x-real-ip');
-  if (isProxied) {
+  if (isExternalRequest(request)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
