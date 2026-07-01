@@ -50,12 +50,15 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  // 1. VERIFY over the raw bytes — the only auth for a real push (fail-closed).
+  // 1. VERIFY over the raw bytes — the only auth for a real push (fail-closed). Shopee signs pushes with
+  //    the distinct Push Partner Key (Console → Push Mechanism) when the app has one; fall back to the
+  //    OAuth partner_key otherwise.
+  const env = getServerEnv();
   const verified = verifyShopeePush({
     callbackUrl: resolveCallbackUrl(),
     rawBody,
     authorizationHeader: request.headers.get('authorization'),
-    partnerKey: getServerEnv().SHOPEE_PARTNER_KEY ?? '',
+    partnerKey: env.SHOPEE_PUSH_PARTNER_KEY ?? env.SHOPEE_PARTNER_KEY ?? '',
   });
   if (!verified) {
     appLogger.warn('marketplace.shopee.push.rejected', { reason: 'bad_signature' });

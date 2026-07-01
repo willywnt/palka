@@ -41,6 +41,10 @@ const serverEnvSchema = z
     // (it is part of the push signature base). Defaults to `${NEXT_PUBLIC_APP_URL}/api/v1/webhooks/shopee`
     // when unset; override only if the public host differs.
     SHOPEE_PUSH_CALLBACK_URL: optionalUrl,
+    // Shopee signs PUSH callbacks with a DISTINCT "Push Partner Key" (Console → Push Mechanism), NOT the
+    // OAuth partner_key. When the app exposes one it (not SHOPEE_PARTNER_KEY) verifies incoming pushes.
+    // Unset ⇒ the receiver falls back to SHOPEE_PARTNER_KEY (fine for apps with no separate push key).
+    SHOPEE_PUSH_PARTNER_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
     // TikTok Shop Open API (Tokopedia channel) app credentials + onboarding config.
     TOKOPEDIA_APP_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
     TOKOPEDIA_APP_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
