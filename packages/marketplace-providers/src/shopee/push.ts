@@ -9,6 +9,12 @@ import type { ShopeeClient, ShopeeResponse } from './types.js';
  * Order-level (3, 4) carry `shop_id`; partner-level (2, 12) do NOT.
  */
 export const SHOPEE_PUSH_CODE = {
+  /**
+   * Registration / connectivity test push. `set_app_push_config` (and the Console "Verify" button)
+   * test-POSTs the callback URL and judges it ONLY on a fast 2xx (the ping may be UNSIGNED and carries
+   * `verify_info` to echo). It has NO order side effect, so the receiver answers it BEFORE the HMAC check.
+   */
+  VERIFY: 0,
   /** Shop revoked the app's authorization — the connection can no longer sync. */
   SHOP_DEAUTHORIZATION: 2,
   /** Order status changed (thin: order_sn + status — hydrate via get_order_detail). */

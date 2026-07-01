@@ -321,8 +321,17 @@ until read from the console for this `partner_id`. The limiter's hard-coded fall
       type is PERMANENT). Treat current creds as sandbox/own-shop only until then.
 - [ ] **Per-APP daily-quota guard** (Redis day-key, UTC+8) for `error_limit` — currently classified
       transient (retries) but not paused to next midnight; + special-case `exceed_partner_api` (app-wide pause).
-- [ ] **Push/webhook** (`set_app_push_config`, codes 3/4/2/12) — the real order-scale lever; confirm the push
-      signature (`url|rawBody` vs body-only) live first.
+- [x] **Push/webhook** (`set_app_push_config`, codes 3/4/2/12) — BUILT + DEPLOYED 2026-07-01 (`642a7fa8` +
+      the code:0 fix). `packages/marketplace-providers/src/shopee/push.ts` (`verifyShopeePush`/`parseShopeePush`/
+      `setShopeePushConfig`) + public route `POST /api/v1/webhooks/shopee`. **Signature CONFIRMED** (research +
+      5 real impls + official doc): `HMAC-SHA256(partner_key, `${callbackUrl}|${rawBody}`)` LOWER-hex vs raw
+      `Authorization`, callbackUrl = the exact registered URL, over RAW bytes (never re-serialize). **Registration
+      gotcha (solved):** `set_app_push_config` sends a **code:0 verification test-push** judged ONLY on a fast 2xx
+      (may be UNSIGNED, carries `verify_info` to echo) — a fail-closed verifier 401s it → `error_param: "…response
+    code we get from this callback_url is not 2xx"`. FIX = the route short-circuits `code:0` (echo `verify_info`, 200) BEFORE the HMAC check + answers a bare GET with 200; real pushes (2/3/4/12) stay fail-closed.
+      **DEFERRED:** (a) if a real push fails verify, the app may have a distinct **Live Push Partner Key** (add
+      `SHOPEE_PUSH_PARTNER_KEY`, fallback to `SHOPEE_PARTNER_KEY`); (b) live push→pull needs the sandbox shop
+      CONNECTED on prod (a code:3 push with no connection just logs `no_connection`).
 - [ ] **365-day auth-expiry handling** (push code 12 + deauth code 2 → mark connection stale).
 - [ ] **GO-LIVE API host** — confirm with Shopee (likely regional `openplatform.*`, not partner.shopeemobile.com);
       revisit `DEFAULT_BASE_URL` constants.

@@ -96,6 +96,13 @@ describe('parseShopeePush', () => {
     expect(env?.data.partner_id).toBe(1237107);
   });
 
+  it('parses the registration verify ping (code 0) carrying verify_info', () => {
+    const env = parseShopeePush('{"code":0,"data":{"verify_info":"abc-123"}}');
+    expect(env?.code).toBe(SHOPEE_PUSH_CODE.VERIFY);
+    expect(env?.data.verify_info).toBe('abc-123');
+    expect(env?.shopId).toBeNull();
+  });
+
   it('returns null for a non-envelope body', () => {
     expect(parseShopeePush('not json at all')).toBeNull();
     expect(parseShopeePush('{"no":"code here"}')).toBeNull();

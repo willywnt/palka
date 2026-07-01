@@ -36,23 +36,34 @@ function resolveCallbackUrl(): string {
 
 export async function POST(request: Request): Promise<Response> {
   const rawBody = await request.text();
-  const partnerKey = getServerEnv().SHOPEE_PARTNER_KEY ?? '';
+  const push = parseShopeePush(rawBody);
 
-  // 1. VERIFY over the raw bytes — the only auth for this public route.
+  // 0. REGISTRATION / VERIFICATION PING (code 0). set_app_push_config test-pushes the callback URL and
+  //    passes it purely on a fast 2xx (the ping may be UNSIGNED), so answer BEFORE the HMAC check — echo
+  //    `verify_info` back when present. It carries no order side effect, so skipping verification is safe.
+  if (push && push.code === SHOPEE_PUSH_CODE.VERIFY) {
+    const verifyInfo = typeof push.data.verify_info === 'string' ? push.data.verify_info : null;
+    appLogger.info('marketplace.shopee.push.verify_ping', { echoed: verifyInfo !== null });
+    return NextResponse.json(
+      verifyInfo !== null ? { code: 0, data: { verify_info: verifyInfo } } : { ok: true },
+      { status: 200 },
+    );
+  }
+
+  // 1. VERIFY over the raw bytes — the only auth for a real push (fail-closed).
   const verified = verifyShopeePush({
     callbackUrl: resolveCallbackUrl(),
     rawBody,
     authorizationHeader: request.headers.get('authorization'),
-    partnerKey,
+    partnerKey: getServerEnv().SHOPEE_PARTNER_KEY ?? '',
   });
   if (!verified) {
     appLogger.warn('marketplace.shopee.push.rejected', { reason: 'bad_signature' });
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // 2. PARSE the (now authentic) envelope. A malformed authentic body is odd — log + 200 (don't make
-  //    Shopee retry forever).
-  const push = parseShopeePush(rawBody);
+  // 2. The (now authentic) envelope was parsed above. A malformed authentic body is odd — log + 200
+  //    (don't make Shopee retry forever).
   if (!push) {
     appLogger.warn('marketplace.shopee.push.unparseable', {});
     return NextResponse.json({ ok: true }, { status: 200 });
@@ -119,5 +130,13 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // Always 2xx for an authentic push — a 4xx/5xx storm degrades Shopee's live_push_status to Suspended.
+  return NextResponse.json({ ok: true }, { status: 200 });
+}
+
+/**
+ * Shopee may probe the callback with a bare GET during setup (some registration flows connectivity-check
+ * the URL) — answer 200 fast so the "Verify" step never sees a non-2xx. No auth: a GET carries no push.
+ */
+export function GET(): Response {
   return NextResponse.json({ ok: true }, { status: 200 });
 }
