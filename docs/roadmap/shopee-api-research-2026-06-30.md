@@ -270,8 +270,9 @@ until read from the console for this `partner_id`. The limiter's hard-coded fall
 
 ## 4. What to build / change in Palka (prioritized checklist)
 
-> **STATUS — sandbox wiring session 2026-06-30 → 07-01** (branch `session/2026-06-30-shopee-sandbox-wiring`,
-> 14 commits, gates green, live-validated on sandbox shop 227699564). [x] = shipped, [ ] = deferred.
+> **STATUS — sandbox wiring + order-validation session 2026-06-30 → 07-01** (branch
+> `session/2026-06-30-shopee-sandbox-wiring`, ~19 commits, gates green; listing wiring live-validated on shop
+> 227699564, order pull live-validated on real orders on shop 227701833). [x] = shipped, [ ] = deferred.
 
 **DONE — correctness:**
 
@@ -296,6 +297,23 @@ until read from the console for this `partner_id`. The limiter's hard-coded fall
 - [x] **Real order pull** — `shopee/orders.ts fetchShopeeOrders` (cursor + ≤14d windows → get_order_detail ≤50
       → logistics get_tracking_number) + `ShopeeOrderAdapter`; `order_sn` STRING; conservative status map.
 - [x] **Connect-by-code route** `POST /api/v1/marketplaces/shopee/connect-code` for the sandbox console flow.
+
+**DONE — order pull LIVE-VALIDATED on real orders (2026-07-01):**
+
+- [x] **Created real sandbox orders + ran the REAL `fetchShopeeOrders` against them** — 8 orders across
+      READY_TO_SHIP / PROCESSED / CANCELLED, multi-item + qty variety, parsed correctly (order_sn string,
+      lines, amounts, buyer, tracking-only-for-PROCESSED via logistics get_tracking_number). Order creation
+      recipe: buyer checkout on **`uat.shopee.co.id`** (not test-stable) via Playwright → COD → Place Order;
+      seller `ship_order` (get_shipping_parameter → pickup) → PROCESSED. Full detail in the memory + `docs/roadmap`.
+- [x] **⭐ Confirmed `get_order_detail` returns `model_id: 0` for a no-variation item** — so the order's
+      `(item_id, "0")` matches the listing import's stored `(item_id, "0")` on the PRIMARY byListing key (the
+      SKU fallback is defense-in-depth, not load-bearing). Removes the last mapping uncertainty.
+- [x] **Order-item photo + storefront link on the order detail** — Shopee `item_list[].image_info.image_url` + a built `shopee.co.id/product/{shop_id}/{item_id}` link, via `extractOrderItemMedia` (Shopee branch,
+      keyed by item_id) + `getOrder` (shopId + externalProductId fallback). UI already renders it.
+- [ ] **SHIPPED / COMPLETED live-validation** — NOT reachable in this sandbox (no seller-dashboard action /
+      console/partner API to simulate courier pickup → SHIPPED or delivery+buyer-confirm → COMPLETED; owner
+      verified). Order stays PROCESSED / `LOGISTICS_REQUEST_CREATED`. Both statuses' normalization is unit-tested;
+      live-verify on the first production order.
 
 **DEFERRED:**
 
